@@ -1,0 +1,41 @@
+# Rover
+
+A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events.
+
+## Components
+
+These are specific components which are needed for the functioning of this application.
+
+### Global Tick
+
+- Owns world state, window + rendering context, renderer
+- Advances the world
+- Triggers renders
+- Propogates inputs into physics
+
+### World System
+
+- Materials, properties
+- Collision state
+- Weather events and their state
+- Camera position
+- Entities
+- Atmosphere
+- Specialized physics "functions" to be called in the step function
+
+#### World Generator
+
+- Creates an entire world from a single seed
+
+### Rendering Engine
+
+- Renders visuals based on world state, atmosphere, camera position
+- Renders fog, storms
+
+### Input Event System
+
+- Emits input events
+
+### Audio System
+
+- Generates sounds based on world state
