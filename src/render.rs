@@ -129,6 +129,20 @@ impl ApplicationHandler<State> for App {
                             state.camera_uniform.update(&state.camera);
                         }
                     }
+
+                    KeyCode::KeyQ => {
+                        if let Some(state) = &mut self.state {
+                            state.camera.eye += (0.0, 1.0, 0.0).into();
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
+
+                    KeyCode::KeyE => {
+                        if let Some(state) = &mut self.state {
+                            state.camera.eye -= (0.0, 1.0, 0.0).into();
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}

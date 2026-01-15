@@ -14,7 +14,7 @@ fn main() {
     let mut world = World::new(0);
     world.add_entity(Entity::new(
         "rover".into(),
-        Vector3::new(0.0, -1.0, 0.0),
+        Vector3::new(0.0, 1.0, 0.0),
         Vector3::new(0.0, 1.0, 0.0),
         Vector3::new(0.0, 0.0, 0.0),
         (
