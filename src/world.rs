@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::Index};
 
+use log::debug;
 use nalgebra::{Vector2, Vector3};
 
 use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::Entity};
