@@ -2,6 +2,7 @@ use nalgebra::Vector3;
 
 #[derive(Clone, Debug)]
 pub struct Entity {
+    id: String,
     position: Vector3<f64>,
     velocity: Vector3<f64>,
     acceleration: Vector3<f64>,
@@ -10,18 +11,25 @@ pub struct Entity {
 
 impl Entity {
     pub fn new(
+        id: String,
         position: Vector3<f64>,
         velocity: Vector3<f64>,
         acceleration: Vector3<f64>,
         bounding_box: (Vector3<f64>, Vector3<f64>),
     ) -> Self {
         Self {
+            id,
             position,
             velocity,
             acceleration,
             bounding_box,
         }
     }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
     pub fn tick(&mut self, dt: f64) {
         let k1 = self.acceleration;
         let k2 = self.acceleration + k1 * dt / 2.0;

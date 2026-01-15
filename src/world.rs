@@ -2,12 +2,12 @@ use std::{collections::HashMap, ops::Index};
 
 use nalgebra::{Vector2, Vector3};
 
-use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, core::Entity};
+use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::Entity};
 
 #[derive(Debug)]
 pub struct World {
     seed: u64,
-    entities: Vec<Entity>,
+    entities: HashMap<String, Entity>,
     chunks_loaded: HashMap<(i64, i64), HeightMap<{ CHUNK_SIZE_M }>>,
     chunk_loader: fn(i64, i64) -> HeightMap<{ CHUNK_SIZE_M }>,
 }
@@ -16,10 +16,14 @@ impl World {
     pub fn new(seed: u64) -> Self {
         Self {
             seed: seed,
-            entities: vec![],
+            entities: HashMap::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
-            chunk_loader: |_, _| HeightMap::flat(32),
+            chunk_loader: |_, _| HeightMap::flat(GROUND_HEIGHT),
         }
+    }
+
+    pub fn add_entity(&mut self, entity: Entity) {
+        self.entities.insert(entity.id().into(), entity);
     }
 
     pub fn tick(&mut self, dt: f64) {
@@ -28,7 +32,7 @@ impl World {
 
         // Do at the end
         let mut old_states = Vec::with_capacity(self.entities.len());
-        for entity in self.entities.iter() {
+        for (id, entity) in self.entities.iter() {
             old_states.push((*entity).clone());
         }
         for entity in old_states.iter_mut() {
@@ -95,28 +99,33 @@ impl World {
         // Perform ground collisions
 
         // Checks all possible collisions
-        let mut a_actions: Vec<Box<dyn Fn(&mut Entity) -> ()>> = vec![];
-        for _ in self.entities.iter().map(|a| {
-            for b in self.entities.iter() {
+        let mut actions: HashMap<String, Vec<Box<dyn Fn(&mut Entity) -> ()>>> =
+            HashMap::with_capacity(self.entities.len());
+        for (a_id, a) in self.entities.iter() {
+            for (b_id, b) in self.entities.iter() {
                 if a as *const Entity != b as *const Entity {
-                    let a_action = {
-                        let top_intersection = (a.position().y + a.bounding_box().0.y)
-                            - (b.position().y + b.bounding_box().1.y);
-
-                        a_actions.push(Box::new(move |a: &mut Entity| {
-                            a.translate(Vector3::new(0.0, top_intersection.clone(), 0.0))
-                        }));
-                        break; // Performs only the first collision
+                    let a_actions = match actions.get_mut(a_id) {
+                        Some(a) => a,
+                        None => {
+                            actions.insert(a_id.clone(), vec![]);
+                            actions.get_mut(a_id).unwrap()
+                        }
                     };
-                } else {
-                    a_actions.push(Box::new(|a: &mut Entity| {}));
-                    break;
+                    let top_intersection = (a.position().y + a.bounding_box().0.y)
+                        - (b.position().y + b.bounding_box().1.y);
+
+                    a_actions.push(Box::new(move |a: &mut Entity| {
+                        a.translate(Vector3::new(0.0, top_intersection.clone(), 0.0))
+                    }));
                 }
             }
-        }) {}
+        }
 
-        for i in 0..self.entities.len() {
-            a_actions[i](&mut self.entities[0]);
+        for (entity_id, actions) in actions {
+            let entity = self.entities.get_mut(&entity_id).unwrap();
+            for action in actions {
+                action(entity);
+            }
         }
     }
 }
