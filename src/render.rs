@@ -1,15 +1,19 @@
+pub mod data;
+
 use std::sync::Arc;
 
-use log::{info, warn};
+use log::{debug, info, warn};
 use wgpu::{
-    Backends, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device,
-    ExperimentalFeatures, Face, Features, FragmentState, FrontFace, Instance, InstanceDescriptor,
-    Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
-    PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology,
-    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp,
-    Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, Trace,
-    VertexState, wgt::DeviceDescriptor,
+    Backends, BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, Device, ExperimentalFeatures, Face, Features, FragmentState,
+    FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
+    PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference,
+    PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
+    ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages,
+    TextureViewDescriptor, Trace, VertexState,
+    util::{BufferInitDescriptor, DeviceExt},
+    wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -19,7 +23,107 @@ use winit::{
     window::{Icon, Window, WindowAttributes},
 };
 
-use crate::{assets::ICON, world::World};
+use crate::{assets::ICON, render::data::Vertex, world::World};
+
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.5, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+];
+
+pub struct App {
+    proxy: Option<EventLoopProxy<State>>,
+    state: Option<State>,
+    window_created: bool,
+    width: u32,
+    height: u32,
+    world: Option<World>,
+}
+
+impl App {
+    pub fn new(event_loop: &EventLoop<State>, width: u32, height: u32, world: World) -> Self {
+        Self {
+            proxy: Some(event_loop.create_proxy()),
+            state: None,
+            window_created: false,
+            width,
+            height,
+            world: Some(world),
+        }
+    }
+}
+
+impl ApplicationHandler<State> for App {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if !self.window_created {
+            let mut win_attr = Window::default_attributes();
+            win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(self.width, self.height)));
+            win_attr.title = "Rover".into();
+            win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
+            win_attr.visible = false;
+
+            let window = Arc::new(event_loop.create_window(win_attr).unwrap());
+
+            window.request_redraw();
+
+            self.state = Some(pollster::block_on(State::new(
+                window.clone(),
+                self.world.take().unwrap(),
+            )));
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::Resized(physical_size) => {
+                if let Some(state) = &mut self.state {
+                    state.resize(physical_size.width, physical_size.height);
+                }
+            }
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Destroyed => event_loop.exit(),
+            WindowEvent::KeyboardInput {
+                device_id,
+                event,
+                is_synthetic,
+            } => {
+                info!("Key pressed: {:?}", event)
+            }
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+            } => {
+                info!("Mouse input: {:?}", event)
+            }
+            WindowEvent::RedrawRequested => {
+                if let Some(state) = &mut self.state {
+                    state.update();
+                    match state.render() {
+                        Ok(_) => {}
+                        Err(e) => info!("{}", e),
+                    }
+                    state.window.request_redraw();
+                }
+            }
+            _ => {}
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct State {
@@ -32,6 +136,9 @@ pub struct State {
     is_surface_configured: bool,
 
     render_pipeline: RenderPipeline,
+
+    vertex_buffer: Buffer,
+    num_vertices: u32,
 }
 
 impl State {
@@ -102,7 +209,7 @@ impl State {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[Vertex::desc()],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {
@@ -134,6 +241,14 @@ impl State {
             cache: None,
         });
 
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: BufferUsages::VERTEX,
+        });
+
+        window.set_visible(true);
+
         Self {
             window,
             world,
@@ -142,7 +257,11 @@ impl State {
             queue,
             config,
             is_surface_configured: false,
+
             render_pipeline,
+
+            vertex_buffer,
+            num_vertices: VERTICES.len() as u32,
         }
     }
 
@@ -196,94 +315,12 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..self.num_vertices, 0..1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
         Ok(())
-    }
-}
-
-pub struct App {
-    proxy: Option<EventLoopProxy<State>>,
-    state: Option<State>,
-    window_created: bool,
-    width: u32,
-    height: u32,
-    world: Option<World>,
-}
-
-impl App {
-    pub fn new(event_loop: &EventLoop<State>, width: u32, height: u32, world: World) -> Self {
-        Self {
-            proxy: Some(event_loop.create_proxy()),
-            state: None,
-            window_created: false,
-            width,
-            height,
-            world: Some(world),
-        }
-    }
-}
-
-impl ApplicationHandler<State> for App {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if !self.window_created {
-            let mut win_attr = Window::default_attributes();
-            win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(self.width, self.height)));
-            win_attr.title = "Rover".into();
-            win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
-
-            let window = Arc::new(event_loop.create_window(win_attr).unwrap());
-
-            window.request_redraw();
-
-            self.state = Some(pollster::block_on(State::new(
-                window.clone(),
-                self.world.take().unwrap(),
-            )));
-        }
-    }
-
-    fn window_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: WindowEvent,
-    ) {
-        match event {
-            WindowEvent::Resized(physical_size) => {
-                if let Some(state) = &mut self.state {
-                    state.resize(physical_size.width, physical_size.height);
-                }
-            }
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Destroyed => event_loop.exit(),
-            WindowEvent::KeyboardInput {
-                device_id,
-                event,
-                is_synthetic,
-            } => {
-                info!("Key pressed: {:?}", event)
-            }
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-            } => {
-                info!("Mouse input: {:?}", event)
-            }
-            WindowEvent::RedrawRequested => {
-                if let Some(state) = &mut self.state {
-                    state.update();
-                    match state.render() {
-                        Ok(_) => {}
-                        Err(e) => info!("{}", e),
-                    }
-                }
-            }
-            _ => {}
-        }
     }
 }

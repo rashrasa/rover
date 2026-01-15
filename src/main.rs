@@ -1,7 +1,7 @@
 use log::info;
 use nalgebra::Vector3;
 use rover::{core::Entity, render::App, world::World};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
     env_logger::builder()
@@ -21,6 +21,7 @@ fn main() {
     ));
     let mut app = App::new(&event_loop, 1920, 1080, world);
 
+    event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut app).unwrap();
 
     info!("Starting shutdown");
