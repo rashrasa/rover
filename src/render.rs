@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use log::{info, warn};
 use wgpu::{
-    Backends, Color, CommandEncoderDescriptor, Device, ExperimentalFeatures, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, Operations, PowerPreference, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
-    SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, Trace,
-    wgt::DeviceDescriptor,
+    Backends, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device,
+    ExperimentalFeatures, Face, Features, FragmentState, FrontFace, Instance, InstanceDescriptor,
+    Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
+    PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology,
+    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp,
+    Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, Trace,
+    VertexState, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -27,6 +30,8 @@ pub struct State {
     queue: Queue,
     config: SurfaceConfiguration,
     is_surface_configured: bool,
+
+    render_pipeline: RenderPipeline,
 }
 
 impl State {
@@ -79,6 +84,56 @@ impl State {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
+
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        });
+
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[],
+        });
+
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: PipelineCompilationOptions::default(),
+            },
+            fragment: Some(FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(ColorTargetState {
+                    format: config.format,
+                    blend: Some(BlendState::REPLACE),
+                    write_mask: ColorWrites::ALL,
+                })],
+                compilation_options: PipelineCompilationOptions::default(),
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: Some(Face::Back),
+                polygon_mode: PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        });
+
         Self {
             window,
             world,
@@ -87,6 +142,7 @@ impl State {
             queue,
             config,
             is_surface_configured: false,
+            render_pipeline,
         }
     }
 
@@ -102,8 +158,6 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), SurfaceError> {
-        self.window.request_redraw();
-
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -120,7 +174,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
         {
-            let _render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
@@ -140,6 +194,9 @@ impl State {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.draw(0..3, 0..1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
@@ -179,6 +236,9 @@ impl ApplicationHandler<State> for App {
             win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
 
             let window = Arc::new(event_loop.create_window(win_attr).unwrap());
+
+            window.request_redraw();
+
             self.state = Some(pollster::block_on(State::new(
                 window.clone(),
                 self.world.take().unwrap(),
@@ -194,8 +254,9 @@ impl ApplicationHandler<State> for App {
     ) {
         match event {
             WindowEvent::Resized(physical_size) => {
-                self.width = physical_size.width;
-                self.height = physical_size.height;
+                if let Some(state) = &mut self.state {
+                    state.resize(physical_size.width, physical_size.height);
+                }
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Destroyed => event_loop.exit(),
@@ -213,7 +274,15 @@ impl ApplicationHandler<State> for App {
             } => {
                 info!("Mouse input: {:?}", event)
             }
-            WindowEvent::RedrawRequested => {}
+            WindowEvent::RedrawRequested => {
+                if let Some(state) = &mut self.state {
+                    state.update();
+                    match state.render() {
+                        Ok(_) => {}
+                        Err(e) => info!("{}", e),
+                    }
+                }
+            }
             _ => {}
         }
     }
