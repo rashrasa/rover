@@ -1,5 +1,6 @@
 use log::info;
-use rover::{render::Renderer, world::World};
+use rover::{render::App, world::World};
+use winit::event_loop::EventLoop;
 
 fn main() {
     env_logger::builder()
@@ -8,7 +9,11 @@ fn main() {
         .init();
 
     // Winit wants to own app state
-    Renderer::start(World::new(0), 1280, 720);
+    let event_loop = EventLoop::with_user_event().build().unwrap();
+
+    let mut app = App::new(&event_loop, 1920, 1080, World::new(0));
+
+    event_loop.run_app(&mut app).unwrap();
 
     info!("Starting shutdown");
 }

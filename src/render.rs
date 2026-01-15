@@ -218,15 +218,3 @@ impl ApplicationHandler<State> for App {
         }
     }
 }
-
-pub struct Renderer;
-
-impl Renderer {
-    pub fn start(world: World, width: u32, height: u32) {
-        let event_loop = EventLoop::with_user_event().build().unwrap();
-
-        let mut app = App::new(&event_loop, width, height, world);
-
-        event_loop.run_app(&mut app).unwrap();
-    }
-}
