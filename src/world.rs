@@ -4,6 +4,7 @@ use nalgebra::{Vector2, Vector3};
 
 use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, core::Entity};
 
+#[derive(Debug)]
 pub struct World {
     seed: u64,
     entities: Vec<Entity>,
@@ -120,7 +121,7 @@ impl World {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HeightMap<const LENGTH: usize> {
     map: [[u64; LENGTH]; LENGTH],
 }

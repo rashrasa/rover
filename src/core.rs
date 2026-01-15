@@ -1,6 +1,6 @@
 use nalgebra::Vector3;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Entity {
     position: Vector3<f64>,
     velocity: Vector3<f64>,
