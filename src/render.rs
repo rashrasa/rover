@@ -2,15 +2,19 @@ pub mod data;
 
 use std::sync::Arc;
 
-use log::{debug, info, warn};
+use bytemuck::cast_slice;
+use cgmath::InnerSpace;
+use log::{debug, error, info, warn};
 use wgpu::{
-    Backends, BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, Device, ExperimentalFeatures, Face, Features, FragmentState,
-    FrontFace, IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-    Operations, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode, PowerPreference,
-    PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages,
+    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages, Color,
+    ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, ExperimentalFeatures, Face,
+    Features, FragmentState, FrontFace, IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp,
+    MultisampleState, Operations, PipelineCompilationOptions, PipelineLayout,
+    PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology,
+    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource,
+    ShaderStages, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages,
     TextureViewDescriptor, Trace, VertexState,
     util::{BufferInitDescriptor, DeviceExt},
     wgt::DeviceDescriptor,
@@ -18,33 +22,18 @@ use wgpu::{
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalSize, PhysicalSize, Size},
-    event::WindowEvent,
+    event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    keyboard::{KeyCode, PhysicalKey},
     window::{Icon, Window, WindowAttributes},
 };
 
-use crate::{assets::ICON, render::data::Vertex, world::World};
-
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 1.0, 0.0],
-        color: [0.0, 1.0, 1.0],
-    },
-];
-
-const INDICES: &[u16] = &[0, 1, 2, 2, 3, 1];
+use crate::{
+    assets::ICON,
+    core::{Camera, CameraUniform},
+    render::data::Vertex,
+    world::World,
+};
 
 pub struct App {
     proxy: Option<EventLoopProxy<State>>,
@@ -106,22 +95,57 @@ impl ApplicationHandler<State> for App {
                 device_id,
                 event,
                 is_synthetic,
-            } => {
-                info!("Key pressed: {:?}", event)
-            }
+            } => match event.physical_key {
+                PhysicalKey::Code(k) => match k {
+                    KeyCode::KeyW => {
+                        if let Some(state) = &mut self.state {
+                            state.camera.eye += (0.0, 0.0, 1.0).into();
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
+                    KeyCode::KeyS => {
+                        if let Some(state) = &mut self.state {
+                            state.camera.eye -= (0.0, 0.0, 1.0).into();
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
+                    KeyCode::KeyA => {
+                        if let Some(state) = &mut self.state {
+                            let dist = state.camera.eye - state.camera.target;
+
+                            state.camera.eye = state.camera.target
+                                + cgmath::Matrix3::from_angle_y(cgmath::Deg(15.0)) * dist;
+
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
+                    KeyCode::KeyD => {
+                        if let Some(state) = &mut self.state {
+                            let dist = state.camera.eye - state.camera.target;
+
+                            state.camera.eye = state.camera.target
+                                + cgmath::Matrix3::from_angle_y(cgmath::Deg(-15.0)) * dist;
+
+                            state.camera_uniform.update(&state.camera);
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
             WindowEvent::MouseInput {
                 device_id,
                 state,
                 button,
             } => {
-                info!("Mouse input: {:?}", event)
+                debug!("Mouse input: {:?}", event)
             }
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
                     state.update();
                     match state.render() {
                         Ok(_) => {}
-                        Err(e) => info!("{}", e),
+                        Err(e) => error!("{}", e),
                     }
                     state.window.request_redraw();
                 }
@@ -142,11 +166,17 @@ pub struct State {
     is_surface_configured: bool,
 
     render_pipeline: RenderPipeline,
+    render_pipeline_layout: PipelineLayout,
 
     vertex_buffer: Buffer,
     index_buffer: Buffer,
 
     num_indices: u32,
+
+    camera: Camera,
+    camera_uniform: CameraUniform,
+    camera_buffer: Buffer,
+    camera_bind_group: BindGroup,
 }
 
 impl State {
@@ -205,9 +235,52 @@ impl State {
             source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
+        let camera = Camera {
+            eye: (0.0, 1.0, 2.0).into(),
+            target: (0.0, 0.0, 0.0).into(),
+            up: cgmath::Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fov_y: 45.0,
+            z_near: 0.1,
+            z_far: 1000.0,
+        };
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update(&camera);
+
+        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+
+        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts: &[&camera_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -249,15 +322,22 @@ impl State {
             cache: None,
         });
 
+        let geo = world
+            .iter_entities()
+            .nth(0)
+            .expect("No entities found to draw")
+            .geometry()
+            .clone();
+
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&geo.vertices),
             usage: BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(&geo.indices),
             usage: BufferUsages::INDEX,
         });
 
@@ -273,10 +353,16 @@ impl State {
             is_surface_configured: false,
 
             render_pipeline,
+            render_pipeline_layout,
 
             vertex_buffer,
             index_buffer,
-            num_indices: INDICES.len() as u32,
+            num_indices: geo.indices.len() as u32,
+
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
         }
     }
 
@@ -329,9 +415,18 @@ impl State {
                 timestamp_writes: None,
             });
 
+            self.queue.write_buffer(
+                &self.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[self.camera_uniform]),
+            );
+
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
+
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));

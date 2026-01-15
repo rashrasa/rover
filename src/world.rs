@@ -1,4 +1,7 @@
-use std::{collections::HashMap, ops::Index};
+use std::{
+    collections::{HashMap, hash_map::Values},
+    ops::Index,
+};
 
 use log::debug;
 use nalgebra::{Vector2, Vector3};
@@ -27,26 +30,29 @@ impl World {
         self.entities.insert(entity.id().into(), entity);
     }
 
-    pub fn tick(&mut self, dt: f64) {
+    pub fn iter_entities(&self) -> Values<'_, String, Entity> {
+        self.entities.values()
+    }
+
+    pub fn tick(&mut self, dt: f32) {
         // Perform physics calculations
-        self.perform_collisions();
+        // self.perform_collisions();
 
-        // Do at the end
-        let mut old_states = Vec::with_capacity(self.entities.len());
-        for (id, entity) in self.entities.iter() {
-            old_states.push((*entity).clone());
-        }
-        for entity in old_states.iter_mut() {
-            let pos = entity.position();
-            let ground_y = self.height((pos / CHUNK_SIZE_M as f64).xz());
+        // // Do at the end
+        // let mut old_states = Vec::with_capacity(self.entities.len());
+        // for (id, entity) in self.entities.iter() {
+        //     old_states.push((*entity).clone());
+        // }
+        for entity in self.entities.iter_mut() {
+            // let pos = entity.position();
+            // let ground_y = self.height((pos / CHUNK_SIZE_M as f32).xz());
+            // entity.translate(Vector3::new(0.0, pos.y - ground_y, 0.0));
 
-            entity.translate(Vector3::new(0.0, pos.y - ground_y, 0.0));
-
-            entity.tick(dt);
+            entity.1.tick(dt);
         }
     }
 
-    pub fn height(&mut self, xz: Vector2<f64>) -> f64 {
+    pub fn height(&mut self, xz: Vector2<f32>) -> f32 {
         let x = xz.x;
         let z = xz.y;
 
@@ -69,11 +75,11 @@ impl World {
         let h_0 = chunk_0[(
             x_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
             z_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-        )] as f64;
+        )] as f32;
         let h_1 = chunk_1[(
             x_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
             z_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-        )] as f64;
+        )] as f32;
         h_0 * alpha_0 + h_1 * (1.0 - alpha_0)
     }
 
