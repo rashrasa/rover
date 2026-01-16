@@ -3,7 +3,7 @@ pub mod data;
 use std::{sync::Arc, time::Instant};
 
 use bytemuck::cast_slice;
-use cgmath::InnerSpace;
+use cgmath::{InnerSpace, Matrix4};
 use log::{debug, error, info, warn};
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
@@ -31,7 +31,7 @@ use winit::{
 use crate::{
     METRICS_INTERVAL,
     assets::ICON,
-    core::{Camera, CameraUniform},
+    core::{Camera, CameraUniform, Entity},
     render::data::Vertex,
     world::World,
 };
@@ -193,6 +193,9 @@ pub struct State {
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 
+    instances: Vec<[[f32; 4]; 4]>,
+    instance_buffer: Buffer,
+
     // metrics
     start: Instant,
     n_renders: u64,
@@ -255,7 +258,7 @@ impl State {
         });
 
         let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
+            eye: (0.0, 1.0, -10.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
@@ -309,7 +312,7 @@ impl State {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::desc(), Entity::desc()],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {
@@ -340,24 +343,27 @@ impl State {
             multiview: None,
             cache: None,
         });
-
-        let geo = world
-            .iter_entities()
-            .nth(0)
-            .expect("No entities found to draw")
-            .get_geometry()
-            .clone();
+        let cube_mesh = world.iter_meshes().nth(0).unwrap();
+        let num_indices = cube_mesh.indices().len() as u32;
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&geo.vertices),
+            contents: bytemuck::cast_slice(cube_mesh.vertices()),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&geo.indices),
+            contents: bytemuck::cast_slice(cube_mesh.indices()),
             usage: BufferUsages::INDEX,
+        });
+
+        let instances: Vec<[[f32; 4]; 4]> = world.instances();
+
+        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&instances),
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         window.set_visible(true);
@@ -376,12 +382,15 @@ impl State {
 
             vertex_buffer,
             index_buffer,
-            num_indices: geo.indices.len() as u32,
+            num_indices,
 
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
+
+            instances,
+            instance_buffer,
 
             start: Instant::now(),
             n_renders: 0,
@@ -408,18 +417,11 @@ impl State {
             .clone();
 
         self.camera.target = (target.x, target.y, target.z).into();
+
         self.queue.write_buffer(
-            &self.vertex_buffer,
+            &self.instance_buffer,
             0,
-            bytemuck::cast_slice(
-                &self
-                    .world
-                    .iter_entities()
-                    .nth(0)
-                    .unwrap()
-                    .get_geometry()
-                    .vertices,
-            ),
+            bytemuck::cast_slice(&self.world.instances()),
         );
     }
 
@@ -471,9 +473,11 @@ impl State {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
 
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as u32);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

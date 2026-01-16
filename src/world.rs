@@ -3,10 +3,13 @@ use std::{
     ops::Index,
 };
 
+use cgmath::{InnerSpace, Vector2, Vector3};
 use log::debug;
-use nalgebra::{Vector2, Vector3};
 
-use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::Entity};
+use crate::{
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_HEIGHT, RENDER_DISTANCE,
+    core::{Entity, Mesh, MeshType},
+};
 
 #[derive(Debug)]
 pub struct World {
@@ -14,15 +17,22 @@ pub struct World {
     entities: HashMap<String, Entity>,
     chunks_loaded: HashMap<(i64, i64), HeightMap<{ CHUNK_SIZE_M }>>,
     chunk_loader: fn(i64, i64) -> HeightMap<{ CHUNK_SIZE_M }>,
+    meshes: HashMap<MeshType, Mesh>,
 }
 
 impl World {
     pub fn new(seed: u64) -> Self {
+        let mut meshes = HashMap::with_capacity(1);
+        meshes.insert(
+            MeshType::Cube,
+            Mesh::new(CUBE_MESH_VERTICES.to_vec(), CUBE_MESH_INDICES.to_vec()),
+        );
         Self {
             seed: seed,
             entities: HashMap::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
             chunk_loader: |_, _| HeightMap::flat(GROUND_HEIGHT),
+            meshes,
         }
     }
 
@@ -32,6 +42,25 @@ impl World {
 
     pub fn iter_entities(&self) -> Values<'_, String, Entity> {
         self.entities.values()
+    }
+
+    pub fn iter_meshes(&self) -> Values<'_, MeshType, Mesh> {
+        self.meshes.values()
+    }
+
+    pub fn instances(&self) -> Vec<[[f32; 4]; 4]> {
+        self.entities
+            .iter()
+            .map(|(_, e)| {
+                let model = e.model().clone();
+                [
+                    [model.x.x, model.x.y, model.x.z, model.x.w],
+                    [model.y.x, model.y.y, model.y.z, model.y.w],
+                    [model.z.x, model.z.y, model.z.z, model.z.w],
+                    [model.w.x, model.w.y, model.w.z, model.w.w],
+                ]
+            })
+            .collect()
     }
 
     pub fn tick(&mut self, dt: f32) {
