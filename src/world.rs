@@ -43,12 +43,12 @@ impl World {
         // for (id, entity) in self.entities.iter() {
         //     old_states.push((*entity).clone());
         // }
-        for entity in self.entities.iter_mut() {
+        for (id, entity) in self.entities.iter_mut() {
             // let pos = entity.position();
             // let ground_y = self.height((pos / CHUNK_SIZE_M as f32).xz());
             // entity.translate(Vector3::new(0.0, pos.y - ground_y, 0.0));
 
-            entity.1.tick(dt);
+            entity.tick(dt);
         }
     }
 

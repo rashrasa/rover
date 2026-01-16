@@ -326,13 +326,13 @@ impl State {
             .iter_entities()
             .nth(0)
             .expect("No entities found to draw")
-            .geometry()
+            .get_geometry()
             .clone();
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&geo.vertices),
-            usage: BufferUsages::VERTEX,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -375,6 +375,30 @@ impl State {
 
     pub fn update(&mut self) {
         self.world.tick(1.0 / 240.0);
+
+        // TODO: Extremely inefficient
+        let target = self
+            .world
+            .iter_entities()
+            .nth(0)
+            .unwrap()
+            .position()
+            .clone();
+
+        self.camera.target = (target.x, target.y, target.z).into();
+        self.queue.write_buffer(
+            &self.vertex_buffer,
+            0,
+            bytemuck::cast_slice(
+                &self
+                    .world
+                    .iter_entities()
+                    .nth(0)
+                    .unwrap()
+                    .get_geometry()
+                    .vertices,
+            ),
+        );
     }
 
     pub fn render(&mut self) -> Result<(), SurfaceError> {
