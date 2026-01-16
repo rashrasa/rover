@@ -1,6 +1,6 @@
 pub mod data;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use bytemuck::cast_slice;
 use cgmath::InnerSpace;
@@ -29,6 +29,7 @@ use winit::{
 };
 
 use crate::{
+    METRICS_INTERVAL,
     assets::ICON,
     core::{Camera, CameraUniform},
     render::data::Vertex,
@@ -191,6 +192,10 @@ pub struct State {
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
+
+    // metrics
+    start: Instant,
+    n_renders: u64,
 }
 
 impl State {
@@ -377,6 +382,9 @@ impl State {
             camera_uniform,
             camera_buffer,
             camera_bind_group,
+
+            start: Instant::now(),
+            n_renders: 0,
         }
     }
 
@@ -470,6 +478,12 @@ impl State {
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
+        self.n_renders += 1;
+        if self.start.elapsed() > METRICS_INTERVAL {
+            info!("FPS: {}", self.n_renders);
+            self.start = Instant::now();
+            self.n_renders = 0;
+        }
         Ok(())
     }
 }

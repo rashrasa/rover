@@ -1,8 +1,11 @@
 // All constants will be stored here.
 
+use std::time::Duration;
+
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;
 pub const GROUND_HEIGHT: u64 = 32;
+pub const METRICS_INTERVAL: Duration = Duration::new(1, 0);
 
 pub mod assets;
 pub mod audio;
