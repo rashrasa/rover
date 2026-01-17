@@ -16,6 +16,7 @@ pub const RENDER_DISTANCE: usize = 8;
 pub const GROUND_HEIGHT: u64 = 0;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 1_000;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
+pub const CAMERA_SPEED: f32 = 5.0;
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
     cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),

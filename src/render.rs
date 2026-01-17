@@ -23,7 +23,7 @@ use wgpu::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalSize, PhysicalSize, Size},
+    dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Size},
     event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::{KeyCode, PhysicalKey},
@@ -34,6 +34,7 @@ use crate::{
     GROUND_HEIGHT, METRICS_INTERVAL,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
+    input::InputController,
     render::{
         camera::{Camera, CameraUniform, Projection},
         mesh::Mesh,
@@ -53,17 +54,17 @@ pub enum Event {
 pub struct App {
     state: AppState,
 
-    proxy: EventLoopProxy<Event>,
     world: World,
+    input: InputController,
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
+    pub fn new(_: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
         Self {
-            proxy: event_loop.create_proxy(),
             state: AppState::NeedsInit(width, height, Vec::new(), Vec::new()),
 
             world: World::new(seed),
+            input: InputController::new(),
         }
     }
 
@@ -157,6 +158,10 @@ impl ApplicationHandler<Event> for App {
         window_id: WindowId,
         event: WindowEvent,
     ) {
+        if let AppState::Started(renderer) = &mut self.state {
+            self.input.window_event(&event, &renderer.window);
+        }
+
         match event {
             WindowEvent::Resized(physical_size) => {
                 if let AppState::Started(renderer) = &mut self.state {
@@ -165,72 +170,15 @@ impl ApplicationHandler<Event> for App {
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Destroyed => event_loop.exit(),
-            WindowEvent::KeyboardInput {
-                device_id,
-                event,
-                is_synthetic,
-            } => match event.physical_key {
-                PhysicalKey::Code(k) => match k {
-                    KeyCode::KeyW => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.forward(1.0);
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-                    KeyCode::KeyS => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.backward(1.0);
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-                    KeyCode::KeyA => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.left(1.0);
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-                    KeyCode::KeyD => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.right(1.0);
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-
-                    KeyCode::KeyQ => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.look_left(Rad(PI / 12.0));
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-
-                    KeyCode::KeyE => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.look_right(Rad(PI / 12.0));
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-
-                    KeyCode::Space => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(0.0, 1.0, 0.0).into());
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-
-                    KeyCode::ShiftLeft | KeyCode::ShiftRight => {
-                        if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(0.0, -1.0, 0.0).into());
-                            renderer.camera_uniform.update(&renderer.camera);
-                        }
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
 
             WindowEvent::RedrawRequested => {
                 if let AppState::Started(renderer) = &mut self.state {
                     self.world.update();
+                    self.input.update(
+                        1.0 / 240.0,
+                        &mut renderer.camera,
+                        &mut renderer.camera_uniform,
+                    );
                     renderer.upsert_instances(
                         self.world
                             .iter_entities()
