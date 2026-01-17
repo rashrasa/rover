@@ -1,5 +1,5 @@
 pub mod camera;
-pub mod data;
+pub mod vertex;
 
 use std::{f32::consts::PI, sync::Arc, time::Instant};
 
@@ -36,7 +36,7 @@ use crate::{
     core::world::World,
     render::{
         camera::{Camera, CameraUniform, Projection},
-        data::Vertex,
+        vertex::Vertex,
     },
 };
 

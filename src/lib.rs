@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use cgmath::Vector3;
 
-use crate::{core::Mesh, render::data::Vertex};
+use crate::{core::Mesh, render::vertex::Vertex};
 
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;

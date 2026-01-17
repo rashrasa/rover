@@ -1,7 +1,7 @@
 pub mod entity;
 pub mod world;
 
-use crate::render::data::Vertex;
+use crate::render::vertex::Vertex;
 
 #[derive(Debug)]
 pub struct Mesh {
