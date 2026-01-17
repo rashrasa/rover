@@ -193,7 +193,7 @@ pub struct State {
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 
-    instances: Vec<[[f32; 4]; 4]>,
+    instances: Vec<(Vec<[[f32; 4]; 4]>, usize, usize, usize)>,
     instance_buffer: Buffer,
 
     // metrics
@@ -202,7 +202,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>, world: World) -> Self {
+    pub async fn new(window: Arc<Window>, mut world: World) -> Self {
         let size = window.inner_size();
 
         let instance = Instance::new(&InstanceDescriptor {
@@ -258,7 +258,7 @@ impl State {
         });
 
         let camera = Camera {
-            eye: (0.0, 1.0, -10.0).into(),
+            eye: (0.0, 5.0, -10.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
@@ -343,26 +343,66 @@ impl State {
             multiview: None,
             cache: None,
         });
-        let cube_mesh = world.iter_meshes().nth(0).unwrap();
-        let num_indices = cube_mesh.indices().len() as u32;
+
+        let mut current_index_offset: usize = 0;
+        let mut num_indices: u32 = 0;
+
+        let mut vertices: Vec<Vertex> = vec![];
+        let mut indices: Vec<u16> = vec![];
+
+        let mesh = world.get_mesh("Cube").unwrap();
+        vertices.extend_from_slice(mesh.vertices());
+        indices.extend_from_slice(
+            &mesh
+                .indices()
+                .iter()
+                .map(|i| i.clone() + current_index_offset as u16)
+                .collect::<Vec<u16>>(),
+        );
+
+        current_index_offset += mesh.vertices().len();
+        num_indices += mesh.indices().len() as u32;
+
+        let mesh = world.get_mesh("Flat16").unwrap();
+        vertices.extend_from_slice(mesh.vertices());
+        indices.extend_from_slice(
+            &mesh
+                .indices()
+                .iter()
+                .map(|i| i.clone() + current_index_offset as u16)
+                .collect::<Vec<u16>>(),
+        );
+
+        current_index_offset += mesh.vertices().len();
+        num_indices += mesh.indices().len() as u32;
+
+        error!("nm indices {}", num_indices);
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(cube_mesh.vertices()),
+            contents: bytemuck::cast_slice(&vertices),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(cube_mesh.indices()),
+            contents: bytemuck::cast_slice(&indices),
             usage: BufferUsages::INDEX,
         });
 
-        let instances: Vec<[[f32; 4]; 4]> = world.instances();
+        let instances = world.instances_to_draw();
 
         let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instances),
+            contents: bytemuck::cast_slice(
+                &(instances
+                    .iter()
+                    .map(|a| a.0.clone())
+                    .collect::<Vec<Vec<[[f32; 4]; 4]>>>()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<[[f32; 4]; 4]>>()),
+            ),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
@@ -421,7 +461,17 @@ impl State {
         self.queue.write_buffer(
             &self.instance_buffer,
             0,
-            bytemuck::cast_slice(&self.world.instances()),
+            bytemuck::cast_slice(
+                &(self
+                    .world
+                    .instances_to_draw()
+                    .iter()
+                    .map(|a| a.0.clone())
+                    .collect::<Vec<Vec<[[f32; 4]; 4]>>>()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<[[f32; 4]; 4]>>()),
+            ),
         );
     }
 
@@ -477,7 +527,9 @@ impl State {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
 
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as u32);
+            for (_, num, start, end) in &self.instances {
+                render_pass.draw_indexed((*start) as u32..(*end) as u32, 0, 0..(*num) as u32);
+            }
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

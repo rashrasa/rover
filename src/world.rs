@@ -4,36 +4,35 @@ use std::{
 };
 
 use cgmath::{InnerSpace, Vector2, Vector3};
-use log::debug;
+use log::{debug, error};
 
 use crate::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_HEIGHT, RENDER_DISTANCE,
-    core::{Entity, Mesh, MeshType},
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH_INDICES, RENDER_DISTANCE,
+    core::{Entity, Mesh},
 };
 
 #[derive(Debug)]
 pub struct World {
     seed: u64,
     entities: HashMap<String, Entity>,
-    chunks_loaded: HashMap<(i64, i64), HeightMap<{ CHUNK_SIZE_M }>>,
-    chunk_loader: fn(i64, i64) -> HeightMap<{ CHUNK_SIZE_M }>,
-    meshes: HashMap<MeshType, Mesh>,
+    chunks_loaded: HashMap<(i64, i64), HeightMap>,
+    chunk_loader: fn(i64, i64) -> HeightMap,
+    meshes: HashMap<String, Mesh>,
 }
 
 impl World {
     pub fn new(seed: u64) -> Self {
-        let mut meshes = HashMap::with_capacity(1);
-        meshes.insert(
-            MeshType::Cube,
-            Mesh::new(CUBE_MESH_VERTICES.to_vec(), CUBE_MESH_INDICES.to_vec()),
-        );
         Self {
             seed: seed,
             entities: HashMap::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
             chunk_loader: |_, _| HeightMap::flat(GROUND_HEIGHT),
-            meshes,
+            meshes: HashMap::new(),
         }
+    }
+
+    pub fn add_mesh(&mut self, id: &str, mesh: Mesh) {
+        self.meshes.insert(id.into(), mesh);
     }
 
     pub fn add_entity(&mut self, entity: Entity) {
@@ -44,12 +43,13 @@ impl World {
         self.entities.values()
     }
 
-    pub fn iter_meshes(&self) -> Values<'_, MeshType, Mesh> {
-        self.meshes.values()
+    pub fn get_mesh(&self, id: &str) -> Option<&Mesh> {
+        self.meshes.get(id)
     }
 
-    pub fn instances(&self) -> Vec<[[f32; 4]; 4]> {
-        self.entities
+    pub fn instances_to_draw(&mut self) -> Vec<(Vec<[[f32; 4]; 4]>, usize, usize, usize)> {
+        let cubes: Vec<[[f32; 4]; 4]> = self
+            .entities
             .iter()
             .map(|(_, e)| {
                 let model = e.model().clone();
@@ -60,7 +60,35 @@ impl World {
                     [model.w.x, model.w.y, model.w.z, model.w.w],
                 ]
             })
-            .collect()
+            .collect();
+        let mut ground = vec![];
+        for i in -40..40 {
+            for j in -40..40 {
+                for k in 0..16 {
+                    let x: f32 = (i as f32) * 4.0 + (k % 4) as f32;
+                    let z: f32 = (j as f32) * 4.0 + (k / 4) as f32;
+                    let y: f32 = self.height([x, z].into());
+
+                    ground.push([
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [x, y, z, 1.0],
+                    ]);
+                }
+            }
+        }
+        let cubes_count = cubes.len().clone();
+        let ground_count = ground.len().clone();
+        vec![
+            (cubes, cubes_count, 0, CUBE_MESH_INDICES.len()),
+            (
+                ground,
+                ground_count,
+                CUBE_MESH_INDICES.len(),
+                CUBE_MESH_INDICES.len() + GROUND_MESH_INDICES.len(),
+            ),
+        ]
     }
 
     pub fn tick(&mut self, dt: f32) {
@@ -86,7 +114,7 @@ impl World {
         let z = xz.y;
 
         let lower = Vector2::new(x.floor(), z.floor());
-        let higher = Vector2::new(x.ceil(), z.ceil());
+        let higher = Vector2::new(x.floor() + 1.0, z.floor() + 1.0);
 
         let dist = (higher - lower).magnitude();
         let p_dist = (higher - xz).magnitude();
@@ -112,13 +140,13 @@ impl World {
         h_0 * alpha_0 + h_1 * (1.0 - alpha_0)
     }
 
-    pub fn request_chunk(&mut self, x: f64, z: f64) -> HeightMap<{ CHUNK_SIZE_M }> {
+    pub fn request_chunk(&mut self, x: f64, z: f64) -> HeightMap {
         let x = x as i64;
         let z = z as i64;
         self.request_chunk_exact(x, z)
     }
 
-    pub fn request_chunk_exact(&mut self, x: i64, z: i64) -> HeightMap<{ CHUNK_SIZE_M }> {
+    pub fn request_chunk_exact(&mut self, x: i64, z: i64) -> HeightMap {
         match self.chunks_loaded.get(&(x, z)) {
             Some(s) => s.clone(),
             None => {
@@ -167,19 +195,19 @@ impl World {
 }
 
 #[derive(Clone, Debug)]
-pub struct HeightMap<const LENGTH: usize> {
-    map: [[u64; LENGTH]; LENGTH],
+pub struct HeightMap {
+    map: [[u64; CHUNK_SIZE_M]; CHUNK_SIZE_M],
 }
 
-impl<const LENGTH: usize> HeightMap<LENGTH> {
+impl HeightMap {
     fn flat(height: u64) -> Self {
         Self {
-            map: [[height; LENGTH]; LENGTH],
+            map: [[height; CHUNK_SIZE_M]; CHUNK_SIZE_M],
         }
     }
 }
 
-impl<const LENGTH: usize> Index<(usize, usize)> for HeightMap<{ LENGTH }> {
+impl Index<(usize, usize)> for HeightMap {
     type Output = u64;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {

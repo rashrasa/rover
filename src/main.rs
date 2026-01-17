@@ -1,8 +1,9 @@
 use cgmath::{Matrix4, Vector3};
 use log::info;
 use rover::{
-    core::{Entity, MeshType},
-    render::App,
+    CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH_INDICES, GROUND_MESH_VERTICES,
+    core::{Entity, Mesh, MeshType},
+    render::{App, data::Vertex},
     world::World,
 };
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -16,12 +17,19 @@ fn main() {
     // Winit wants to own app state
     let event_loop = EventLoop::with_user_event().build().unwrap();
     let mut world = World::new(0);
-
+    world.add_mesh(
+        "Cube",
+        Mesh::new(CUBE_MESH_VERTICES.to_vec(), CUBE_MESH_INDICES.to_vec()),
+    );
+    world.add_mesh(
+        "Flat16",
+        Mesh::new(GROUND_MESH_VERTICES.to_vec(), GROUND_MESH_INDICES.to_vec()),
+    );
     for i in 0..105 {
         world.add_entity(Entity::new(
             format!("rover_{}", i).into(),
-            Vector3::new(0.0, 0.2, 0.0),
-            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.0, 5.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
             (
                 Vector3::new(1.0, 1.0, 1.0) / 2.0,
                 Vector3::new(-1.0, -1.0, -1.0) / 2.0,
