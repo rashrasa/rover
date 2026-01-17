@@ -1,7 +1,8 @@
 pub mod camera;
+pub mod mesh;
 pub mod vertex;
 
-use std::{f32::consts::PI, sync::Arc, time::Instant};
+use std::{collections::HashMap, f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
 
 use bytemuck::cast_slice;
 use cgmath::{InnerSpace, Matrix4, Rad};
@@ -26,72 +27,118 @@ use winit::{
     event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::{KeyCode, PhysicalKey},
-    window::{Icon, Window, WindowAttributes},
+    window::{Icon, Window, WindowAttributes, WindowId},
 };
 
 use crate::{
     METRICS_INTERVAL,
     assets::ICON,
-    core::entity::Entity,
-    core::world::World,
+    core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     render::{
         camera::{Camera, CameraUniform, Projection},
+        mesh::Mesh,
         vertex::Vertex,
     },
 };
 
+enum AppState {
+    NeedsInit(u32, u32, Vec<(String, Vec<Vertex>, Vec<u16>)>, Vec<Entity>), // window width, height, meshes to push, entities to push
+    Started(Renderer),
+}
+
+pub enum Event {
+    WindowEvent(WindowId, WindowEvent),
+}
+
 pub struct App {
-    proxy: Option<EventLoopProxy<State>>,
-    state: Option<State>,
-    window_created: bool,
-    width: u32,
-    height: u32,
-    world: Option<World>,
+    state: AppState,
+
+    proxy: EventLoopProxy<Event>,
+    world: World,
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<State>, width: u32, height: u32, world: World) -> Self {
+    pub fn new(event_loop: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
         Self {
-            proxy: Some(event_loop.create_proxy()),
-            state: None,
-            window_created: false,
-            width,
-            height,
-            world: Some(world),
+            proxy: event_loop.create_proxy(),
+            state: AppState::NeedsInit(width, height, Vec::new(), Vec::new()),
+
+            world: World::new(seed),
+        }
+    }
+
+    pub fn add_meshes(&mut self, meshes: Iter<(&str, &[vertex::Vertex], &[u16])>) {
+        match &mut self.state {
+            AppState::NeedsInit(_, _, mesh_queue, _) => {
+                for (mesh_id, vertices, indices) in meshes {
+                    mesh_queue.push((mesh_id.to_string(), vertices.to_vec(), indices.to_vec()));
+                }
+            }
+            AppState::Started(renderer) => {
+                renderer.add_meshes(meshes).unwrap();
+            }
+        }
+    }
+
+    pub fn add_entity(&mut self, entity: Entity) {
+        match &mut self.state {
+            AppState::NeedsInit(_, _, _, entity_queue) => {
+                entity_queue.push(entity);
+            }
+            AppState::Started(renderer) => {
+                renderer.upsert_instances([(entity.id(), entity.model())].iter());
+                self.world.add_entity(entity);
+            }
         }
     }
 }
 
-impl ApplicationHandler<State> for App {
+impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if !self.window_created {
-            let mut win_attr = Window::default_attributes();
-            win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(self.width, self.height)));
-            win_attr.title = "Rover".into();
-            win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
-            win_attr.visible = false;
+        match &mut self.state {
+            AppState::NeedsInit(w, h, meshes, entities) => {
+                let mut win_attr = Window::default_attributes();
+                win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(*w, *h)));
+                win_attr.title = "Rover".into();
+                win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
+                win_attr.visible = false;
 
-            let window = Arc::new(event_loop.create_window(win_attr).unwrap());
+                let window = Arc::new(event_loop.create_window(win_attr).unwrap());
 
-            window.request_redraw();
+                window.request_redraw();
+                let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
-            self.state = Some(pollster::block_on(State::new(
-                window.clone(),
-                self.world.take().unwrap(),
-            )));
+                renderer
+                    .add_meshes(
+                        meshes
+                            .iter()
+                            .map(|(id, v, i)| (id.as_str(), v.as_slice(), i.as_slice()))
+                            .collect::<Vec<(&str, &[Vertex], &[u16])>>()
+                            .iter(),
+                    )
+                    .unwrap();
+
+                // TODO: Use map instead
+                while let Some(entity) = entities.pop() {
+                    renderer.upsert_instances([(entity.id(), entity.model())].iter());
+                    self.world.add_entity(entity);
+                }
+                self.state = AppState::Started(renderer);
+            }
+            AppState::Started(_) => {}
         }
     }
 
     fn window_event(
         &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
         event: WindowEvent,
     ) {
         match event {
             WindowEvent::Resized(physical_size) => {
-                if let Some(state) = &mut self.state {
-                    state.resize(physical_size.width, physical_size.height);
+                if let AppState::Started(renderer) = &mut self.state {
+                    renderer.resize(physical_size.width, physical_size.height);
                 }
             }
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -103,62 +150,57 @@ impl ApplicationHandler<State> for App {
             } => match event.physical_key {
                 PhysicalKey::Code(k) => match k {
                     KeyCode::KeyW => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(0.0, 0.0, -1.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(0.0, 0.0, -1.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyS => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(0.0, 0.0, 1.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(0.0, 0.0, 1.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyA => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(-1.0, 0.0, 0.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(-1.0, 0.0, 0.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyD => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(1.0, 0.0, 0.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(1.0, 0.0, 0.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
 
                     KeyCode::Space => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(0.0, 1.0, 0.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(0.0, 1.0, 0.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
 
                     KeyCode::ShiftLeft | KeyCode::ShiftRight => {
-                        if let Some(state) = &mut self.state {
-                            state.camera.translate(&(0.0, -1.0, 0.0).into());
-                            state.camera_uniform.update(&state.camera);
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.translate(&(0.0, -1.0, 0.0).into());
+                            renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     _ => {}
                 },
                 _ => {}
             },
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-            } => {
-                debug!("Mouse input: {:?}", event)
-            }
+
             WindowEvent::RedrawRequested => {
-                if let Some(state) = &mut self.state {
-                    state.update();
-                    match state.render() {
+                if let AppState::Started(renderer) = &mut self.state {
+                    self.world.update();
+
+                    match renderer.render(self.world.iter_entities()) {
                         Ok(_) => {}
                         Err(e) => error!("{}", e),
                     }
-                    state.window.request_redraw();
+                    renderer.window.request_redraw();
                 }
             }
             _ => {}
@@ -167,9 +209,9 @@ impl ApplicationHandler<State> for App {
 }
 
 #[derive(Debug)]
-pub struct State {
+pub struct Renderer {
     window: Arc<Window>,
-    world: World,
+
     surface: Surface<'static>,
     device: Device,
     queue: Queue,
@@ -179,26 +221,21 @@ pub struct State {
     render_pipeline: RenderPipeline,
     render_pipeline_layout: PipelineLayout,
 
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-
-    num_indices: u32,
-
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 
-    instances: Vec<(Vec<[[f32; 4]; 4]>, usize, usize, usize)>,
-    instance_buffer: Buffer,
+    meshes: MeshStorage,
+    instances: InstanceStorage,
 
     // metrics
     start: Instant,
     n_renders: u64,
 }
 
-impl State {
-    pub async fn new(window: Arc<Window>, mut world: World) -> Self {
+impl Renderer {
+    pub async fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
         let instance = Instance::new(&InstanceDescriptor {
@@ -343,73 +380,13 @@ impl State {
             cache: None,
         });
 
-        let mut current_index_offset: usize = 0;
-        let mut num_indices: u32 = 0;
-
-        let mut vertices: Vec<Vertex> = vec![];
-        let mut indices: Vec<u16> = vec![];
-
-        let mesh = world.get_mesh("Cube").unwrap();
-        vertices.extend_from_slice(mesh.vertices());
-        indices.extend_from_slice(
-            &mesh
-                .indices()
-                .iter()
-                .map(|i| i.clone() + current_index_offset as u16)
-                .collect::<Vec<u16>>(),
-        );
-
-        current_index_offset += mesh.vertices().len();
-        num_indices += mesh.indices().len() as u32;
-
-        let mesh = world.get_mesh("Flat16").unwrap();
-        vertices.extend_from_slice(mesh.vertices());
-        indices.extend_from_slice(
-            &mesh
-                .indices()
-                .iter()
-                .map(|i| i.clone() + current_index_offset as u16)
-                .collect::<Vec<u16>>(),
-        );
-
-        current_index_offset += mesh.vertices().len();
-        num_indices += mesh.indices().len() as u32;
-
-        error!("nm indices {}", num_indices);
-
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
-
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: BufferUsages::INDEX,
-        });
-
-        let instances = world.instances_to_draw();
-
-        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(
-                &(instances
-                    .iter()
-                    .map(|a| a.0.clone())
-                    .collect::<Vec<Vec<[[f32; 4]; 4]>>>()
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<[[f32; 4]; 4]>>()),
-            ),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
+        let mesh_storage = MeshStorage::new(&device);
+        let instance_storage = InstanceStorage::new(&device);
 
         window.set_visible(true);
 
         Self {
             window,
-            world,
             surface,
             device,
             queue,
@@ -419,21 +396,50 @@ impl State {
             render_pipeline,
             render_pipeline_layout,
 
-            vertex_buffer,
-            index_buffer,
-            num_indices,
-
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
 
-            instances,
-            instance_buffer,
+            meshes: mesh_storage,
+            instances: instance_storage,
 
             start: Instant::now(),
             n_renders: 0,
         }
+    }
+
+    /// Batch adding of meshes. Meshes will be synced to the GPU in this call.
+    ///
+    /// meshes: (mesh_id, vertices, indices)
+    pub fn add_meshes(
+        &mut self,
+        meshes: Iter<(&str, &[Vertex], &[u16])>,
+    ) -> Result<(), MeshStorageError> {
+        for (mesh_id, vertices, indices) in meshes {
+            if let Err(e) = self.meshes.add_mesh(*mesh_id, *vertices, *indices) {
+                return Err(e);
+            }
+        }
+
+        self.meshes.update_gpu(&mut self.queue, &self.device);
+
+        Ok(())
+    }
+
+    // TODO: All instances get synced even ones not updated, optimize later.
+
+    /// Batch updating of instances. All instances will be synced to the GPU in this call.
+    ///
+    /// This is the main update function to be called before each render call.
+    ///
+    /// instances: (entity_id, transform)
+    pub fn upsert_instances(&mut self, instances: Iter<(&str, &Matrix4<f32>)>) {
+        for (entity_id, transform) in instances {
+            self.instances.upsert_instance(entity_id, transform);
+        }
+
+        self.instances.update_gpu(&mut self.queue);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -443,36 +449,7 @@ impl State {
         self.is_surface_configured = true;
     }
 
-    pub fn update(&mut self) {
-        self.world.tick(1.0 / 240.0);
-
-        // TODO: Extremely inefficient
-        let target = self
-            .world
-            .iter_entities()
-            .nth(0)
-            .unwrap()
-            .position()
-            .clone();
-
-        self.queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(
-                &(self
-                    .world
-                    .instances_to_draw()
-                    .iter()
-                    .map(|a| a.0.clone())
-                    .collect::<Vec<Vec<[[f32; 4]; 4]>>>()
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<[[f32; 4]; 4]>>()),
-            ),
-        );
-    }
-
-    pub fn render(&mut self) -> Result<(), SurfaceError> {
+    pub fn render(&mut self, entities: &Vec<Entity>) -> Result<(), SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -519,13 +496,19 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
+            render_pass.set_vertex_buffer(1, self.instances.slice(..));
+            render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
-            for (_, num, start, end) in &self.instances {
-                render_pass.draw_indexed((*start) as u32..(*end) as u32, 0, 0..(*num) as u32);
+            for entity in entities {
+                let (start, end) = self.meshes.get_mesh_index_bounds(entity.mesh_id()).unwrap();
+                let i = *self.instances.get_instance(entity.id()).unwrap();
+                render_pass.draw_indexed(
+                    (*start) as u32..(*end) as u32,
+                    0,
+                    i as u32..(i as u32 + 1),
+                );
             }
         }
         self.queue.submit(std::iter::once(encoder.finish()));

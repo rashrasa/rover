@@ -5,7 +5,7 @@ use log::error;
 
 use crate::{
     CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH_INDICES, RENDER_DISTANCE,
-    core::{Mesh, entity::Entity},
+    core::entity::Entity,
 };
 
 #[derive(Debug)]
@@ -14,7 +14,6 @@ pub struct World {
     entities: Vec<Entity>,
     chunks_loaded: HashMap<(i64, i64), HeightMap>,
     chunk_loader: fn(i64, i64, u64) -> HeightMap,
-    meshes: HashMap<String, Mesh>,
 }
 
 impl World {
@@ -24,68 +23,19 @@ impl World {
             entities: Vec::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
             chunk_loader: |_, _, _| HeightMap::flat(GROUND_HEIGHT),
-            meshes: HashMap::new(),
         }
-    }
-
-    pub fn add_mesh(&mut self, id: &str, mesh: Mesh) {
-        self.meshes.insert(id.into(), mesh);
     }
 
     pub fn add_entity(&mut self, entity: Entity) {
         self.entities.push(entity);
     }
 
-    pub fn iter_entities(&self) -> Iter<'_, Entity> {
-        self.entities.iter()
+    pub fn iter_entities(&self) -> &Vec<Entity> {
+        &self.entities
     }
 
-    pub fn get_mesh(&self, id: &str) -> Option<&Mesh> {
-        self.meshes.get(id)
-    }
-
-    pub fn instances_to_draw(&mut self) -> Vec<(Vec<[[f32; 4]; 4]>, usize, usize, usize)> {
-        let cubes: Vec<[[f32; 4]; 4]> = self
-            .entities
-            .iter()
-            .map(|e| {
-                let model = e.model().clone();
-                [
-                    [model.x.x, model.x.y, model.x.z, model.x.w],
-                    [model.y.x, model.y.y, model.y.z, model.y.w],
-                    [model.z.x, model.z.y, model.z.z, model.z.w],
-                    [model.w.x, model.w.y, model.w.z, model.w.w],
-                ]
-            })
-            .collect();
-        let mut ground = vec![];
-        for i in -4..4 {
-            for j in -4..4 {
-                for k in 0..16 {
-                    let x: f32 = (i as f32) * 4.0 + (k % 4) as f32;
-                    let z: f32 = (j as f32) * 4.0 + (k / 4) as f32;
-                    let y: f32 = self.height([x, z].into());
-
-                    ground.push([
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [x, y, z, 1.0],
-                    ]);
-                }
-            }
-        }
-        let cubes_count = cubes.len().clone();
-        let ground_count = ground.len().clone();
-        vec![
-            (cubes, cubes_count, 0, CUBE_MESH_INDICES.len()),
-            (
-                ground,
-                ground_count,
-                CUBE_MESH_INDICES.len(),
-                CUBE_MESH_INDICES.len() + GROUND_MESH_INDICES.len(),
-            ),
-        ]
+    pub fn update(&mut self) {
+        self.tick(1.0 / 240.0);
     }
 
     pub fn tick(&mut self, dt: f32) {

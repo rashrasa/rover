@@ -7,6 +7,7 @@ use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, Ver
 /// Ideally never cloned.
 pub struct Entity {
     id: String,
+    mesh_id: String,
     velocity: Vector3<f32>,
     acceleration: Vector3<f32>,
     bounding_box: (Vector3<f32>, Vector3<f32>),
@@ -15,14 +16,16 @@ pub struct Entity {
 
 impl Entity {
     pub fn new(
-        id: String,
+        id: &str,
+        mesh_id: &str,
         velocity: Vector3<f32>,
         acceleration: Vector3<f32>,
         bounding_box: (Vector3<f32>, Vector3<f32>),
         model: Matrix4<f32>,
     ) -> Self {
         Self {
-            id,
+            id: id.into(),
+            mesh_id: mesh_id.into(),
             velocity,
             acceleration,
             bounding_box,
@@ -32,6 +35,10 @@ impl Entity {
 
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn mesh_id(&self) -> &str {
+        &self.mesh_id
     }
 
     pub fn tick(&mut self, dt: f32) {

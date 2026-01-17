@@ -1,24 +1,21 @@
-// All constants will be stored here.
-
-use std::time::Duration;
-
-use cgmath::Vector3;
-
-use crate::{core::Mesh, render::vertex::Vertex};
-
-pub const CHUNK_SIZE_M: usize = 16;
-pub const RENDER_DISTANCE: usize = 8;
-pub const GROUND_HEIGHT: u64 = 0;
-pub const METRICS_INTERVAL: Duration = Duration::new(1, 0);
-
-pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
-
 pub mod assets;
 pub mod audio;
 pub mod core;
 pub mod input;
 pub mod render;
 pub mod rover;
+
+// All constants will be stored here.
+
+use std::time::Duration;
+
+use crate::render::vertex::Vertex;
+
+pub const CHUNK_SIZE_M: usize = 16;
+pub const RENDER_DISTANCE: usize = 8;
+pub const GROUND_HEIGHT: u64 = 0;
+pub const INITIAL_INSTANCE_CAPACITY: usize = 10_000;
+pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
     cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
@@ -152,3 +149,6 @@ pub const GROUND_MESH_INDICES: [u16; 54] = [
     9, 13, 14,  14, 10, 9,
     10, 14, 15, 15, 11, 10
 ];
+
+// metrics
+pub const METRICS_INTERVAL: Duration = Duration::new(1, 0);
