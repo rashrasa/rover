@@ -1,5 +1,7 @@
 use bytemuck::{Pod, Zeroable};
-use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3};
+use cgmath::{
+    Angle, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3,
+};
 
 use crate::OPENGL_TO_WGPU_MATRIX;
 
@@ -48,6 +50,37 @@ impl Camera {
 
     pub fn translate(&mut self, by: &Vector3<f32>) {
         self.position += *by;
+        self.update();
+    }
+
+    pub fn forward(&mut self, amount: f32) {
+        let (sin, cos) = self.yaw.sin_cos();
+        self.translate(&[amount * cos, 0.0, amount * sin].into());
+        self.update();
+    }
+    pub fn backward(&mut self, amount: f32) {
+        let (sin, cos) = self.yaw.sin_cos();
+        self.translate(&[-amount * cos, 0.0, -amount * sin].into());
+        self.update();
+    }
+    pub fn left(&mut self, amount: f32) {
+        let (sin, cos) = self.yaw.sin_cos();
+        self.translate(&[amount * sin, 0.0, -amount * cos].into());
+        self.update();
+    }
+    pub fn right(&mut self, amount: f32) {
+        let (sin, cos) = self.yaw.sin_cos();
+        self.translate(&[-amount * sin, 0.0, amount * cos].into());
+        self.update();
+    }
+
+    pub fn look_right(&mut self, amount: Rad<f32>) {
+        self.yaw += amount;
+        self.update();
+    }
+
+    pub fn look_left(&mut self, amount: Rad<f32>) {
+        self.yaw -= amount;
         self.update();
     }
 

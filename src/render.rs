@@ -31,7 +31,7 @@ use winit::{
 };
 
 use crate::{
-    METRICS_INTERVAL,
+    GROUND_HEIGHT, METRICS_INTERVAL,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     render::{
@@ -90,6 +90,28 @@ impl App {
                 self.world.add_entity(entity);
             }
         }
+    }
+
+    /// Loads chunk with (0,0) at (x/16, z/16)
+    pub fn load_chunk(&mut self, x: i64, z: i64) {
+        let height_map = self.world.request_chunk_exact(x, z);
+
+        self.add_entity(Entity::new(
+            &format!("ground_{}.{}", x, z),
+            "Flat16",
+            [0.0, 0.0, 0.0].into(),
+            [0.0, 0.0, 0.0].into(),
+            (
+                [0.0, 0.0, 0.0].into(),
+                [-f32::INFINITY, -f32::INFINITY, -f32::INFINITY].into(),
+            ),
+            Matrix4 {
+                x: [1.0, 0.0, 0.0, 0.0].into(),
+                y: [0.0, 1.0, 0.0, 0.0].into(),
+                z: [0.0, 0.0, 1.0, 0.0].into(),
+                w: [x as f32, GROUND_HEIGHT as f32, z as f32, 1.0].into(),
+            },
+        ));
     }
 }
 
@@ -151,25 +173,39 @@ impl ApplicationHandler<Event> for App {
                 PhysicalKey::Code(k) => match k {
                     KeyCode::KeyW => {
                         if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(0.0, 0.0, -1.0).into());
+                            renderer.camera.forward(1.0);
                             renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyS => {
                         if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(0.0, 0.0, 1.0).into());
+                            renderer.camera.backward(1.0);
                             renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyA => {
                         if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(-1.0, 0.0, 0.0).into());
+                            renderer.camera.left(1.0);
                             renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
                     KeyCode::KeyD => {
                         if let AppState::Started(renderer) = &mut self.state {
-                            renderer.camera.translate(&(1.0, 0.0, 0.0).into());
+                            renderer.camera.right(1.0);
+                            renderer.camera_uniform.update(&renderer.camera);
+                        }
+                    }
+
+                    KeyCode::KeyQ => {
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.look_left(Rad(PI / 12.0));
+                            renderer.camera_uniform.update(&renderer.camera);
+                        }
+                    }
+
+                    KeyCode::KeyE => {
+                        if let AppState::Started(renderer) = &mut self.state {
+                            renderer.camera.look_right(Rad(PI / 12.0));
                             renderer.camera_uniform.update(&renderer.camera);
                         }
                     }
@@ -195,6 +231,14 @@ impl ApplicationHandler<Event> for App {
             WindowEvent::RedrawRequested => {
                 if let AppState::Started(renderer) = &mut self.state {
                     self.world.update();
+                    renderer.upsert_instances(
+                        self.world
+                            .iter_entities()
+                            .iter()
+                            .map(|e| (e.id(), e.model()))
+                            .collect::<Vec<(&str, &Matrix4<f32>)>>()
+                            .iter(),
+                    );
 
                     match renderer.render(self.world.iter_entities()) {
                         Ok(_) => {}
@@ -291,8 +335,8 @@ impl Renderer {
         });
 
         let camera = Camera::new(
-            (0.0, 5.0, 10.0).into(),
-            Rad(0.0),
+            (0.0, 5.0, -10.0).into(),
+            Rad(PI / 2.0),
             Rad(0.0),
             Projection::new(
                 config.width as f32,
@@ -454,6 +498,12 @@ impl Renderer {
             return Ok(());
         }
 
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
+
         let output = self.surface.get_current_texture()?;
 
         let view = output
@@ -486,12 +536,6 @@ impl Renderer {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-
-            self.queue.write_buffer(
-                &self.camera_buffer,
-                0,
-                bytemuck::cast_slice(&[self.camera_uniform]),
-            );
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);

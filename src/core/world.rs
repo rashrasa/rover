@@ -3,10 +3,7 @@ use std::{collections::HashMap, ops::Index, slice::Iter};
 use cgmath::{InnerSpace, Vector2, Vector3};
 use log::error;
 
-use crate::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH_INDICES, RENDER_DISTANCE,
-    core::entity::Entity,
-};
+use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::entity::Entity};
 
 #[derive(Debug)]
 pub struct World {

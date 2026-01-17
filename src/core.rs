@@ -6,6 +6,7 @@ use std::{
 };
 
 use cgmath::{Matrix4, Vector4};
+use log::error;
 use wgpu::{
     Buffer, BufferSlice, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
@@ -36,13 +37,13 @@ impl MeshStorage {
     pub fn new(device: &Device) -> Self {
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&[] as &[u8]),
+            contents: bytemuck::cast_slice(&[0 as u8; 100]),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&[] as &[u8]),
+            contents: bytemuck::cast_slice(&[0 as u8; 100]),
             usage: BufferUsages::INDEX,
         });
         Self {
@@ -106,6 +107,10 @@ impl MeshStorage {
 
     pub fn index_slice<S: RangeBounds<u64>>(&self, bounds: S) -> BufferSlice<'_> {
         self.index_buffer.slice(bounds)
+    }
+
+    pub fn num_indices(&self) -> usize {
+        self.index_storage.len()
     }
 
     // TODO: Currently only re-allocates exactly the amount of storage it needs,
@@ -215,7 +220,7 @@ impl InstanceStorage {
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
     pub fn upsert_instance(&mut self, entity_id: &str, transform: &Matrix4<f32>) {
-        let cols = [
+        let cols: [[f32; 4]; 4] = [
             transform.x.into(),
             transform.y.into(),
             transform.z.into(),
@@ -223,12 +228,17 @@ impl InstanceStorage {
         ];
         match self.map.entry(entity_id.into()) {
             Entry::Occupied(occ) => {
-                let i = *occ.get();
-                self.transforms[i..(i + 4)].copy_from_slice(&cols);
+                let i = *occ.get() * 4;
+                for j in 0..3 {
+                    match self.transforms.get_mut(i + j) {
+                        Some(v) => *v = cols[j],
+                        None => {}
+                    }
+                }
             }
             Entry::Vacant(vac) => {
                 self.transforms.extend(cols);
-                vac.insert(self.transforms.len() - 1);
+                vac.insert(self.transforms.len() / 4);
             }
         }
     }

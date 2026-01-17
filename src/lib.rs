@@ -14,7 +14,7 @@ use crate::render::vertex::Vertex;
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;
 pub const GROUND_HEIGHT: u64 = 0;
-pub const INITIAL_INSTANCE_CAPACITY: usize = 10_000;
+pub const INITIAL_INSTANCE_CAPACITY: usize = 1_000;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(

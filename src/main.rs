@@ -34,18 +34,26 @@ fn main() {
         .iter(),
     );
 
-    for i in 0..105 {
-        app.add_entity(Entity::new(
-            &format!("rover_{}", i),
-            "Cube",
-            Vector3::new(0.0, 5.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            (
-                Vector3::new(1.0, 1.0, 1.0) / 2.0,
-                Vector3::new(-1.0, -1.0, -1.0) / 2.0,
-            ),
-            Matrix4::from_translation([-5.0 + i as f32, 0.0, 0.0].into()),
-        ));
+    for i in -10..10 {
+        for j in -10..10 {
+            app.add_entity(Entity::new(
+                &format!("rover_{}", i),
+                "Cube",
+                Vector3::new(0.0, 5.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+                (
+                    Vector3::new(1.0, 1.0, 1.0) / 2.0,
+                    Vector3::new(-1.0, -1.0, -1.0) / 2.0,
+                ),
+                Matrix4::from_translation([i as f32, 0.0, j as f32].into()),
+            ));
+        }
+    }
+
+    for x in -1..1 {
+        for z in -1..1 {
+            app.load_chunk(x, z);
+        }
     }
 
     event_loop.set_control_flow(ControlFlow::Poll);
