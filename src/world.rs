@@ -62,8 +62,8 @@ impl World {
             })
             .collect();
         let mut ground = vec![];
-        for i in -40..40 {
-            for j in -40..40 {
+        for i in -4..4 {
+            for j in -4..4 {
                 for k in 0..16 {
                     let x: f32 = (i as f32) * 4.0 + (k % 4) as f32;
                     let z: f32 = (j as f32) * 4.0 + (k / 4) as f32;

@@ -1,9 +1,10 @@
+pub mod camera;
 pub mod data;
 
-use std::{sync::Arc, time::Instant};
+use std::{f32::consts::PI, sync::Arc, time::Instant};
 
 use bytemuck::cast_slice;
-use cgmath::{InnerSpace, Matrix4};
+use cgmath::{InnerSpace, Matrix4, Rad};
 use log::{debug, error, info, warn};
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
@@ -31,8 +32,11 @@ use winit::{
 use crate::{
     METRICS_INTERVAL,
     assets::ICON,
-    core::{Camera, CameraUniform, Entity},
-    render::data::Vertex,
+    core::Entity,
+    render::{
+        camera::{Camera, CameraUniform, Projection},
+        data::Vertex,
+    },
     world::World,
 };
 
@@ -100,47 +104,39 @@ impl ApplicationHandler<State> for App {
                 PhysicalKey::Code(k) => match k {
                     KeyCode::KeyW => {
                         if let Some(state) = &mut self.state {
-                            state.camera.eye += (0.0, 0.0, 1.0).into();
+                            state.camera.translate(&(0.0, 0.0, -1.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
                     KeyCode::KeyS => {
                         if let Some(state) = &mut self.state {
-                            state.camera.eye -= (0.0, 0.0, 1.0).into();
+                            state.camera.translate(&(0.0, 0.0, 1.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
                     KeyCode::KeyA => {
                         if let Some(state) = &mut self.state {
-                            let dist = state.camera.eye - state.camera.target;
-
-                            state.camera.eye = state.camera.target
-                                + cgmath::Matrix3::from_angle_y(cgmath::Deg(15.0)) * dist;
-
+                            state.camera.translate(&(-1.0, 0.0, 0.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
                     KeyCode::KeyD => {
                         if let Some(state) = &mut self.state {
-                            let dist = state.camera.eye - state.camera.target;
-
-                            state.camera.eye = state.camera.target
-                                + cgmath::Matrix3::from_angle_y(cgmath::Deg(-15.0)) * dist;
-
+                            state.camera.translate(&(1.0, 0.0, 0.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
 
-                    KeyCode::KeyQ => {
+                    KeyCode::Space => {
                         if let Some(state) = &mut self.state {
-                            state.camera.eye += (0.0, 1.0, 0.0).into();
+                            state.camera.translate(&(0.0, 1.0, 0.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
 
-                    KeyCode::KeyE => {
+                    KeyCode::ShiftLeft | KeyCode::ShiftRight => {
                         if let Some(state) = &mut self.state {
-                            state.camera.eye -= (0.0, 1.0, 0.0).into();
+                            state.camera.translate(&(0.0, -1.0, 0.0).into());
                             state.camera_uniform.update(&state.camera);
                         }
                     }
@@ -257,15 +253,18 @@ impl State {
             source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let camera = Camera {
-            eye: (0.0, 5.0, -10.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fov_y: 45.0,
-            z_near: 0.1,
-            z_far: 1000.0,
-        };
+        let camera = Camera::new(
+            (0.0, 5.0, 10.0).into(),
+            Rad(0.0),
+            Rad(0.0),
+            Projection::new(
+                config.width as f32,
+                config.height as f32,
+                Rad(PI / 2.0),
+                0.1,
+                1000.0,
+            ),
+        );
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update(&camera);
@@ -455,8 +454,6 @@ impl State {
             .unwrap()
             .position()
             .clone();
-
-        self.camera.target = (target.x, target.y, target.z).into();
 
         self.queue.write_buffer(
             &self.instance_buffer,
