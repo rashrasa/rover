@@ -32,12 +32,12 @@ use winit::{
 use crate::{
     METRICS_INTERVAL,
     assets::ICON,
-    core::Entity,
+    core::entity::Entity,
+    core::world::World,
     render::{
         camera::{Camera, CameraUniform, Projection},
         data::Vertex,
     },
-    world::World,
 };
 
 pub struct App {

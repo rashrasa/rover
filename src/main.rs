@@ -2,9 +2,9 @@ use cgmath::{Matrix4, Vector3};
 use log::info;
 use rover::{
     CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH_INDICES, GROUND_MESH_VERTICES,
-    core::{Entity, Mesh, MeshType},
-    render::{App, data::Vertex},
-    world::World,
+    core::world::World,
+    core::{Mesh, entity::Entity},
+    render::App,
 };
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -34,7 +34,6 @@ fn main() {
                 Vector3::new(1.0, 1.0, 1.0) / 2.0,
                 Vector3::new(-1.0, -1.0, -1.0) / 2.0,
             ),
-            MeshType::Cube,
             Matrix4::from_translation([-5.0 + i as f32, 0.0, 0.0].into()),
         ));
     }

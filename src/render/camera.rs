@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use cgmath::{InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3};
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3};
 
 use crate::OPENGL_TO_WGPU_MATRIX;
 
@@ -26,7 +26,7 @@ impl Camera {
 
         let view = Matrix4::look_at_rh(
             position,
-            Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw),
+            Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position.to_vec(),
             [0.0, 1.0, 0.0].into(),
         );
         let view_proj = OPENGL_TO_WGPU_MATRIX * projection.projection() * view;
@@ -61,7 +61,7 @@ impl Camera {
         let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
         let view = Matrix4::look_at_rh(
             self.position,
-            (center.x, center.y, center.z).into(),
+            Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position.to_vec(),
             [0.0, 1.0, 0.0].into(),
         );
 
