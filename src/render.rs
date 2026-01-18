@@ -280,7 +280,7 @@ impl Renderer {
 
         let camera = Camera::new(
             (0.0, 5.0, 10.0).into(),
-            Rad(3.0 * PI / 2.0),
+            Rad(-3.0 * PI / 4.0),
             Rad(0.0),
             Projection::new(
                 config.width as f32,
