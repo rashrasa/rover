@@ -2,6 +2,7 @@ use std::{collections::HashMap, ops::Index, slice::Iter};
 
 use cgmath::{InnerSpace, Vector2, Vector3};
 use log::error;
+use rand::RngCore;
 
 use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::entity::Entity};
 
@@ -19,7 +20,17 @@ impl World {
             seed: seed,
             entities: Vec::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
-            chunk_loader: |_, _, _| HeightMap::flat(GROUND_HEIGHT),
+            chunk_loader: |_, _, _| {
+                let mut rng = rand::rng();
+                let mut sample = || ((rng.next_u32() as f64 / u32::MAX as f64) * 1.0) as i64;
+                let mut data = [[0; CHUNK_SIZE_M]; CHUNK_SIZE_M];
+                for i in 0..CHUNK_SIZE_M {
+                    for j in 0..CHUNK_SIZE_M {
+                        data[j][i] = sample()
+                    }
+                }
+                HeightMap::new(data)
+            },
         }
     }
 
@@ -210,6 +221,9 @@ pub struct HeightMap {
 }
 
 impl HeightMap {
+    fn new(map: [[i64; CHUNK_SIZE_M]; CHUNK_SIZE_M]) -> Self {
+        Self { map }
+    }
     fn flat(height: i64) -> Self {
         Self {
             map: [[height; CHUNK_SIZE_M]; CHUNK_SIZE_M],

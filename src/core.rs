@@ -251,6 +251,10 @@ impl InstanceStorage {
     pub fn update_gpu(&mut self, queue: &mut Queue, device: &mut Device) {
         let bytes = bytemuck::cast_slice(&self.transforms);
         if bytes.len() > self.instance_buffer.size() as usize {
+            debug!(
+                "re-allocating instance buffer to {:.8} MB",
+                bytes.len() as f32 / (1024.0 * 1024.0)
+            );
             self.instance_buffer.destroy();
             self.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Instance Buffer"),

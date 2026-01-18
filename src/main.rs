@@ -41,13 +41,13 @@ fn main() {
         .iter(),
     );
 
-    for i in -10..10 {
-        for j in -10..10 {
-            for k in -10..10 {
+    for i in -15..15 {
+        for j in -15..15 {
+            for k in -15..15 {
                 app.add_entity(Entity::new(
-                    &format!("rover_{}", i),
+                    &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
-                    Vector3::new(0.0, 0.0, 0.0),
+                    Vector3::new(i as f32, j as f32, k as f32),
                     Vector3::new(0.0, 0.0, 0.0),
                     (
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,

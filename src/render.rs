@@ -110,7 +110,7 @@ impl App {
                 x: [1.0, 0.0, 0.0, 0.0].into(),
                 y: [0.0, 1.0, 0.0, 0.0].into(),
                 z: [0.0, 0.0, 1.0, 0.0].into(),
-                w: [x as f32, GROUND_HEIGHT as f32, z as f32, 1.0].into(),
+                w: [x as f32, height_map[(0, 0)] as f32, z as f32, 1.0].into(),
             },
         ));
     }
