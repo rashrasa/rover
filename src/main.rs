@@ -41,26 +41,26 @@ fn main() {
         .iter(),
     );
 
-    for i in -15..15 {
-        for j in -15..15 {
-            for k in -15..15 {
+    for i in -30..30 {
+        for j in -30..30 {
+            for k in -30..30 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
-                    Vector3::new(i as f32, j as f32, k as f32),
+                    Vector3::new(i as f32 * 15.0, j as f32 * 15.0, k as f32 * 15.0),
                     Vector3::new(0.0, 0.0, 0.0),
                     (
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,
                         Vector3::new(-1.0, -1.0, -1.0) / 2.0,
                     ),
-                    Matrix4::from_translation([i as f32, j as f32, k as f32].into()),
+                    Matrix4::from_translation([0.0, 0.0, 0.0].into()),
                 ));
             }
         }
     }
 
-    for x in -100..100 {
-        for z in -100..100 {
+    for x in -0..0 {
+        for z in -0..0 {
             app.load_chunk(2 * x, 2 * z);
         }
     }

@@ -279,15 +279,15 @@ impl Renderer {
         });
 
         let camera = Camera::new(
-            (0.0, 5.0, -10.0).into(),
-            Rad(PI / 2.0),
+            (0.0, 5.0, 10.0).into(),
+            Rad(3.0 * PI / 2.0),
             Rad(0.0),
             Projection::new(
                 config.width as f32,
                 config.height as f32,
                 Rad(PI / 2.0),
                 0.1,
-                1000.0,
+                10000.0,
             ),
         );
 
