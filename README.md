@@ -2,6 +2,10 @@
 
 A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events.
 
+![Recording 2026-01-17 204454](https://github.com/user-attachments/assets/c9903064-b028-4226-ac45-40e4edb63471)
+
+*Early stage graphics development and camera testing*
+
 ## Components
 
 These are specific components which are needed for the functioning of this application.
