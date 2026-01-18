@@ -80,22 +80,22 @@ impl InputController {
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyQ) {
             if *p {
-                yaw_ccw += 1.0;
+                yaw_ccw += 0.25;
             }
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyE) {
             if *p {
-                yaw_ccw -= 1.0;
+                yaw_ccw -= 0.25;
             }
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::Space) {
             if *p {
-                fly += 1.0;
+                fly += 2.0;
             }
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::ShiftLeft) {
             if *p {
-                fly -= 1.0;
+                fly -= 2.0;
             }
         }
 

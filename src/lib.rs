@@ -13,10 +13,10 @@ use crate::render::vertex::Vertex;
 
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;
-pub const GROUND_HEIGHT: u64 = 0;
-pub const INITIAL_INSTANCE_CAPACITY: usize = 1_000;
+pub const GROUND_HEIGHT: i64 = -5;
+pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
-pub const CAMERA_SPEED: f32 = 5.0;
+pub const CAMERA_SPEED: f32 = 50.0;
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
     cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
@@ -152,4 +152,4 @@ pub const GROUND_MESH_INDICES: [u16; 54] = [
 ];
 
 // metrics
-pub const METRICS_INTERVAL: Duration = Duration::new(1, 0);
+pub const METRICS_INTERVAL: Duration = Duration::new(10, 0);

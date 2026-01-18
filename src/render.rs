@@ -87,8 +87,8 @@ impl App {
                 entity_queue.push(entity);
             }
             AppState::Started(renderer) => {
-                renderer.upsert_instances([(entity.id(), entity.model())].iter());
                 self.world.add_entity(entity);
+                renderer.upsert_instances(&self.world, true);
             }
         }
     }
@@ -143,9 +143,9 @@ impl ApplicationHandler<Event> for App {
 
                 // TODO: Use map instead
                 while let Some(entity) = entities.pop() {
-                    renderer.upsert_instances([(entity.id(), entity.model())].iter());
                     self.world.add_entity(entity);
                 }
+                renderer.upsert_instances(&self.world, true);
                 self.state = AppState::Started(renderer);
             }
             AppState::Started(_) => {}
@@ -179,16 +179,10 @@ impl ApplicationHandler<Event> for App {
                         &mut renderer.camera,
                         &mut renderer.camera_uniform,
                     );
-                    renderer.upsert_instances(
-                        self.world
-                            .iter_entities()
-                            .iter()
-                            .map(|e| (e.id(), e.model()))
-                            .collect::<Vec<(&str, &Matrix4<f32>)>>()
-                            .iter(),
-                    );
 
-                    match renderer.render(self.world.iter_entities()) {
+                    renderer.upsert_instances(&self.world, false);
+
+                    match renderer.render() {
                         Ok(_) => {}
                         Err(e) => error!("{}", e),
                     }
@@ -219,7 +213,9 @@ pub struct Renderer {
     camera_bind_group: BindGroup,
 
     meshes: MeshStorage,
+
     instances: InstanceStorage,
+    ground: InstanceStorage,
 
     // metrics
     start: Instant,
@@ -374,6 +370,7 @@ impl Renderer {
 
         let mesh_storage = MeshStorage::new(&device);
         let instance_storage = InstanceStorage::new(&device);
+        let ground = InstanceStorage::new(&device);
 
         window.set_visible(true);
 
@@ -395,6 +392,7 @@ impl Renderer {
 
             meshes: mesh_storage,
             instances: instance_storage,
+            ground,
 
             start: Instant::now(),
             n_renders: 0,
@@ -424,14 +422,21 @@ impl Renderer {
     /// Batch updating of instances. All instances will be synced to the GPU in this call.
     ///
     /// This is the main update function to be called before each render call.
-    ///
-    /// instances: (entity_id, transform)
-    pub fn upsert_instances(&mut self, instances: Iter<(&str, &Matrix4<f32>)>) {
-        for (entity_id, transform) in instances {
-            self.instances.upsert_instance(entity_id, transform);
+    pub fn upsert_instances(&mut self, world: &World, include_ground: bool) {
+        for entity in world.iter_entities() {
+            let mesh_id = entity.mesh_id();
+            let entity_id = entity.id();
+            let transform = entity.model();
+
+            if mesh_id == "Cube" {
+                self.instances.upsert_instance(entity_id, transform);
+            } else if mesh_id == "Flat16" && include_ground {
+                self.ground.upsert_instance(entity_id, transform);
+            }
         }
 
-        self.instances.update_gpu(&mut self.queue);
+        self.instances.update_gpu(&mut self.queue, &mut self.device);
+        self.ground.update_gpu(&mut self.queue, &mut self.device);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -441,7 +446,7 @@ impl Renderer {
         self.is_surface_configured = true;
     }
 
-    pub fn render(&mut self, entities: &Vec<Entity>) -> Result<(), SurfaceError> {
+    pub fn render(&mut self) -> Result<(), SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -489,17 +494,25 @@ impl Renderer {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
-
-            render_pass.set_vertex_buffer(1, self.instances.slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
-            for entity in entities {
-                let (start, end) = self.meshes.get_mesh_index_bounds(entity.mesh_id()).unwrap();
-                let i = *self.instances.get_instance(entity.id()).unwrap();
+            if self.instances.len() > 0 {
+                render_pass.set_vertex_buffer(1, self.instances.slice(..));
+                let (start, end) = self.meshes.get_mesh_index_bounds("Cube").unwrap();
                 render_pass.draw_indexed(
                     (*start) as u32..(*end) as u32,
                     0,
-                    i as u32..(i as u32 + 1),
+                    0..self.instances.len() as u32,
+                );
+            }
+            if self.ground.len() > 0 {
+                render_pass.set_vertex_buffer(1, self.ground.slice(..));
+                let (start, end) = self.meshes.get_mesh_index_bounds("Flat16").unwrap();
+
+                render_pass.draw_indexed(
+                    (*start) as u32..(*end) as u32,
+                    0,
+                    0..self.ground.len() as u32,
                 );
             }
         }
@@ -508,7 +521,10 @@ impl Renderer {
 
         self.n_renders += 1;
         if self.start.elapsed() > METRICS_INTERVAL {
-            info!("FPS: {}", self.n_renders);
+            info!(
+                "FPS: {:.2}",
+                self.n_renders as f64 / METRICS_INTERVAL.as_secs_f64()
+            );
             self.start = Instant::now();
             self.n_renders = 0;
         }

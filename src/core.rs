@@ -6,10 +6,11 @@ use std::{
 };
 
 use cgmath::{Matrix4, Vector4};
-use log::error;
+use log::{debug, error, info};
 use wgpu::{
     Buffer, BufferSlice, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
+    wgc::device,
 };
 
 use crate::{INITIAL_INSTANCE_CAPACITY, render::vertex::Vertex};
@@ -113,18 +114,20 @@ impl MeshStorage {
         self.index_storage.len()
     }
 
-    // TODO: Currently only re-allocates exactly the amount of storage it needs,
-    //       which may be sufficient if all vertices and indexes are added at initialization.
-
     /// Copies the vertex and index buffers into the GPU.
     ///
-    /// Should be run during initialization since some re-allocations may be performed.
+    /// Should not be called during a render pass.
     pub fn update_gpu(&mut self, queue: &mut Queue, device: &Device) {
         if self.vertex_buffer_cap < self.vertex_storage.len() {
+            let bytes = bytemuck::cast_slice(&self.vertex_storage);
+            debug!(
+                "re-allocating vertex buffer to {:.8} MB",
+                bytes.len() as f32 / (1024.0 * 1024.0)
+            );
             self.vertex_buffer.destroy();
             self.vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&self.vertex_storage),
+                contents: bytes,
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
             self.vertex_buffer_cap = self.vertex_storage.len();
@@ -136,20 +139,24 @@ impl MeshStorage {
             );
         }
         if self.index_buffer_cap < self.index_storage.len() {
+            let bytes = bytemuck::cast_slice(&self.index_storage);
+            debug!(
+                "re-allocating index buffer to {:.8} MB",
+                bytes.len() as f32 / (1024.0 * 1024.0)
+            );
             self.index_buffer.destroy();
             self.index_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&self.index_storage),
+                contents: bytes,
                 usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             });
             self.index_buffer_cap = self.index_storage.len();
-        } else {
-            queue.write_buffer(
-                &self.index_buffer,
-                0,
-                bytemuck::cast_slice(&self.index_storage),
-            );
         }
+        queue.write_buffer(
+            &self.index_buffer,
+            0,
+            bytemuck::cast_slice(&self.index_storage),
+        );
     }
 
     /// Returns the start and end of mesh in index buffer to be used in draw calls.
@@ -186,7 +193,7 @@ pub enum MeshStorageError {
 #[derive(Debug)]
 pub struct InstanceStorage {
     map: HashMap<String, usize>,
-    transforms: Vec<[f32; 4]>,
+    transforms: Vec<[f32; 4]>, // 4 [f32;4] chunks
 
     instance_buffer: Buffer,
 }
@@ -195,9 +202,7 @@ impl InstanceStorage {
     pub fn new(device: &Device) -> Self {
         let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(
-                &[0 as u8; INITIAL_INSTANCE_CAPACITY * size_of::<[[f64; 4]; 4]>()],
-            ),
+            contents: &[0 as u8; 0],
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
@@ -212,11 +217,13 @@ impl InstanceStorage {
         self.map.get(entity_id)
     }
 
+    pub fn len(&self) -> usize {
+        self.transforms.len() / 4
+    }
+
     pub fn slice<S: RangeBounds<u64>>(&self, bounds: S) -> BufferSlice<'_> {
         self.instance_buffer.slice(bounds)
     }
-
-    // TODO: Currently does not resize once it exceeds crate::INITIAL_INSTANCE_CAPACITY
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
     pub fn upsert_instance(&mut self, entity_id: &str, transform: &Matrix4<f32>) {
@@ -229,21 +236,28 @@ impl InstanceStorage {
         match self.map.entry(entity_id.into()) {
             Entry::Occupied(occ) => {
                 let i = *occ.get() * 4;
-                for j in 0..3 {
-                    match self.transforms.get_mut(i + j) {
-                        Some(v) => *v = cols[j],
-                        None => {}
-                    }
+                for j in 0..4 {
+                    self.transforms[i + j] = cols[j];
                 }
             }
             Entry::Vacant(vac) => {
-                self.transforms.extend(cols);
                 vac.insert(self.transforms.len() / 4);
+                self.transforms.extend(cols);
             }
         }
     }
 
-    pub fn update_gpu(&self, queue: &mut Queue) {
+    /// May re-allocate buffer. Should not be called during a render pass.
+    pub fn update_gpu(&mut self, queue: &mut Queue, device: &mut Device) {
+        let bytes = bytemuck::cast_slice(&self.transforms);
+        if bytes.len() > self.instance_buffer.size() as usize {
+            self.instance_buffer.destroy();
+            self.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytes,
+                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            });
+        }
         queue.write_buffer(
             &self.instance_buffer,
             0,

@@ -1,5 +1,6 @@
 use cgmath::{Matrix4, Vector3};
 use log::info;
+use rand::RngCore;
 use rover::{
     CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH_INDICES, GROUND_MESH_VERTICES,
     core::{entity::Entity, world::World},
@@ -17,6 +18,12 @@ fn main() {
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
     let mut app = App::new(&event_loop, 1920, 1080, 0);
+    let mut rng = rand::rng();
+    let mut next_float = || rng.next_u32() as f32 / u32::MAX as f32;
+    let ground_vertices = GROUND_MESH_VERTICES.map(|mut v| {
+        v.color = [next_float(), next_float(), next_float()];
+        v
+    });
 
     app.add_meshes(
         [
@@ -27,7 +34,7 @@ fn main() {
             ),
             (
                 "Flat16",
-                GROUND_MESH_VERTICES.as_slice(),
+                ground_vertices.as_slice(),
                 GROUND_MESH_INDICES.as_slice(),
             ),
         ]
@@ -36,23 +43,25 @@ fn main() {
 
     for i in -10..10 {
         for j in -10..10 {
-            app.add_entity(Entity::new(
-                &format!("rover_{}", i),
-                "Cube",
-                Vector3::new(0.0, 5.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-                (
-                    Vector3::new(1.0, 1.0, 1.0) / 2.0,
-                    Vector3::new(-1.0, -1.0, -1.0) / 2.0,
-                ),
-                Matrix4::from_translation([i as f32, 0.0, j as f32].into()),
-            ));
+            for k in -10..10 {
+                app.add_entity(Entity::new(
+                    &format!("rover_{}", i),
+                    "Cube",
+                    Vector3::new(0.0, 0.0, 0.0),
+                    Vector3::new(0.0, 0.0, 0.0),
+                    (
+                        Vector3::new(1.0, 1.0, 1.0) / 2.0,
+                        Vector3::new(-1.0, -1.0, -1.0) / 2.0,
+                    ),
+                    Matrix4::from_translation([i as f32, j as f32, k as f32].into()),
+                ));
+            }
         }
     }
 
-    for x in -1..1 {
-        for z in -1..1 {
-            app.load_chunk(x, z);
+    for x in -100..100 {
+        for z in -100..100 {
+            app.load_chunk(2 * x, 2 * z);
         }
     }
 

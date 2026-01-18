@@ -206,11 +206,11 @@ impl World {
 
 #[derive(Clone, Debug)]
 pub struct HeightMap {
-    map: [[u64; CHUNK_SIZE_M]; CHUNK_SIZE_M],
+    map: [[i64; CHUNK_SIZE_M]; CHUNK_SIZE_M],
 }
 
 impl HeightMap {
-    fn flat(height: u64) -> Self {
+    fn flat(height: i64) -> Self {
         Self {
             map: [[height; CHUNK_SIZE_M]; CHUNK_SIZE_M],
         }
@@ -218,7 +218,7 @@ impl HeightMap {
 }
 
 impl Index<(usize, usize)> for HeightMap {
-    type Output = u64;
+    type Output = i64;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         &self.map[index.1][index.0]
