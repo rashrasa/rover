@@ -3,7 +3,7 @@ use image::imageops::FilterType;
 use log::info;
 use rand::RngCore;
 use rover::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH, GROUND_MESH_INDICES,
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH,
     core::{entity::Entity, world::World},
     render::{App, mesh::Mesh, textures::ResizeStrategy},
 };

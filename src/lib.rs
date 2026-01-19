@@ -84,7 +84,8 @@ pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
     let mut indices: Vec<u16> = vec![];
 
     let mut up = true;
-
+    let w = w + 1;
+    let h = h + 1;
     for j in 0..h {
         for i in 0..w {
             let x = i as f32 * dx;
@@ -120,19 +121,6 @@ pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
 
     (vertices, indices)
 };
-
-#[rustfmt::skip]
-pub const GROUND_MESH_INDICES: [u16; 54] = [
-    0, 4, 5,    5, 1, 0, 
-    1, 5, 6,    6, 2, 1,
-    2, 6, 7,    7, 3, 2,
-    4, 8, 9,    9, 5, 4,
-    5, 9, 10,   10, 6, 5,
-    6, 10, 11,  11, 7, 6,
-    8, 12, 13,  13, 9, 8,
-    9, 13, 14,  14, 10, 9,
-    10, 14, 15, 15, 11, 10
-];
 
 // metrics
 pub const METRICS_INTERVAL: Duration = Duration::new(10, 0);
