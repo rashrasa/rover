@@ -9,7 +9,7 @@ pub mod rover;
 
 use std::time::Duration;
 
-use crate::render::vertex::Vertex;
+use crate::render::{textures::MipLevel, vertex::Vertex};
 
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;
@@ -17,6 +17,14 @@ pub const GROUND_HEIGHT: i64 = -5;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 pub const CAMERA_SPEED: f32 = 50.0;
+
+// must be in decreasing quality
+pub const MIPMAP_LEVELS: [MipLevel; 4] = [
+    MipLevel::Square(2048),
+    MipLevel::Square(1024),
+    MipLevel::Square(512),
+    MipLevel::Square(256),
+];
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
     cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
@@ -29,35 +37,35 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_co
 pub const CUBE_MESH_VERTICES: [Vertex; 8] = [
     Vertex {
         position: [-0.5, 0.5, 0.5],
-        color: [1.0, 0.0, 0.0],
+        tex_coords: [1.0, 0.0],
     },
     Vertex {
         position: [0.5, 0.5, 0.5],
-        color: [1.0, 1.0, 1.0],
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [0.5, -0.5, 0.5],
-        color: [0.0, 1.0, 0.0],
+        tex_coords: [0.0, 1.0],
     },
     Vertex {
         position: [-0.5, -0.5, 0.5],
-        color: [0.0, 1.0, 1.0],
+        tex_coords: [0.0, 1.0],
     },
     Vertex {
         position: [-0.5, 0.5, -0.5],
-        color: [0.0, 0.0, 1.0],
+        tex_coords: [0.0, 0.0],
     },
     Vertex {
         position: [0.5, 0.5, -0.5],
-        color: [1.0, 0.0, 1.0],
+        tex_coords: [1.0, 0.0],
     },
     Vertex {
         position: [0.5, -0.5, -0.5],
-        color: [1.0, 1.0, 0.0],
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [-0.5, -0.5, -0.5],
-        color: [1.0, 1.0, 1.0],
+        tex_coords: [1.0, 1.0],
     },
 ];
 
@@ -74,67 +82,67 @@ pub const CUBE_MESH_INDICES: [u16; 36] = [
 pub const GROUND_MESH_VERTICES: [Vertex; 16] = [
     Vertex {
         position: [0.0, 0.0, 0.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [1.0, 0.0, 0.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [2.0, 0.0, 0.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [3.0, 0.0, 0.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [0.0, 0.0, 1.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [1.0, 0.0, 1.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [2.0, 0.0, 1.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [3.0, 0.0, 1.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [0.0, 0.0, 2.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [1.0, 0.0, 2.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [2.0, 0.0, 2.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [3.0, 0.0, 2.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [0.0, 0.0, 3.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [1.0, 0.0, 3.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [2.0, 0.0, 3.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [3.0, 0.0, 3.0],
-        color: GROUND_COLOR,
+        tex_coords: [1.0, 1.0],
     },
 ];
 

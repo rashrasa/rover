@@ -1,10 +1,11 @@
 use cgmath::{Matrix4, Vector3};
+use image::imageops::FilterType;
 use log::info;
 use rand::RngCore;
 use rover::{
     CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH_INDICES, GROUND_MESH_VERTICES,
     core::{entity::Entity, world::World},
-    render::{App, mesh::Mesh},
+    render::{App, mesh::Mesh, textures::ResizeStrategy},
 };
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -21,7 +22,7 @@ fn main() {
     let mut rng = rand::rng();
     let mut next_float = || rng.next_u32() as f32 / u32::MAX as f32;
     let ground_vertices = GROUND_MESH_VERTICES.map(|mut v| {
-        v.color = [next_float(), next_float(), next_float()];
+        v.tex_coords = [next_float(), next_float()];
         v
     });
 
@@ -41,13 +42,21 @@ fn main() {
         .iter(),
     );
 
-    for i in -30..30 {
-        for j in -30..30 {
-            for k in -30..30 {
+    info!("Creating textures");
+    app.add_texture(
+        "test".into(),
+        image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png")).unwrap(),
+        ResizeStrategy::Stretch(FilterType::Gaussian),
+    );
+
+    info!("Creating entities");
+    for i in -1..2 {
+        for j in -1..2 {
+            for k in -1..2 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
-                    Vector3::new(i as f32 * 15.0, j as f32 * 15.0, k as f32 * 15.0),
+                    Vector3::new(i as f32, j as f32, k as f32),
                     Vector3::new(0.0, 0.0, 0.0),
                     (
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,
@@ -59,12 +68,14 @@ fn main() {
         }
     }
 
-    for x in -0..0 {
-        for z in -0..0 {
+    info!("Loading chunks");
+    for x in -10..10 {
+        for z in -10..10 {
             app.load_chunk(2 * x, 2 * z);
         }
     }
 
+    info!("Starting");
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut app).unwrap();
 

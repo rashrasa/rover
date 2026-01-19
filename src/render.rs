@@ -1,23 +1,27 @@
 pub mod camera;
+pub mod lights;
 pub mod mesh;
+pub mod textures;
 pub mod vertex;
 
 use std::{collections::HashMap, f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
 
 use bytemuck::cast_slice;
 use cgmath::{InnerSpace, Matrix4, Rad};
+use image::DynamicImage;
 use log::{debug, error, info, warn};
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages, Color,
-    ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, ExperimentalFeatures, Face,
-    Features, FragmentState, FrontFace, IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp,
-    MultisampleState, Operations, PipelineCompilationOptions, PipelineLayout,
-    PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology,
-    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource,
-    ShaderStages, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages,
-    TextureViewDescriptor, Trace, VertexState,
+    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer,
+    BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, Device, ExperimentalFeatures, Face, Features, FragmentState,
+    FrontFace, IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+    Operations, PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PolygonMode,
+    PowerPreference, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    SamplerBindingType, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp, Surface,
+    SurfaceConfiguration, SurfaceError, TextureSampleType, TextureUsages, TextureViewDescriptor,
+    TextureViewDimension, Trace, VertexState,
     util::{BufferInitDescriptor, DeviceExt},
     wgt::DeviceDescriptor,
 };
@@ -37,13 +41,22 @@ use crate::{
     input::InputController,
     render::{
         camera::{Camera, CameraUniform, Projection},
+        lights::LightSourceStorage,
         mesh::Mesh,
+        textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
 };
 
 enum AppState {
-    NeedsInit(u32, u32, Vec<(String, Vec<Vertex>, Vec<u16>)>, Vec<Entity>), // window width, height, meshes to push, entities to push
+    /// window width, height, mesh queue, entity queue, texture queue
+    NeedsInit(
+        u32,
+        u32,
+        Vec<(String, Vec<Vertex>, Vec<u16>)>,
+        Vec<Entity>,
+        Vec<(String, DynamicImage, ResizeStrategy)>,
+    ),
     Started(Renderer),
 }
 
@@ -61,7 +74,7 @@ pub struct App {
 impl App {
     pub fn new(_: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
         Self {
-            state: AppState::NeedsInit(width, height, Vec::new(), Vec::new()),
+            state: AppState::NeedsInit(width, height, Vec::new(), Vec::new(), Vec::new()),
 
             world: World::new(seed),
             input: InputController::new(),
@@ -70,7 +83,7 @@ impl App {
 
     pub fn add_meshes(&mut self, meshes: Iter<(&str, &[vertex::Vertex], &[u16])>) {
         match &mut self.state {
-            AppState::NeedsInit(_, _, mesh_queue, _) => {
+            AppState::NeedsInit(_, _, mesh_queue, _, _) => {
                 for (mesh_id, vertices, indices) in meshes {
                     mesh_queue.push((mesh_id.to_string(), vertices.to_vec(), indices.to_vec()));
                 }
@@ -83,12 +96,28 @@ impl App {
 
     pub fn add_entity(&mut self, entity: Entity) {
         match &mut self.state {
-            AppState::NeedsInit(_, _, _, entity_queue) => {
+            AppState::NeedsInit(_, _, _, entity_queue, _) => {
                 entity_queue.push(entity);
             }
             AppState::Started(renderer) => {
                 self.world.add_entity(entity);
                 renderer.upsert_instances(&self.world, true);
+            }
+        }
+    }
+
+    pub fn add_texture(
+        &mut self,
+        texture_id: String,
+        full_size_image: DynamicImage,
+        resize_strategy: ResizeStrategy,
+    ) {
+        match &mut self.state {
+            AppState::NeedsInit(_, _, _, _, textures) => {
+                textures.push((texture_id, full_size_image, resize_strategy));
+            }
+            AppState::Started(renderer) => {
+                renderer.new_texture(texture_id, full_size_image, resize_strategy);
             }
         }
     }
@@ -119,7 +148,7 @@ impl App {
 impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         match &mut self.state {
-            AppState::NeedsInit(w, h, meshes, entities) => {
+            AppState::NeedsInit(w, h, meshes, entities, textures) => {
                 let mut win_attr = Window::default_attributes();
                 win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(*w, *h)));
                 win_attr.title = "Rover".into();
@@ -128,9 +157,9 @@ impl ApplicationHandler<Event> for App {
 
                 let window = Arc::new(event_loop.create_window(win_attr).unwrap());
 
-                window.request_redraw();
                 let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
+                info!("Adding meshes");
                 renderer
                     .add_meshes(
                         meshes
@@ -142,11 +171,18 @@ impl ApplicationHandler<Event> for App {
                     .unwrap();
 
                 // TODO: Use map instead
+                info!("Adding entities");
                 while let Some(entity) = entities.pop() {
                     self.world.add_entity(entity);
                 }
+                info!("Creating textures");
+                while let Some((texture_id, full_size_image, resize_strategy)) = textures.pop() {
+                    renderer.new_texture(texture_id, full_size_image, resize_strategy);
+                }
+                info!("Creating GPU buffers");
                 renderer.upsert_instances(&self.world, true);
                 self.state = AppState::Started(renderer);
+                window.request_redraw();
             }
             AppState::Started(_) => {}
         }
@@ -216,6 +252,9 @@ pub struct Renderer {
 
     instances: InstanceStorage,
     ground: InstanceStorage,
+
+    textures: TextureStorage,
+    texture_bind_group_layout: BindGroupLayout,
 
     // metrics
     start: Instant,
@@ -324,9 +363,32 @@ impl Renderer {
             label: Some("camera_bind_group"),
         });
 
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("Texture Bind Group Layout"),
+            });
+
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&camera_bind_group_layout],
+            bind_group_layouts: &[&camera_bind_group_layout, &texture_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -393,6 +455,8 @@ impl Renderer {
             meshes: mesh_storage,
             instances: instance_storage,
             ground,
+            textures: TextureStorage::new(),
+            texture_bind_group_layout,
 
             start: Instant::now(),
             n_renders: 0,
@@ -415,6 +479,22 @@ impl Renderer {
         self.meshes.update_gpu(&mut self.queue, &self.device);
 
         Ok(())
+    }
+
+    pub fn new_texture(
+        &mut self,
+        texture_id: String,
+        full_size_image: DynamicImage,
+        resize_strategy: ResizeStrategy,
+    ) {
+        self.textures.new_texture(
+            &mut self.device,
+            &mut self.queue,
+            texture_id,
+            full_size_image,
+            resize_strategy,
+            &self.texture_bind_group_layout,
+        );
     }
 
     // TODO: All instances get synced even ones not updated, optimize later.
@@ -495,7 +575,7 @@ impl Renderer {
 
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
-
+            render_pass.set_bind_group(1, &self.textures.get("test").unwrap().3, &[]);
             if self.instances.len() > 0 {
                 render_pass.set_vertex_buffer(1, self.instances.slice(..));
                 let (start, end) = self.meshes.get_mesh_index_bounds("Cube").unwrap();

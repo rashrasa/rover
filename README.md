@@ -43,3 +43,7 @@ These are specific components which are needed for the functioning of this appli
 ### Audio System
 
 - Generates sounds based on world state
+
+# Credits
+
+Textures are sourced from https://www.manytextures.com/, for which the textures are licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
