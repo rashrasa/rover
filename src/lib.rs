@@ -16,15 +16,10 @@ pub const RENDER_DISTANCE: usize = 8;
 pub const GROUND_HEIGHT: i64 = -5;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
-pub const CAMERA_SPEED: f32 = 50.0;
+pub const CAMERA_SPEED: f32 = 5.0;
 
 // must be in decreasing quality
-pub const MIPMAP_LEVELS: [MipLevel; 4] = [
-    MipLevel::Square(2048),
-    MipLevel::Square(1024),
-    MipLevel::Square(512),
-    MipLevel::Square(256),
-];
+pub const MIPMAP_LEVELS: [MipLevel; 1] = [MipLevel::Square(2048)];
 
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
     cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
@@ -79,72 +74,52 @@ pub const CUBE_MESH_INDICES: [u16; 36] = [
     3, 7, 6,    6, 2, 3
 ];
 
-pub const GROUND_MESH_VERTICES: [Vertex; 16] = [
-    Vertex {
-        position: [0.0, 0.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [2.0, 0.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [3.0, 0.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.0, 0.0, 1.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 1.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [2.0, 0.0, 1.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [3.0, 0.0, 1.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.0, 0.0, 2.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 2.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [2.0, 0.0, 2.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [3.0, 0.0, 2.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.0, 0.0, 3.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 3.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [2.0, 0.0, 3.0],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [3.0, 0.0, 3.0],
-        tex_coords: [1.0, 1.0],
-    },
-];
+pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
+    assert!((w >= 2 && h >= 1) || (w >= 1 && h >= 2)); // at least one triangle
+
+    let dx = 1.0 / w as f32;
+    let dz = 1.0 / h as f32;
+
+    let mut vertices: Vec<Vertex> = vec![];
+    let mut indices: Vec<u16> = vec![];
+
+    let mut up = true;
+
+    for j in 0..h {
+        for i in 0..w {
+            let x = i as f32 * dx;
+            let z = j as f32 * dz;
+            vertices.push(Vertex {
+                position: [x, 0.0, z],
+                tex_coords: [x, z],
+            });
+
+            if j > 0 {
+                if up && i != w - 1 {
+                    indices.push(((i + 1) + (j - 1) * w) as u16); // up-right
+                    indices.push((i + (j - 1) * w) as u16); // up
+                    indices.push((i + j * w) as u16); // this
+                    up = false;
+                } else if !up {
+                    indices.push(((i - 1) + j * w) as u16); // left
+                    indices.push((i + j * w) as u16); // this
+                    indices.push((i + (j - 1) * w) as u16); // up
+                    if i != w - 1 {
+                        indices.push(((i + 1) + (j - 1) * w) as u16); // up-right
+                        indices.push((i + (j - 1) * w) as u16); // up
+                        indices.push((i + j * w) as u16); // this
+                        up = false;
+                    } else {
+                        up = true;
+                    }
+                }
+            }
+        }
+        up = true;
+    }
+
+    (vertices, indices)
+};
 
 #[rustfmt::skip]
 pub const GROUND_MESH_INDICES: [u16; 54] = [

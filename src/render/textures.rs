@@ -132,7 +132,7 @@ impl TextureStorage {
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Texture Bind Group"),
+            label: Some(&format!("Texture Bind Group: {}", texture_id)),
             layout: bind_group_layout,
             entries: &[
                 BindGroupEntry {

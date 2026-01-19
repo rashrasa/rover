@@ -3,7 +3,7 @@ use image::imageops::FilterType;
 use log::info;
 use rand::RngCore;
 use rover::{
-    CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH_INDICES, GROUND_MESH_VERTICES,
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH, GROUND_MESH_INDICES,
     core::{entity::Entity, world::World},
     render::{App, mesh::Mesh, textures::ResizeStrategy},
 };
@@ -21,10 +21,7 @@ fn main() {
     let mut app = App::new(&event_loop, 1920, 1080, 0);
     let mut rng = rand::rng();
     let mut next_float = || rng.next_u32() as f32 / u32::MAX as f32;
-    let ground_vertices = GROUND_MESH_VERTICES.map(|mut v| {
-        v.tex_coords = [next_float(), next_float()];
-        v
-    });
+    let (g_v, g_i) = GROUND_MESH(CHUNK_SIZE_M, CHUNK_SIZE_M);
 
     app.add_meshes(
         [
@@ -33,11 +30,7 @@ fn main() {
                 CUBE_MESH_VERTICES.as_slice(),
                 CUBE_MESH_INDICES.as_slice(),
             ),
-            (
-                "Flat16",
-                ground_vertices.as_slice(),
-                GROUND_MESH_INDICES.as_slice(),
-            ),
+            ("Flat16", g_v.as_slice(), g_i.as_slice()),
         ]
         .iter(),
     );
@@ -71,7 +64,7 @@ fn main() {
     info!("Loading chunks");
     for x in -10..10 {
         for z in -10..10 {
-            app.load_chunk(2 * x, 2 * z);
+            app.load_chunk(x, z);
         }
     }
 
