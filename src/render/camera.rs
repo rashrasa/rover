@@ -1,25 +1,33 @@
 use std::f32::consts::PI;
 
-use bytemuck::{Pod, Zeroable};
-use cgmath::{
-    Angle, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3,
+use cgmath::{Angle, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector3};
+use wgpu::{
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, Device, Queue,
+    ShaderStages,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::OPENGL_TO_WGPU_MATRIX;
 
 #[derive(Debug, Clone)]
 pub struct Camera {
+    buffer: Buffer,
+    bind_group: BindGroup,
+    bind_group_layout: BindGroupLayout,
+
     position: Point3<f32>,
     yaw: Rad<f32>,
     pitch: Rad<f32>,
     projection: Projection,
 
     // generated
-    view_proj: Matrix4<f32>,
+    view_proj: [[f32; 4]; 4],
 }
 
 impl Camera {
     pub fn new(
+        device: &mut Device,
         position: Point3<f32>,
         yaw: Rad<f32>,
         pitch: Rad<f32>,
@@ -33,7 +41,36 @@ impl Camera {
             Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position.to_vec(),
             [0.0, 1.0, 0.0].into(),
         );
-        let view_proj = OPENGL_TO_WGPU_MATRIX * projection.projection() * view;
+        let view_proj = (OPENGL_TO_WGPU_MATRIX * projection.projection() * view).into();
+
+        let buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[view_proj]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("camera_bind_group_layout"),
+        });
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
 
         Self {
             position,
@@ -42,67 +79,56 @@ impl Camera {
             projection,
 
             view_proj,
+            bind_group,
+            buffer,
+            bind_group_layout,
         }
     }
 
     pub fn set_position(&mut self, position: &Point3<f32>) {
         self.position = *position;
-        self.update();
     }
 
     pub fn translate(&mut self, by: &Vector3<f32>) {
         self.position += *by;
-        self.update();
     }
 
     pub fn forward(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[amount * cos, 0.0, amount * sin].into());
-        self.update();
     }
     pub fn backward(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[-amount * cos, 0.0, -amount * sin].into());
-        self.update();
     }
     pub fn left(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[amount * sin, 0.0, -amount * cos].into());
-        self.update();
     }
     pub fn right(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[-amount * sin, 0.0, amount * cos].into());
-        self.update();
     }
 
     pub fn look_up(&mut self, amount: Rad<f32>) {
         self.pitch += amount;
         self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.01));
-        self.update();
     }
 
     pub fn look_down(&mut self, amount: Rad<f32>) {
         self.pitch -= amount;
         self.pitch = Rad(self.pitch.0.min(PI / 2.0 - 0.01));
-        self.update();
     }
 
     pub fn look_right(&mut self, amount: Rad<f32>) {
         self.yaw += amount;
-        self.update();
     }
 
     pub fn look_left(&mut self, amount: Rad<f32>) {
         self.yaw -= amount;
-        self.update();
     }
 
-    pub fn view_projection(&self) -> &Matrix4<f32> {
-        &self.view_proj
-    }
-
-    fn update(&mut self) {
+    pub fn update(&mut self, queue: &mut Queue) {
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
@@ -112,7 +138,16 @@ impl Camera {
             [0.0, 1.0, 0.0].into(),
         );
 
-        self.view_proj = OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view;
+        self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.view_proj));
+    }
+
+    pub fn bind_group_layout(&self) -> &BindGroupLayout {
+        &self.bind_group_layout
+    }
+
+    pub fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
     }
 }
 
@@ -149,23 +184,5 @@ impl Projection {
     fn update(&mut self) {
         self.model = OPENGL_TO_WGPU_MATRIX
             * cgmath::perspective(self.fovy, self.aspect, self.near, self.far);
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-pub struct CameraUniform {
-    view_proj: [[f32; 4]; 4],
-}
-
-impl CameraUniform {
-    pub fn new() -> Self {
-        Self {
-            view_proj: cgmath::Matrix4::identity().into(),
-        }
-    }
-
-    pub fn update(&mut self, camera: &Camera) {
-        self.view_proj = (*camera.view_projection()).into();
     }
 }

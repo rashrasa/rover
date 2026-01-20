@@ -1,19 +1,16 @@
 use std::{
     collections::{HashMap, hash_map::Entry},
-    hash::Hash,
     ops::RangeBounds,
-    rc::Rc,
 };
 
-use cgmath::{Matrix4, Vector4};
-use log::{debug, error, info};
+use cgmath::Matrix4;
+use log::debug;
 use wgpu::{
     Buffer, BufferSlice, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
-    wgc::device,
 };
 
-use crate::{INITIAL_INSTANCE_CAPACITY, render::vertex::Vertex};
+use crate::render::vertex::Vertex;
 
 pub mod entity;
 pub mod world;

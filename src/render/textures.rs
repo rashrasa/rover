@@ -1,6 +1,6 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-use image::{DynamicImage, ImageBuffer, ImageFormat, imageops::FilterType};
+use image::{DynamicImage, ImageBuffer, imageops::FilterType};
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindingResource,
     Device, Extent3d, FilterMode, Origin3d, Queue, Sampler, SamplerDescriptor,

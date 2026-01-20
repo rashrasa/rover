@@ -1,10 +1,9 @@
-use std::{collections::HashMap, ops::Index, slice::Iter};
+use std::{collections::HashMap, ops::Index};
 
 use cgmath::{InnerSpace, Vector2, Vector3};
-use log::error;
 use rand::RngCore;
 
-use crate::{CHUNK_SIZE_M, GROUND_HEIGHT, RENDER_DISTANCE, core::entity::Entity};
+use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, core::entity::Entity};
 
 #[derive(Debug)]
 pub struct World {
@@ -47,8 +46,8 @@ impl World {
     }
 
     pub fn tick(&mut self, dt: f32) {
-        // // Perform physics calculations
-        // self.perform_collisions();
+        // Perform physics calculations
+        self.perform_collisions();
 
         // // Do at the end
         // let mut translate_height = vec![];

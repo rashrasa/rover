@@ -4,45 +4,38 @@ pub mod mesh;
 pub mod textures;
 pub mod vertex;
 
-use std::{collections::HashMap, f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
+use std::{f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
 
-use bytemuck::cast_slice;
-use cgmath::{InnerSpace, Matrix4, Rad};
+use cgmath::{Matrix4, Rad};
 use image::DynamicImage;
-use log::{debug, error, info, warn};
+use log::{error, info};
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer,
-    BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, Device, ExperimentalFeatures, Face, Features, FragmentState,
-    FrontFace, IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-    Operations, PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PolygonMode,
-    PowerPreference, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    SamplerBindingType, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp, Surface,
-    SurfaceConfiguration, SurfaceError, TextureSampleType, TextureUsages, TextureViewDescriptor,
-    TextureViewDimension, Trace, VertexState,
-    util::{BufferInitDescriptor, DeviceExt},
-    wgt::DeviceDescriptor,
+    Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
+    BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device,
+    ExperimentalFeatures, Face, Features, FragmentState, FrontFace, IndexFormat, Instance,
+    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
+    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
+    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, SamplerBindingType, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, StoreOp, Surface, SurfaceConfiguration, SurfaceError,
+    TextureSampleType, TextureUsages, TextureViewDescriptor, TextureViewDimension, Trace,
+    VertexState, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Size},
-    event::{KeyEvent, WindowEvent},
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{Icon, Window, WindowAttributes, WindowId},
+    dpi::{PhysicalSize, Size},
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::{Icon, Window, WindowId},
 };
 
 use crate::{
-    CHUNK_SIZE_M, GROUND_HEIGHT, METRICS_INTERVAL,
+    CHUNK_SIZE_M, METRICS_INTERVAL,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     input::InputController,
     render::{
-        camera::{Camera, CameraUniform, Projection},
-        lights::LightSourceStorage,
-        mesh::Mesh,
+        camera::{Camera, Projection},
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
@@ -201,12 +194,8 @@ impl ApplicationHandler<Event> for App {
         event: WindowEvent,
     ) {
         if let AppState::Started(renderer) = &mut self.state {
-            self.input.window_event(
-                &event,
-                &renderer.window,
-                &mut renderer.camera,
-                &mut renderer.camera_uniform,
-            );
+            self.input
+                .window_event(&event, &renderer.window, &mut renderer.camera);
         }
 
         match event {
@@ -221,11 +210,7 @@ impl ApplicationHandler<Event> for App {
             WindowEvent::RedrawRequested => {
                 if let AppState::Started(renderer) = &mut self.state {
                     self.world.update();
-                    self.input.update(
-                        1.0 / 240.0,
-                        &mut renderer.camera,
-                        &mut renderer.camera_uniform,
-                    );
+                    self.input.update(1.0 / 240.0, &mut renderer.camera);
 
                     renderer.upsert_instances(&self.world, false);
 
@@ -255,9 +240,6 @@ pub struct Renderer {
     render_pipeline_layout: PipelineLayout,
 
     camera: Camera,
-    camera_uniform: CameraUniform,
-    camera_buffer: Buffer,
-    camera_bind_group: BindGroup,
 
     meshes: MeshStorage,
 
@@ -292,7 +274,7 @@ impl Renderer {
             .await
             .unwrap();
 
-        let (device, queue) = adapter
+        let (mut device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: None,
                 required_features: Features::empty(),
@@ -329,6 +311,7 @@ impl Renderer {
         });
 
         let camera = Camera::new(
+            &mut device,
             (0.0, 5.0, 10.0).into(),
             Rad(-3.0 * PI / 4.0),
             Rad(0.0),
@@ -340,39 +323,6 @@ impl Renderer {
                 10000.0,
             ),
         );
-
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update(&camera);
-
-        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera_uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
-
-        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
-        });
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -399,7 +349,7 @@ impl Renderer {
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&camera_bind_group_layout, &texture_bind_group_layout],
+            bind_group_layouts: &[camera.bind_group_layout(), &texture_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -459,9 +409,6 @@ impl Renderer {
             render_pipeline_layout,
 
             camera,
-            camera_uniform,
-            camera_buffer,
-            camera_bind_group,
 
             meshes: mesh_storage,
             instances: instance_storage,
@@ -542,12 +489,6 @@ impl Renderer {
             return Ok(());
         }
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
-        );
-
         let output = self.surface.get_current_texture()?;
 
         let view = output
@@ -559,6 +500,8 @@ impl Renderer {
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        self.camera.update(&mut self.queue);
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -582,7 +525,7 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
 
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);

@@ -3,18 +3,12 @@ use std::{collections::HashMap, f32::consts::PI};
 use cgmath::Rad;
 use winit::{
     dpi::PhysicalPosition,
-    event::{KeyEvent, WindowEvent},
+    event::WindowEvent,
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
 
-use crate::{
-    CAMERA_SPEED,
-    render::{
-        Renderer,
-        camera::{Camera, CameraUniform},
-    },
-};
+use crate::{CAMERA_SPEED, render::camera::Camera};
 
 pub struct InputController {
     keys_pressed: HashMap<KeyCode, bool>,
@@ -30,13 +24,7 @@ impl InputController {
     }
 
     /// This will only handle events relevant to input. Other events should be handled in App.window_event().
-    pub fn window_event(
-        &mut self,
-        event: &WindowEvent,
-        window: &Window,
-        camera: &mut Camera,
-        camera_uniform: &mut CameraUniform,
-    ) {
+    pub fn window_event(&mut self, event: &WindowEvent, window: &Window, camera: &mut Camera) {
         match event {
             WindowEvent::KeyboardInput {
                 device_id,
@@ -65,14 +53,13 @@ impl InputController {
                     camera.look_left(Rad((size.width as f32 / 2.0 - position.x as f32)
                         / size.width as f32
                         * PI));
-                    camera_uniform.update(camera);
                 }
             }
             _ => {}
         }
     }
 
-    pub fn update(&mut self, dt: f32, camera: &mut Camera, camera_uniform: &mut CameraUniform) {
+    pub fn update(&mut self, dt: f32, camera: &mut Camera) {
         let mut camera_forward: f32 = 0.0;
         let mut camera_right: f32 = 0.0;
         let mut yaw_ccw: f32 = 0.0;
@@ -151,6 +138,5 @@ impl InputController {
         camera.right(camera_right);
         camera.look_left(Rad(yaw_ccw));
         camera.translate(&[0.0, fly, 0.0].into());
-        camera_uniform.update(&camera);
     }
 }

@@ -1,11 +1,10 @@
 use cgmath::{Matrix4, Vector3};
 use image::imageops::FilterType;
 use log::info;
-use rand::RngCore;
 use rover::{
     CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH,
-    core::{entity::Entity, world::World},
-    render::{App, mesh::Mesh, textures::ResizeStrategy},
+    core::entity::Entity,
+    render::{App, textures::ResizeStrategy},
 };
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -20,7 +19,6 @@ fn main() {
 
     let mut app = App::new(&event_loop, 1920, 1080, 0);
     let mut rng = rand::rng();
-    let mut next_float = || rng.next_u32() as f32 / u32::MAX as f32;
     let (g_v, g_i) = GROUND_MESH(CHUNK_SIZE_M, CHUNK_SIZE_M);
 
     app.add_meshes(
