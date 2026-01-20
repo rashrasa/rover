@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::PI};
 
 use cgmath::Rad;
 use winit::{
@@ -18,17 +18,25 @@ use crate::{
 
 pub struct InputController {
     keys_pressed: HashMap<KeyCode, bool>,
+    esc_toggle: bool,
 }
 
 impl InputController {
     pub fn new() -> Self {
         Self {
             keys_pressed: HashMap::with_capacity(100),
+            esc_toggle: false,
         }
     }
 
     /// This will only handle events relevant to input. Other events should be handled in App.window_event().
-    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) {
+    pub fn window_event(
+        &mut self,
+        event: &WindowEvent,
+        window: &Window,
+        camera: &mut Camera,
+        camera_uniform: &mut CameraUniform,
+    ) {
         match event {
             WindowEvent::KeyboardInput {
                 device_id,
@@ -37,16 +45,28 @@ impl InputController {
             } => {
                 if let PhysicalKey::Code(k) = event.physical_key {
                     self.keys_pressed.insert(k, event.state.is_pressed());
+                    if k == KeyCode::Escape && event.state.is_pressed() {
+                        self.esc_toggle = !self.esc_toggle;
+                    }
                 }
             }
             WindowEvent::CursorMoved {
                 device_id,
                 position,
             } => {
-                let size = window.inner_size();
-                // window
-                //     .set_cursor_position(PhysicalPosition::new(size.width / 2, size.height / 2))
-                //     .unwrap();
+                if !self.esc_toggle {
+                    let size = window.inner_size();
+                    window
+                        .set_cursor_position(PhysicalPosition::new(size.width / 2, size.height / 2))
+                        .unwrap();
+                    camera.look_up(Rad((size.height as f32 / 2.0 - position.y as f32)
+                        / size.height as f32
+                        * PI));
+                    camera.look_left(Rad((size.width as f32 / 2.0 - position.x as f32)
+                        / size.width as f32
+                        * PI));
+                    camera_uniform.update(camera);
+                }
             }
             _ => {}
         }
@@ -57,6 +77,7 @@ impl InputController {
         let mut camera_right: f32 = 0.0;
         let mut yaw_ccw: f32 = 0.0;
         let mut fly: f32 = 0.0;
+        let mut fly_speed = CAMERA_SPEED;
 
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyW) {
             if *p {
@@ -98,15 +119,20 @@ impl InputController {
                 fly -= 2.0;
             }
         }
+        if let Some(p) = self.keys_pressed.get(&KeyCode::ControlLeft) {
+            if *p {
+                fly_speed *= 10.0;
+            }
+        }
 
         let mag = (camera_forward * camera_forward + camera_right * camera_right).sqrt();
         camera_forward /= mag;
         camera_right /= mag;
 
-        camera_forward *= CAMERA_SPEED * dt;
-        camera_right *= CAMERA_SPEED * dt;
-        yaw_ccw *= CAMERA_SPEED * dt;
-        fly *= CAMERA_SPEED * dt;
+        camera_forward *= fly_speed * dt;
+        camera_right *= fly_speed * dt;
+        yaw_ccw *= fly_speed * dt;
+        fly *= fly_speed * dt;
 
         if camera_forward.is_nan() {
             camera_forward = 0.0;

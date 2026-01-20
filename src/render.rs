@@ -201,7 +201,12 @@ impl ApplicationHandler<Event> for App {
         event: WindowEvent,
     ) {
         if let AppState::Started(renderer) = &mut self.state {
-            self.input.window_event(&event, &renderer.window);
+            self.input.window_event(
+                &event,
+                &renderer.window,
+                &mut renderer.camera,
+                &mut renderer.camera_uniform,
+            );
         }
 
         match event {

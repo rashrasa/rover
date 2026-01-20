@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bytemuck::{Pod, Zeroable};
 use cgmath::{
     Angle, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3,
@@ -71,6 +73,18 @@ impl Camera {
     pub fn right(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[-amount * sin, 0.0, amount * cos].into());
+        self.update();
+    }
+
+    pub fn look_up(&mut self, amount: Rad<f32>) {
+        self.pitch += amount;
+        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.01));
+        self.update();
+    }
+
+    pub fn look_down(&mut self, amount: Rad<f32>) {
+        self.pitch -= amount;
+        self.pitch = Rad(self.pitch.0.min(PI / 2.0 - 0.01));
         self.update();
     }
 

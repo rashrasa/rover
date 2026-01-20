@@ -71,7 +71,7 @@ impl TextureStorage {
                 height: 2048,
                 depth_or_array_layers: 1,
             },
-            mip_level_count: 4,
+            mip_level_count: MIPMAP_LEVELS.len() as u32,
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,

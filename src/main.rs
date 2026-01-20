@@ -35,14 +35,12 @@ fn main() {
         .iter(),
     );
 
-    info!("Creating textures");
     app.add_texture(
         "test".into(),
         image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png")).unwrap(),
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    info!("Creating entities");
     for i in -1..2 {
         for j in -1..2 {
             for k in -1..2 {
@@ -61,9 +59,8 @@ fn main() {
         }
     }
 
-    info!("Loading chunks");
-    for x in -10..10 {
-        for z in -10..10 {
+    for x in -5..5 {
+        for z in -5..5 {
             app.load_chunk(x, z);
         }
     }
