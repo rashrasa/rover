@@ -10,16 +10,18 @@ use cgmath::{Matrix4, Rad};
 use image::DynamicImage;
 use log::{error, info};
 use wgpu::{
-    Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device,
-    ExperimentalFeatures, Face, Features, FragmentState, FrontFace, IndexFormat, Instance,
+    AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+    BindingType, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
+    CompareFunction, DepthBiasState, DepthStencilState, Device, ExperimentalFeatures, Extent3d,
+    Face, Features, FilterMode, FragmentState, FrontFace, IndexFormat, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
     PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
-    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, SamplerBindingType, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StoreOp, Surface, SurfaceConfiguration, SurfaceError,
-    TextureSampleType, TextureUsages, TextureViewDescriptor, TextureViewDimension, Trace,
-    VertexState, wgt::DeviceDescriptor,
+    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler,
+    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    StencilState, StoreOp, Surface, SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView,
+    TextureViewDescriptor, TextureViewDimension, Trace, VertexState, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -30,7 +32,7 @@ use winit::{
 };
 
 use crate::{
-    CHUNK_SIZE_M, METRICS_INTERVAL,
+    CHUNK_SIZE_M, METRICS_INTERVAL, MIPMAP_LEVELS,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     input::InputController,
@@ -249,6 +251,10 @@ pub struct Renderer {
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
 
+    depth_texture: Texture,
+    depth_view: TextureView,
+    depth_sampler: Sampler,
+
     // metrics
     start: Instant,
     n_renders: u64,
@@ -313,8 +319,8 @@ impl Renderer {
         let camera = Camera::new(
             &mut device,
             (0.0, 5.0, 10.0).into(),
-            Rad(-3.0 * PI / 4.0),
-            Rad(0.0),
+            Rad(-PI / 4.0),
+            Rad(-PI / 12.0),
             Projection::new(
                 config.width as f32,
                 config.height as f32,
@@ -346,6 +352,37 @@ impl Renderer {
                 ],
                 label: Some("Texture Bind Group Layout"),
             });
+        let size = Extent3d {
+            width: config.width.max(1),
+            height: config.height.max(1),
+            depth_or_array_layers: 1,
+        };
+
+        let depth_desc = TextureDescriptor {
+            label: Some("Depth Texture"),
+            size,
+            mip_level_count: MIPMAP_LEVELS.len() as u32,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+        let depth_texture = device.create_texture(&depth_desc);
+        let depth_view = depth_texture.create_view(&TextureViewDescriptor::default());
+        let depth_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("Depth Sampler"),
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
+            compare: Some(CompareFunction::LessEqual),
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 0.0,
+            ..Default::default()
+        });
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -381,7 +418,13 @@ impl Renderer {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                format: TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: CompareFunction::Less,
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
+            }),
             multisample: MultisampleState {
                 count: 1,
                 mask: !0,
@@ -409,6 +452,10 @@ impl Renderer {
             render_pipeline_layout,
 
             camera,
+
+            depth_texture,
+            depth_view,
+            depth_sampler,
 
             meshes: mesh_storage,
             instances: instance_storage,
@@ -519,7 +566,14 @@ impl Renderer {
                     },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
+                        store: StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });

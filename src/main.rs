@@ -39,9 +39,9 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -1..2 {
-        for j in -1..2 {
-            for k in -1..2 {
+    for i in -5..5 {
+        for j in -5..5 {
+            for k in -5..5 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
@@ -51,14 +51,14 @@ fn main() {
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,
                         Vector3::new(-1.0, -1.0, -1.0) / 2.0,
                     ),
-                    Matrix4::from_translation([0.0, 0.0, 0.0].into()),
+                    Matrix4::from_translation([i as f32, j as f32, k as f32].into()),
                 ));
             }
         }
     }
 
-    for x in -5..5 {
-        for z in -5..5 {
+    for x in -0..1 {
+        for z in -0..1 {
             app.load_chunk(x, z);
         }
     }
