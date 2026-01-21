@@ -7,7 +7,9 @@ pub mod rover;
 
 // All constants will be stored here.
 
-use std::time::Duration;
+use std::{f32::consts::PI, time::Duration};
+
+use cgmath::{Matrix4, Rad, Rotation, Vector3, Vector4};
 
 use crate::render::{textures::MipLevel, vertex::Vertex};
 
@@ -27,42 +29,6 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_co
     cgmath::Vector4::new(0.0, 0.0, 0.5, 0.0),
     cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
 );
-
-// Meshes:
-pub const CUBE_MESH_VERTICES: [Vertex; 8] = [
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        tex_coords: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        tex_coords: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        tex_coords: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        tex_coords: [0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        tex_coords: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        tex_coords: [1.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        tex_coords: [1.0, 1.0],
-    },
-];
 
 #[rustfmt::skip]
 pub const CUBE_MESH_INDICES: [u16; 36] = [
@@ -92,6 +58,7 @@ pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
             let z = j as f32 * dz;
             vertices.push(Vertex {
                 position: [x, 0.0, z],
+                normal: [0.0, 1.0, 0.0], // TODO: Normal should be calculated with heightmap values
                 tex_coords: [x, z],
             });
 

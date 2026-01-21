@@ -5,6 +5,7 @@ use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, Ver
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
+    pub normal: [f32; 3],
     pub tex_coords: [f32; 2],
 }
 
@@ -22,6 +23,11 @@ impl Vertex {
                 VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as BufferAddress,
                     shader_location: 1,
+                    format: VertexFormat::Float32x3,
+                },
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 6]>() as BufferAddress,
+                    shader_location: 2,
                     format: VertexFormat::Float32x2,
                 },
             ],

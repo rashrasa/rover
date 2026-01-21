@@ -38,6 +38,7 @@ use crate::{
     input::InputController,
     render::{
         camera::{Camera, Projection},
+        lights::LightSourceStorage,
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
@@ -251,6 +252,8 @@ pub struct Renderer {
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
 
+    lights: LightSourceStorage,
+
     depth_texture: Texture,
     depth_view: TextureView,
     depth_sampler: Sampler,
@@ -384,9 +387,16 @@ impl Renderer {
             ..Default::default()
         });
 
+        let lights =
+            LightSourceStorage::new(&mut device, [0.0, 1.0, 0.0, 1.0], [1.0, 1.0, 1.0, 1.0]);
+
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[camera.bind_group_layout(), &texture_bind_group_layout],
+            bind_group_layouts: &[
+                camera.bind_group_layout(),
+                &texture_bind_group_layout,
+                lights.layout(),
+            ],
             push_constant_ranges: &[],
         });
 
@@ -456,6 +466,8 @@ impl Renderer {
             depth_texture,
             depth_view,
             depth_sampler,
+
+            lights,
 
             meshes: mesh_storage,
             instances: instance_storage,
@@ -584,6 +596,7 @@ impl Renderer {
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
             render_pass.set_bind_group(1, &self.textures.get("test").unwrap().3, &[]);
+            render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
             if self.instances.len() > 0 {
                 render_pass.set_vertex_buffer(1, self.instances.slice(..));
                 let (start, end) = self.meshes.get_mesh_index_bounds("Cube").unwrap();

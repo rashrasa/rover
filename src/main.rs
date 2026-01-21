@@ -1,10 +1,12 @@
-use cgmath::{Matrix4, Vector3};
+use std::f32::consts::PI;
+
+use cgmath::{Matrix4, Rad, Vector3, Vector4};
 use image::imageops::FilterType;
 use log::info;
 use rover::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, CUBE_MESH_VERTICES, GROUND_MESH,
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_MESH,
     core::entity::Entity,
-    render::{App, textures::ResizeStrategy},
+    render::{App, textures::ResizeStrategy, vertex::Vertex},
 };
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -25,7 +27,7 @@ fn main() {
         [
             (
                 "Cube",
-                CUBE_MESH_VERTICES.as_slice(),
+                get_cube_vertices().as_slice(),
                 CUBE_MESH_INDICES.as_slice(),
             ),
             ("Flat16", g_v.as_slice(), g_i.as_slice()),
@@ -39,9 +41,9 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -5..5 {
-        for j in -5..5 {
-            for k in -5..5 {
+    for i in -3..3 {
+        for j in -3..3 {
+            for k in -3..3 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
@@ -57,8 +59,8 @@ fn main() {
         }
     }
 
-    for x in -0..1 {
-        for z in -0..1 {
+    for x in -10..10 {
+        for z in -10..10 {
             app.load_chunk(x, z);
         }
     }
@@ -68,4 +70,93 @@ fn main() {
     event_loop.run_app(&mut app).unwrap();
 
     info!("Starting shutdown");
+}
+
+fn get_cube_vertices() -> [Vertex; 8] {
+    let tfl = Vector3::new(-0.5, 0.5, 0.5);
+    let tfr = Vector3::new(0.5, 0.5, 0.5);
+    let bfr = Vector3::new(0.5, -0.5, 0.5);
+    let bfl = Vector3::new(-0.5, -0.5, 0.5);
+
+    let tbl = Vector3::new(-0.5, 0.5, -0.5);
+    let tbr = Vector3::new(0.5, 0.5, -0.5);
+    let bbr = Vector3::new(0.5, -0.5, -0.5);
+    let bbl = Vector3::new(-0.5, -0.5, -0.5);
+
+    // normal: cross two adjacent vertices and rotate PI/4 rad towards the last adjacent vertex
+
+    let tfl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
+        * Matrix4::from_angle_y(Rad(PI / 4.0))
+        * Vector4::new(0.0, 0.0, 1.0, 1.0);
+
+    let tfr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
+        * Matrix4::from_angle_y(Rad(PI / 4.0))
+        * Vector4::new(0.0, 0.0, 1.0, 1.0);
+
+    let tbr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
+        * Matrix4::from_angle_y(Rad(PI / 4.0))
+        * Vector4::new(1.0, 0.0, 0.0, 1.0);
+
+    let tbl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
+        * Matrix4::from_angle_y(Rad(PI / 4.0))
+        * Vector4::new(1.0, 0.0, 0.0, 1.0);
+
+    let bfl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
+        * Matrix4::from_angle_y(Rad(-PI / 4.0))
+        * Vector4::new(0.0, 0.0, 1.0, 1.0);
+
+    let bfr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
+        * Matrix4::from_angle_y(Rad(-PI / 4.0))
+        * Vector4::new(0.0, 0.0, 1.0, 1.0);
+
+    let bbr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
+        * Matrix4::from_angle_y(Rad(-PI / 4.0))
+        * Vector4::new(1.0, 0.0, 0.0, 1.0);
+
+    let bbl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
+        * Matrix4::from_angle_y(Rad(-PI / 4.0))
+        * Vector4::new(1.0, 0.0, 0.0, 1.0);
+
+    [
+        Vertex {
+            position: tfl.into(),
+            normal: tfl_norm.truncate().into(),
+            tex_coords: [1.0, 0.0],
+        },
+        Vertex {
+            position: tfr.into(),
+            normal: tfr_norm.truncate().into(),
+            tex_coords: [1.0, 1.0],
+        },
+        Vertex {
+            position: bfr.into(),
+            normal: bfr_norm.truncate().into(),
+            tex_coords: [0.0, 1.0],
+        },
+        Vertex {
+            position: bfl.into(),
+            normal: bfl_norm.truncate().into(),
+            tex_coords: [0.0, 1.0],
+        },
+        Vertex {
+            position: tbl.into(),
+            normal: tbl_norm.truncate().into(),
+            tex_coords: [0.0, 0.0],
+        },
+        Vertex {
+            position: tbr.into(),
+            normal: tbr_norm.truncate().into(),
+            tex_coords: [1.0, 0.0],
+        },
+        Vertex {
+            position: bbr.into(),
+            normal: bbr_norm.truncate().into(),
+            tex_coords: [1.0, 1.0],
+        },
+        Vertex {
+            position: bbl.into(),
+            normal: bbl_norm.truncate().into(),
+            tex_coords: [1.0, 1.0],
+        },
+    ]
 }
