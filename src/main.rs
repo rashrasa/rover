@@ -41,9 +41,9 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -3..3 {
-        for j in -3..3 {
-            for k in -3..3 {
+    for i in -2..2 {
+        for j in -2..2 {
+            for k in -2..2 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Cube",
@@ -59,8 +59,8 @@ fn main() {
         }
     }
 
-    for x in -10..10 {
-        for z in -10..10 {
+    for x in -20..20 {
+        for z in -20..20 {
             app.load_chunk(x, z);
         }
     }

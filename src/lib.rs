@@ -11,11 +11,14 @@ use std::{f32::consts::PI, time::Duration};
 
 use cgmath::{Matrix4, Rad, Rotation, Vector3, Vector4};
 
-use crate::render::{textures::MipLevel, vertex::Vertex};
+use crate::{
+    core::world::HeightMap,
+    render::{textures::MipLevel, vertex::Vertex},
+};
 
 pub const CHUNK_SIZE_M: usize = 16;
 pub const RENDER_DISTANCE: usize = 8;
-pub const GROUND_HEIGHT: i64 = -5;
+pub const GROUND_HEIGHT: i64 = 0;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 pub const CAMERA_SPEED: f32 = 5.0;
@@ -57,7 +60,7 @@ pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
             let x = i as f32 * dx;
             let z = j as f32 * dz;
             vertices.push(Vertex {
-                position: [x, 0.0, z],
+                position: [x, GROUND_HEIGHT as f32, z],
                 normal: [0.0, 1.0, 0.0], // TODO: Normal should be calculated with heightmap values
                 tex_coords: [x, z],
             });

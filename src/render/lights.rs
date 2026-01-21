@@ -11,6 +11,8 @@ use wgpu::{
 pub struct LightSource {
     position: [f32; 4],
     colour: [f32; 4],
+    luminance: f32,
+    _padding: [f32; 3],
 }
 
 #[derive(Debug)]
@@ -23,10 +25,12 @@ pub struct LightSourceStorage {
 }
 
 impl LightSourceStorage {
-    pub fn new(device: &mut Device, light_p: [f32; 4], light_c: [f32; 4]) -> Self {
+    pub fn new(device: &mut Device, light_p: [f32; 4], light_c: [f32; 4], luminance: f32) -> Self {
         let light = LightSource {
             position: light_p,
             colour: light_c,
+            luminance,
+            _padding: [0 as f32; 3],
         };
 
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {

@@ -387,8 +387,12 @@ impl Renderer {
             ..Default::default()
         });
 
-        let lights =
-            LightSourceStorage::new(&mut device, [0.0, 1.0, 0.0, 1.0], [1.0, 1.0, 1.0, 1.0]);
+        let lights = LightSourceStorage::new(
+            &mut device,
+            [0.0, 5.0, 0.0, 1.0],
+            [0.1, 1.0, 0.1, 1.0],
+            600.0,
+        );
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),

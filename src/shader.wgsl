@@ -5,6 +5,7 @@ struct CameraUniform {
 struct LightUniform {
     pos: vec4<f32>,
     colour: vec4<f32>,
+    luminence: f32,
 }
 
 @group(0) @binding(0)
@@ -34,7 +35,7 @@ struct InstanceInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) world_position: vec3<f32>,
+    @location(1) world_position: vec4<f32>,
     @location(2) normal: vec3<f32>,
 }
 
@@ -50,7 +51,7 @@ fn vs_main(
         instance.w
     );
     var out: VertexOutput;
-    out.world_position = model.position;
+    out.world_position = transform * vec4<f32>(model.position, 1.0);
     out.normal = model.normal;
     out.clip_position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
     out.tex_coords = model.tex_coords;
@@ -60,10 +61,11 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let light_pos = light.pos.xyz;
-    let light_vec = in.world_position - light_pos;
+    let light_vec = in.world_position.xyz - light_pos;
+    let light_dist = length(light_vec);
     let light_unit_vec = normalize(light_vec);
-    let brightness = clamp((10.0 - length(light_vec)) / 10.0, 0.0, 1.0);
-    let lighting = light.colour * max(dot(in.normal, light_unit_vec), 0.0);
+    let brightness = light.luminence * 1.0 / max(light_dist * light_dist, 1.0);
+    let lighting = light.colour.xyz * (1.0 - max(dot(in.normal.xyz, light_unit_vec.xyz), 0.0));
 
-    return lighting * brightness * textureSample(texture, s, in.tex_coords);
+    return vec4<f32>(lighting * brightness, 1.0) * textureSample(texture, s, in.tex_coords);
 }
