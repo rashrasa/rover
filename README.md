@@ -1,6 +1,6 @@
 # (WIP) Rover
 
-A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events.
+A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events. Built without a game/graphics engine, using wgpu as the WebGPU API provider.
 
 ![Recording 2026-01-17 204454](https://github.com/user-attachments/assets/c9903064-b028-4226-ac45-40e4edb63471)
 
