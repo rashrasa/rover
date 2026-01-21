@@ -46,8 +46,8 @@ impl World {
     }
 
     pub fn tick(&mut self, dt: f32) {
-        // Perform physics calculations
-        self.perform_collisions();
+        // // Perform physics calculations
+        // self.perform_collisions();
 
         // // Do at the end
         // let mut translate_height = vec![];
