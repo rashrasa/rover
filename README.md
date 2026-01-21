@@ -6,6 +6,9 @@ A rover driving simulator focused on stunning graphics, audio, procedural genera
 
 *Early stage graphics development and camera testing*
 
+<img width="1922" height="1128" alt="image" src="https://github.com/user-attachments/assets/b971fce0-d7d7-48e6-b35d-b655a94486e2" />
+
+*Lighting testing*
 ## Components
 
 These are specific components which are needed for the functioning of this application.
