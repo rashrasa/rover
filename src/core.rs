@@ -1,3 +1,7 @@
+pub mod entity;
+pub mod geometry;
+pub mod world;
+
 use std::{
     collections::{HashMap, hash_map::Entry},
     ops::RangeBounds,
@@ -11,9 +15,6 @@ use wgpu::{
 };
 
 use crate::render::vertex::Vertex;
-
-pub mod entity;
-pub mod world;
 
 /// Stores a vertex and index buffer on main memory, can be hashed into with a string id to get the start and end indices.
 ///

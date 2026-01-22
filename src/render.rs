@@ -391,7 +391,7 @@ impl Renderer {
             &mut device,
             [0.0, 5.0, 0.0, 1.0],
             [0.1, 1.0, 0.1, 1.0],
-            600.0,
+            200.0,
         );
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -529,10 +529,10 @@ impl Renderer {
             let entity_id = entity.id();
             let transform = entity.model();
 
-            if mesh_id == "Cube" {
-                self.instances.upsert_instance(entity_id, transform);
-            } else if mesh_id == "Flat16" && include_ground {
+            if mesh_id == "Flat16" {
                 self.ground.upsert_instance(entity_id, transform);
+            } else {
+                self.instances.upsert_instance(entity_id, transform);
             }
         }
 
