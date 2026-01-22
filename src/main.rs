@@ -14,11 +14,7 @@ use rover::{
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
-    env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
-        .target(env_logger::Target::Stdout)
-        .init();
-
+    rover::init_logging();
     // Winit wants to own app state
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
@@ -32,72 +28,11 @@ fn main() {
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
         ),
-        |x, z| 5.0 * x.sin() + 5.0 * z.sin(),
+        |x, z| 0.0,
     )
     .unwrap();
 
     let _isq3: f32 = 1.0 / 3.0_f32.sqrt();
-    let cube_mesh = Shape3::new(
-        vec![
-            Face::new(
-                vec![
-                    Vertex {
-                        position: [-0.5, 0.5, 0.5],
-                        normal: [-_isq3, _isq3, _isq3],
-                        tex_coords: [0.0, 0.0],
-                    },
-                    Vertex {
-                        position: [-0.5, 0.5, -0.5],
-                        normal: [-_isq3, _isq3, -_isq3],
-                        tex_coords: [1.0, 0.0],
-                    },
-                    Vertex {
-                        position: [-0.5, -0.5, -0.5],
-                        normal: [-_isq3, -_isq3, -_isq3],
-                        tex_coords: [1.0, 1.0],
-                    },
-                    Vertex {
-                        position: [-0.5, -0.5, 0.5],
-                        normal: [-_isq3, -_isq3, _isq3],
-                        tex_coords: [0.0, 1.0],
-                    },
-                ],
-                vec![0, 1, 2, 2, 3, 0],
-            ),
-            Face::new(
-                vec![
-                    Vertex {
-                        position: [0.5, 0.5, 0.5],
-                        normal: [_isq3, _isq3, _isq3],
-                        tex_coords: [0.0, 0.0],
-                    },
-                    Vertex {
-                        position: [0.5, 0.5, -0.5],
-                        normal: [_isq3, _isq3, -_isq3],
-                        tex_coords: [1.0, 0.0],
-                    },
-                    Vertex {
-                        position: [0.5, -0.5, -0.5],
-                        normal: [_isq3, -_isq3, -_isq3],
-                        tex_coords: [1.0, 1.0],
-                    },
-                    Vertex {
-                        position: [0.5, -0.5, 0.5],
-                        normal: [_isq3, -_isq3, _isq3],
-                        tex_coords: [0.0, 1.0],
-                    },
-                ],
-                vec![0, 3, 2, 2, 1, 0],
-            ),
-        ],
-        vec![
-            EdgeJoin::new(vec![0, 1], 0, vec![0, 1], 1).unwrap(),
-            EdgeJoin::new(vec![1, 2], 0, vec![1, 2], 1).unwrap(),
-            EdgeJoin::new(vec![2, 3], 0, vec![2, 3], 1).unwrap(),
-            EdgeJoin::new(vec![3, 0], 0, vec![3, 0], 1).unwrap(),
-        ],
-    )
-    .unwrap();
 
     let cube2_mesh = Shape3::new(
         vec![
@@ -118,7 +53,7 @@ fn main() {
             )
             .unwrap(),
             Face::from_function(
-                [-1.0, 0.0, 0.0].into(),
+                [1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
                 (2.0, 2.0),
@@ -126,7 +61,7 @@ fn main() {
             )
             .unwrap(),
             Face::from_function(
-                [1.0, 0.0, 0.0].into(),
+                [-1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
                 (2.0, 2.0),
@@ -171,9 +106,9 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -10..=10 {
-        for j in -10..=10 {
-            for k in -10..=10 {
+    for i in -5..6 {
+        for j in 0..6 {
+            for k in -5..6 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Experimental_Cube2",
@@ -191,8 +126,8 @@ fn main() {
         }
     }
 
-    for x in -0..0 {
-        for z in -0..0 {
+    for x in -10..11 {
+        for z in -10..11 {
             app.load_chunk(x, z);
         }
     }

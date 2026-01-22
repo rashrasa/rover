@@ -16,9 +16,9 @@ use crate::{
     render::{textures::MipLevel, vertex::Vertex},
 };
 
-pub const CHUNK_SIZE_M: usize = 16;
+pub const CHUNK_SIZE_M: usize = 64;
 pub const RENDER_DISTANCE: usize = 8;
-pub const GROUND_HEIGHT: i64 = 0;
+pub const GROUND_HEIGHT: i64 = -5;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 pub const CAMERA_SPEED: f32 = 5.0;
@@ -94,3 +94,10 @@ pub const GROUND_MESH: fn(usize, usize) -> (Vec<Vertex>, Vec<u16>) = |w, h| {
 
 // metrics
 pub const METRICS_INTERVAL: Duration = Duration::new(10, 0);
+
+pub fn init_logging() {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .target(env_logger::Target::Stdout)
+        .init();
+}

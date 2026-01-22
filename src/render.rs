@@ -32,7 +32,7 @@ use winit::{
 };
 
 use crate::{
-    CHUNK_SIZE_M, METRICS_INTERVAL, MIPMAP_LEVELS,
+    CHUNK_SIZE_M, GROUND_HEIGHT, METRICS_INTERVAL, MIPMAP_LEVELS,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     input::InputController,
@@ -97,7 +97,7 @@ impl App {
             }
             AppState::Started(renderer) => {
                 self.world.add_entity(entity);
-                renderer.upsert_instances(&self.world, true);
+                renderer.upsert_instances(&self.world);
             }
         }
     }
@@ -132,12 +132,12 @@ impl App {
                 [-f32::INFINITY, -f32::INFINITY, -f32::INFINITY].into(),
             ),
             Matrix4 {
-                x: [CHUNK_SIZE_M as f32, 0.0, 0.0, 0.0].into(),
+                x: [1.0, 0.0, 0.0, 0.0].into(),
                 y: [0.0, 1.0, 0.0, 0.0].into(),
-                z: [0.0, 0.0, CHUNK_SIZE_M as f32, 0.0].into(),
+                z: [0.0, 0.0, 1.0, 0.0].into(),
                 w: [
                     x as f32 * CHUNK_SIZE_M as f32,
-                    height_map[(0, 0)] as f32,
+                    GROUND_HEIGHT as f32,
                     z as f32 * CHUNK_SIZE_M as f32,
                     1.0,
                 ]
@@ -182,7 +182,7 @@ impl ApplicationHandler<Event> for App {
                     renderer.new_texture(texture_id, full_size_image, resize_strategy);
                 }
                 info!("Creating GPU buffers");
-                renderer.upsert_instances(&self.world, true);
+                renderer.upsert_instances(&self.world);
                 self.state = AppState::Started(renderer);
                 window.request_redraw();
             }
@@ -215,7 +215,7 @@ impl ApplicationHandler<Event> for App {
                     self.world.update();
                     self.input.update(1.0 / 240.0, &mut renderer.camera);
 
-                    renderer.upsert_instances(&self.world, false);
+                    renderer.upsert_instances(&self.world);
 
                     match renderer.render() {
                         Ok(_) => {}
@@ -389,9 +389,9 @@ impl Renderer {
 
         let lights = LightSourceStorage::new(
             &mut device,
-            [0.0, 5.0, 0.0, 1.0],
-            [0.1, 1.0, 0.1, 1.0],
-            200.0,
+            [0.0, GROUND_HEIGHT as f32 + 1.0, 0.0, 1.0],
+            [1.0, 1.0, 0.1, 1.0],
+            1000.0,
         );
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -523,7 +523,7 @@ impl Renderer {
     /// Batch updating of instances. All instances will be synced to the GPU in this call.
     ///
     /// This is the main update function to be called before each render call.
-    pub fn upsert_instances(&mut self, world: &World, include_ground: bool) {
+    pub fn upsert_instances(&mut self, world: &World) {
         for entity in world.iter_entities() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();

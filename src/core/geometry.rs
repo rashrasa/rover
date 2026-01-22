@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::render::vertex::Vertex;
-use cgmath::{InnerSpace, Matrix3, Rad, Vector3};
+use cgmath::{InnerSpace, Matrix3, Rad, SquareMatrix, Vector3};
 use log::{debug, info};
 
 pub trait Geometry {
@@ -42,6 +42,8 @@ impl Face {
         resolution: (f32, f32),
         height: fn(f32, f32) -> f32,
     ) -> Result<Self, String> {
+        let up = up.normalize();
+
         let length_x = domain_x.1 - domain_x.0;
         let length_z = domain_z.1 - domain_z.0;
 
@@ -58,18 +60,17 @@ impl Face {
         let extra_x = (e_x - n_x as f32) * resolution.0;
         let extra_z = (e_z - n_z as f32) * resolution.1;
 
-        let correction_x = extra_x / n_x as f32;
-        let correction_z = extra_z / n_z as f32;
+        let correction_x = extra_x / (n_x - 1) as f32;
+        let correction_z = extra_z / (n_z - 1) as f32;
 
-        let dx = 1.0 / n_x as f32 + correction_x;
-        let dz = 1.0 / n_z as f32 + correction_z;
+        let dx = length_x / (n_x - 1) as f32 + correction_x;
+        let dz = length_z / (n_z - 1) as f32 + correction_z;
 
-        let final_y_rotation = Matrix3::look_to_rh([0.0, 1.0, 0.0].into(), up);
-        info!("{:?}", final_y_rotation);
+        let final_rotation = rotate_to_axis(up, [0.0, 1.0, 0.0].into());
 
         let mut vertices = vec![];
         let mut indices = vec![];
-        let mut up = true;
+        let mut v_up = true;
 
         for k in 0..n_z {
             for i in 0..n_x {
@@ -77,22 +78,25 @@ impl Face {
                 let z = domain_z.0 + k as f32 * dz;
                 let y = height(x, z);
 
+                let mut position = final_rotation * Vector3::new(x, 0.0, z);
+                position += y * up;
+
                 let normal = approximate_normal(height, (x, z));
-                info!("({},{},{})", x, y, z);
+
                 vertices.push(Vertex {
-                    position: (final_y_rotation * Vector3::new(x, y, z)).into(),
-                    normal: (final_y_rotation * normal).into(),
+                    position: position.into(),
+                    normal: (final_rotation * normal).into(),
                     tex_coords: [(x - domain_x.0) / length_x, (z - domain_z.0) / length_z],
                 });
 
                 // add indices if possible
                 if k > 0 {
-                    if up && i != n_x - 1 {
+                    if v_up && i != n_x - 1 {
                         indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
                         indices.push((i + (k - 1) * n_x) as u16); // up
                         indices.push((i + k * n_x) as u16); // this
-                        up = false;
-                    } else if !up {
+                        v_up = false;
+                    } else if !v_up {
                         indices.push(((i - 1) + k * n_x) as u16); // left
                         indices.push((i + k * n_x) as u16); // this
                         indices.push((i + (k - 1) * n_x) as u16); // up
@@ -100,14 +104,14 @@ impl Face {
                             indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
                             indices.push((i + (k - 1) * n_x) as u16); // up
                             indices.push((i + k * n_x) as u16); // this
-                            up = false;
+                            v_up = false;
                         } else {
-                            up = true;
+                            v_up = true;
                         }
                     }
                 }
             }
-            up = true;
+            v_up = true;
         }
 
         Ok(Self { vertices, indices })
@@ -279,8 +283,62 @@ fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
     let dz = H / 2.0;
     let dy_dx = (f(p.0 + dx, p.1) - f(p.0 - dx, p.1)) / (2.0 * H);
     let dy_dz = (f(p.0, p.1 + dz) - f(p.0, p.1 - dz)) / (2.0 * H);
-    let grad_dx: Vector3<f32> = [dx, dy_dx, 0.0].into();
-    let grad_dz: Vector3<f32> = [0.0, dy_dz, dz].into();
+    let grad_dx: Vector3<f32> = [1.0, dy_dx, 0.0].into();
+    let grad_dz: Vector3<f32> = [0.0, dy_dz, 1.0].into();
 
-    grad_dx.cross(grad_dz).normalize()
+    grad_dx.cross(-grad_dz).normalize()
+}
+
+fn rotate_to_axis(axis: Vector3<f32>, original: Vector3<f32>) -> Matrix3<f32> {
+    if axis == -original {
+        return -Matrix3::identity();
+    }
+    if axis == original {
+        return Matrix3::identity();
+    }
+
+    let axis = axis.normalize();
+    let original = original.normalize();
+
+    let v = original.cross(axis);
+    let s = v.magnitude();
+    let c = original.dot(axis);
+    let v_x = Matrix3::from_cols(
+        Vector3::new(0.0, v.z, -v.y),
+        Vector3::new(-v.z, 0.0, v.x),
+        Vector3::new(v.y, -v.x, 0.0),
+    );
+
+    Matrix3::identity() + v_x + v_x * v_x * ((1.0 - c) / (s * s))
+}
+
+mod test {
+    #![allow(unused_imports, dead_code)]
+
+    use super::*;
+
+    const X_AXIS: Vector3<f32> = Vector3::<f32>::new(1.0, 0.0, 0.0);
+    const Z_AXIS: Vector3<f32> = Vector3::<f32>::new(0.0, 0.0, 1.0);
+    const Y_AXIS: Vector3<f32> = Vector3::<f32>::new(0.0, 1.0, 0.0);
+
+    #[test]
+    fn rotate_to_axis_basic_test() {
+        crate::init_logging();
+
+        let _isq3 = 1.0 / 3.0_f32.sqrt();
+        let orthonormal_p: Vector3<f32> = [_isq3, _isq3, _isq3].into();
+        let orthonormal_n: Vector3<f32> = [-_isq3, -_isq3, -_isq3].into();
+
+        let rotation = rotate_to_axis(Y_AXIS, X_AXIS);
+
+        assert!(rotation * X_AXIS == Y_AXIS);
+        assert!(orthonormal_p == rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_n);
+    }
+
+    #[test]
+    fn approx_normal_test() {
+        let flat_normal = approximate_normal(|_, _| 0.0, (0.0, 0.0));
+
+        assert_eq!(flat_normal, Y_AXIS);
+    }
 }
