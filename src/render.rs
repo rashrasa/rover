@@ -603,7 +603,10 @@ impl Renderer {
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
             if self.instances.len() > 0 {
                 render_pass.set_vertex_buffer(1, self.instances.slice(..));
-                let (start, end) = self.meshes.get_mesh_index_bounds("Cube").unwrap();
+                let (start, end) = self
+                    .meshes
+                    .get_mesh_index_bounds("Experimental_Cube2")
+                    .unwrap();
                 render_pass.draw_indexed(
                     (*start) as u32..(*end) as u32,
                     0,

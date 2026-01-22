@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use crate::render::vertex::Vertex;
 use cgmath::{InnerSpace, Matrix3, Rad, Vector3};
-use log::debug;
+use log::{debug, info};
 
 pub trait Geometry {
     fn vertices(&self) -> &[Vertex];
@@ -44,19 +44,28 @@ impl Face {
     ) -> Result<Self, String> {
         let length_x = domain_x.1 - domain_x.0;
         let length_z = domain_z.1 - domain_z.0;
-        let n_x = (length_x * resolution.0).floor() as u32;
-        let n_z = (length_z * resolution.1).floor() as u32;
+
+        // expected verices
+        let e_x = length_x * resolution.0;
+        let e_z = length_z * resolution.1;
+
+        // actual vertices
+        let n_x = e_x.floor() as u32;
+        let n_z = e_z.floor() as u32;
         if n_x == 0 || n_z == 0 {
             return Err(format!("Cannot create mesh (not enough vertices): domains:\n\tx: {:?}\n\tz: {:?}\nresolution: {:?}\nvertex count:\n\tx: {:?}\n\tz:{:?}", domain_x, domain_z, resolution, n_x, n_z).into());
         }
-        let extra_x = (length_x * resolution.0) - n_x as f32 / resolution.0;
-        let correction_x = extra_x / n_x as f32;
-        let extra_z = (length_z * resolution.1) - n_z as f32 / resolution.1;
-        let correction_z = extra_z / n_z as f32;
-        let dx = 1.0 / resolution.0 + correction_x;
-        let dz = 1.0 / resolution.1 + correction_z;
+        let extra_x = (e_x - n_x as f32) * resolution.0;
+        let extra_z = (e_z - n_z as f32) * resolution.1;
 
-        let final_y_rotation = Matrix3::from_axis_angle(up, Rad(0.0));
+        let correction_x = extra_x / n_x as f32;
+        let correction_z = extra_z / n_z as f32;
+
+        let dx = 1.0 / n_x as f32 + correction_x;
+        let dz = 1.0 / n_z as f32 + correction_z;
+
+        let final_y_rotation = Matrix3::look_to_rh([0.0, 1.0, 0.0].into(), up);
+        info!("{:?}", final_y_rotation);
 
         let mut vertices = vec![];
         let mut indices = vec![];
@@ -67,9 +76,9 @@ impl Face {
                 let x = domain_x.0 + i as f32 * dx;
                 let z = domain_z.0 + k as f32 * dz;
                 let y = height(x, z);
-                let gradient = approximate_gradient(height, (x, z));
-                let normal = Matrix3::from_angle_y(Rad(PI / 2.0)) * gradient;
 
+                let normal = approximate_normal(height, (x, z));
+                info!("({},{},{})", x, y, z);
                 vertices.push(Vertex {
                     position: (final_y_rotation * Vector3::new(x, y, z)).into(),
                     normal: (final_y_rotation * normal).into(),
@@ -147,6 +156,7 @@ impl EdgeJoin {
 }
 
 // Represent any 3D shape
+#[derive(Debug)]
 pub struct Shape3 {
     vertices: Vec<Vertex>,
     indices: Vec<u16>,
@@ -248,7 +258,6 @@ impl Shape3 {
                 }
             }
         }
-
         Ok(Self { vertices, indices })
     }
 }
@@ -263,15 +272,15 @@ impl Geometry for Shape3 {
     }
 }
 
-const H: f32 = 1e-03; // lower for more accurate results. too low risks underflow/floating point imprecision errors.
+const H: f32 = 1e-04; // lower for more accurate results. too low risks underflow/floating point imprecision errors.
 // y is up here
-fn approximate_gradient(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
+fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
     let dx = H / 2.0;
     let dz = H / 2.0;
     let dy_dx = (f(p.0 + dx, p.1) - f(p.0 - dx, p.1)) / (2.0 * H);
-    let grad_dx: Vector3<f32> = [dx, dy_dx, 0.0].into();
     let dy_dz = (f(p.0, p.1 + dz) - f(p.0, p.1 - dz)) / (2.0 * H);
+    let grad_dx: Vector3<f32> = [dx, dy_dx, 0.0].into();
     let grad_dz: Vector3<f32> = [0.0, dy_dz, dz].into();
 
-    (grad_dx + grad_dz) / 2.0
+    grad_dx.cross(grad_dz).normalize()
 }

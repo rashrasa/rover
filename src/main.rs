@@ -99,17 +99,66 @@ fn main() {
     )
     .unwrap();
 
+    let cube2_mesh = Shape3::new(
+        vec![
+            Face::from_function(
+                [0.0, 1.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, -1.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+            Face::from_function(
+                [-1.0, 0.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+            Face::from_function(
+                [1.0, 0.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, 0.0, 1.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, 0.0, -1.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (2.0, 2.0),
+                |_, _| 0.5,
+            )
+            .unwrap(),
+        ],
+        vec![],
+    )
+    .unwrap();
     app.add_meshes(
         [
             (
-                "Experimental_Cube",
-                cube_mesh.vertices(),
-                cube_mesh.indices(),
-            ),
-            (
-                "Cube",
-                get_cube_vertices().as_slice(),
-                CUBE_MESH_INDICES.as_slice(),
+                "Experimental_Cube2",
+                cube2_mesh.vertices(),
+                cube2_mesh.indices(),
             ),
             ("Flat16", ground.vertices(), ground.indices()),
         ]
@@ -122,12 +171,12 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -20..=20 {
-        for j in -0..=1 {
-            for k in -20..=20 {
+    for i in -10..=10 {
+        for j in -10..=10 {
+            for k in -10..=10 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
-                    "Experimental_Cube",
+                    "Experimental_Cube2",
                     Vector3::new(0.0, 0.0, 0.0),
                     Vector3::new(0.0, 0.0, 0.0),
                     (
@@ -135,15 +184,15 @@ fn main() {
                         Vector3::new(-1.0, -1.0, -1.0) / 2.0,
                     ),
                     Matrix4::from_translation(
-                        [2.0 * i as f32, GROUND_HEIGHT as f32 + 3.0, 2.0 * k as f32].into(),
-                    ) * Matrix4::from_angle_z(Rad(-PI / 4.0)),
+                        [2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
+                    ) * Matrix4::from_angle_z(Rad(-PI / 2.0)),
                 ));
             }
         }
     }
 
-    for x in -20..20 {
-        for z in -20..20 {
+    for x in -0..0 {
+        for z in -0..0 {
             app.load_chunk(x, z);
         }
     }
@@ -153,93 +202,4 @@ fn main() {
     event_loop.run_app(&mut app).unwrap();
 
     info!("Starting shutdown");
-}
-
-fn get_cube_vertices() -> [Vertex; 8] {
-    let tfl = Vector3::new(-0.5, 0.5, 0.5);
-    let tfr = Vector3::new(0.5, 0.5, 0.5);
-    let bfr = Vector3::new(0.5, -0.5, 0.5);
-    let bfl = Vector3::new(-0.5, -0.5, 0.5);
-
-    let tbl = Vector3::new(-0.5, 0.5, -0.5);
-    let tbr = Vector3::new(0.5, 0.5, -0.5);
-    let bbr = Vector3::new(0.5, -0.5, -0.5);
-    let bbl = Vector3::new(-0.5, -0.5, -0.5);
-
-    // normal: cross two adjacent vertices and rotate PI/4 rad towards the last adjacent vertex
-
-    let tfl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
-        * Matrix4::from_angle_y(Rad(PI / 4.0))
-        * Vector4::new(0.0, 0.0, 1.0, 1.0);
-
-    let tfr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
-        * Matrix4::from_angle_y(Rad(PI / 4.0))
-        * Vector4::new(0.0, 0.0, 1.0, 1.0);
-
-    let tbr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
-        * Matrix4::from_angle_y(Rad(PI / 4.0))
-        * Vector4::new(1.0, 0.0, 0.0, 1.0);
-
-    let tbl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
-        * Matrix4::from_angle_y(Rad(PI / 4.0))
-        * Vector4::new(1.0, 0.0, 0.0, 1.0);
-
-    let bfl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
-        * Matrix4::from_angle_y(Rad(-PI / 4.0))
-        * Vector4::new(0.0, 0.0, 1.0, 1.0);
-
-    let bfr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
-        * Matrix4::from_angle_y(Rad(-PI / 4.0))
-        * Vector4::new(0.0, 0.0, 1.0, 1.0);
-
-    let bbr_norm = Matrix4::from_angle_z(Rad(PI / 4.0))
-        * Matrix4::from_angle_y(Rad(-PI / 4.0))
-        * Vector4::new(1.0, 0.0, 0.0, 1.0);
-
-    let bbl_norm = Matrix4::from_angle_z(Rad(-PI / 4.0))
-        * Matrix4::from_angle_y(Rad(-PI / 4.0))
-        * Vector4::new(1.0, 0.0, 0.0, 1.0);
-
-    [
-        Vertex {
-            position: tfl.into(),
-            normal: tfl_norm.truncate().into(),
-            tex_coords: [1.0, 0.0],
-        },
-        Vertex {
-            position: tfr.into(),
-            normal: tfr_norm.truncate().into(),
-            tex_coords: [1.0, 1.0],
-        },
-        Vertex {
-            position: bfr.into(),
-            normal: bfr_norm.truncate().into(),
-            tex_coords: [0.0, 1.0],
-        },
-        Vertex {
-            position: bfl.into(),
-            normal: bfl_norm.truncate().into(),
-            tex_coords: [0.0, 1.0],
-        },
-        Vertex {
-            position: tbl.into(),
-            normal: tbl_norm.truncate().into(),
-            tex_coords: [0.0, 0.0],
-        },
-        Vertex {
-            position: tbr.into(),
-            normal: tbr_norm.truncate().into(),
-            tex_coords: [1.0, 0.0],
-        },
-        Vertex {
-            position: bbr.into(),
-            normal: bbr_norm.truncate().into(),
-            tex_coords: [1.0, 1.0],
-        },
-        Vertex {
-            position: bbl.into(),
-            normal: bbl_norm.truncate().into(),
-            tex_coords: [1.0, 1.0],
-        },
-    ]
 }
