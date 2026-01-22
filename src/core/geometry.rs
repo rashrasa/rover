@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::render::vertex::Vertex;
 use cgmath::{InnerSpace, Matrix3, Rad, Vector3};
 use log::debug;
@@ -14,11 +16,102 @@ pub struct Face {
 }
 
 impl Face {
+    /// Try using one of the convenience functions (i.e. Face::from_function)
     pub fn new(y_up_vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
         Self {
             vertices: y_up_vertices,
             indices,
         }
+    }
+
+    /// Transformed flat mesh. [height] should accept x, z values within the domain described.
+    /// Domain should be in a space where (0,1,0) is up. After the mesh is created, it will be rotated
+    /// according to the provided up direction about the point (0,0,0).
+    ///
+    /// The middle of the domains is where the face will be centered.
+    ///
+    /// Resolution is the approximate number of vertices desired per 1.0 unit on each of the x and z axes.
+    /// This will be floored to fit in the domain provided.
+    ///
+    /// Normals will be approximated by the negative inverse of the gradient of the height function.
+    /// It's important that [height] is a function which is continuous and differentiable on the domain provided.
+    pub fn from_function(
+        up: Vector3<f32>,
+        domain_x: (f32, f32),
+        domain_z: (f32, f32),
+        resolution: (f32, f32),
+        height: fn(f32, f32) -> f32,
+    ) -> Result<Self, String> {
+        let length_x = domain_x.1 - domain_x.0;
+        let length_z = domain_z.1 - domain_z.0;
+        let n_x = (length_x * resolution.0).floor() as u32;
+        let n_z = (length_z * resolution.1).floor() as u32;
+        if n_x == 0 || n_z == 0 {
+            return Err(format!("Cannot create mesh (not enough vertices): domains:\n\tx: {:?}\n\tz: {:?}\nresolution: {:?}\nvertex count:\n\tx: {:?}\n\tz:{:?}", domain_x, domain_z, resolution, n_x, n_z).into());
+        }
+        let extra_x = (length_x * resolution.0) - n_x as f32 / resolution.0;
+        let correction_x = extra_x / n_x as f32;
+        let extra_z = (length_z * resolution.1) - n_z as f32 / resolution.1;
+        let correction_z = extra_z / n_z as f32;
+        let dx = 1.0 / resolution.0 + correction_x;
+        let dz = 1.0 / resolution.1 + correction_z;
+
+        let final_y_rotation = Matrix3::from_axis_angle(up, Rad(0.0));
+
+        let mut vertices = vec![];
+        let mut indices = vec![];
+        let mut up = false;
+
+        for k in 0..n_z {
+            for i in 0..n_x {
+                let x = i as f32 * dx;
+                let z = k as f32 * dz;
+                let y = height(x, z);
+                let gradient = approximate_gradient(height, (x, z));
+                let normal = Matrix3::from_angle_y(Rad(PI / 2.0)) * gradient;
+
+                vertices.push(Vertex {
+                    position: (final_y_rotation * Vector3::new(x, y, z)).into(),
+                    normal: (final_y_rotation * normal).into(),
+                    tex_coords: [(x - domain_x.0) / length_x, (z - domain_z.0) / length_z],
+                });
+
+                // add indices if possible
+                if k > 0 {
+                    if up && i != n_x - 1 {
+                        indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
+                        indices.push((i + (k - 1) * n_x) as u16); // up
+                        indices.push((i + k * n_x) as u16); // this
+                        up = false;
+                    } else if !up {
+                        indices.push(((i - 1) + k * n_x) as u16); // left
+                        indices.push((i + k * n_x) as u16); // this
+                        indices.push((i + (k - 1) * n_x) as u16); // up
+                        if i != n_x - 1 {
+                            indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
+                            indices.push((i + (k - 1) * n_x) as u16); // up
+                            indices.push((i + k * n_x) as u16); // this
+                            up = false;
+                        } else {
+                            up = true;
+                        }
+                    }
+                }
+            }
+            up = true;
+        }
+
+        Ok(Self { vertices, indices })
+    }
+}
+
+impl Geometry for Face {
+    fn vertices(&self) -> &[Vertex] {
+        &self.vertices
+    }
+
+    fn indices(&self) -> &[u16] {
+        &self.indices
     }
 }
 
@@ -168,4 +261,17 @@ impl Geometry for Shape3 {
     fn indices(&self) -> &[u16] {
         &self.indices
     }
+}
+
+const H: f32 = 1e-03; // lower for more accurate results. too low risks underflow/floating point imprecision errors.
+// y is up here
+fn approximate_gradient(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
+    let dx = H / 2.0;
+    let dz = H / 2.0;
+    let dy_dx = (f(p.0 + dx, p.1) - f(p.0 - dx, p.1)) / (2.0 * H);
+    let grad_dx: Vector3<f32> = [dx, dy_dx, 0.0].into();
+    let dy_dz = (f(p.0, p.1 + dz) - f(p.0, p.1 - dz)) / (2.0 * H);
+    let grad_dz: Vector3<f32> = [0.0, dy_dz, dz].into();
+
+    (grad_dx + grad_dz) / 2.0
 }

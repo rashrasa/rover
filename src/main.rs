@@ -23,8 +23,15 @@ fn main() {
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
     let mut app = App::new(&event_loop, 1920, 1080, 0);
-    let mut rng = rand::rng();
-    let (g_v, g_i) = GROUND_MESH(CHUNK_SIZE_M, CHUNK_SIZE_M);
+
+    let ground = Face::from_function(
+        [0.0, 1.0, 0.0].into(),
+        (-5.0, 5.0),
+        (-5.0, 5.0),
+        (4.0, 4.0),
+        |x, z| x.powi(2) + z.powi(2),
+    )
+    .unwrap();
 
     let _isq3: f32 = 1.0 / 3.0_f32.sqrt();
     let cube_mesh = Shape3::new(
@@ -89,11 +96,6 @@ fn main() {
     )
     .unwrap();
 
-    info!(
-        "Vertices: {:?}\nIndices: {:?}",
-        cube_mesh.vertices(),
-        cube_mesh.indices()
-    );
     app.add_meshes(
         [
             (
@@ -106,7 +108,7 @@ fn main() {
                 get_cube_vertices().as_slice(),
                 CUBE_MESH_INDICES.as_slice(),
             ),
-            ("Flat16", g_v.as_slice(), g_i.as_slice()),
+            ("Flat16", ground.vertices(), ground.indices()),
         ]
         .iter(),
     );
