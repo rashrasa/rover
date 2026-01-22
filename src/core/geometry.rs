@@ -4,7 +4,7 @@ use crate::render::vertex::Vertex;
 use cgmath::{InnerSpace, Matrix3, Rad, SquareMatrix, Vector3};
 use log::{debug, info};
 
-pub trait Geometry {
+pub trait Mesh {
     fn vertices(&self) -> &[Vertex];
     fn indices(&self) -> &[u16];
 }
@@ -118,7 +118,7 @@ impl Face {
     }
 }
 
-impl Geometry for Face {
+impl Mesh for Face {
     fn vertices(&self) -> &[Vertex] {
         &self.vertices
     }
@@ -266,7 +266,7 @@ impl Shape3 {
     }
 }
 
-impl Geometry for Shape3 {
+impl Mesh for Shape3 {
     fn vertices(&self) -> &[Vertex] {
         &self.vertices
     }

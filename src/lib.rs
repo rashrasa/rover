@@ -3,7 +3,6 @@ pub mod audio;
 pub mod core;
 pub mod input;
 pub mod render;
-pub mod rover;
 
 // All constants will be stored here.
 

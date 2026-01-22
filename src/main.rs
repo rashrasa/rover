@@ -7,7 +7,7 @@ use rover::{
     CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH,
     core::{
         entity::Entity,
-        geometry::{EdgeJoin, Face, Geometry, Shape3},
+        geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
     render::{App, textures::ResizeStrategy, vertex::Vertex},
 };
