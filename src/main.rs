@@ -26,10 +26,13 @@ fn main() {
 
     let ground = Face::from_function(
         [0.0, 1.0, 0.0].into(),
-        (-5.0, 5.0),
-        (-5.0, 5.0),
-        (4.0, 4.0),
-        |x, z| x.powi(2) + z.powi(2),
+        (-(CHUNK_SIZE_M as f32) / 2.0, CHUNK_SIZE_M as f32 / 2.0),
+        (-(CHUNK_SIZE_M as f32) / 2.0, CHUNK_SIZE_M as f32 / 2.0),
+        (
+            32.0 / (CHUNK_SIZE_M as f32 / 2.0),
+            32.0 / (CHUNK_SIZE_M as f32 / 2.0),
+        ),
+        |x, z| 5.0 * x.sin() + 5.0 * z.sin(),
     )
     .unwrap();
 

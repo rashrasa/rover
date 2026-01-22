@@ -6,7 +6,7 @@ pub mod vertex;
 
 use std::{f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
 
-use cgmath::{Matrix4, Rad};
+use cgmath::{Matrix4, Rad, SquareMatrix};
 use image::DynamicImage;
 use log::{error, info};
 use wgpu::{

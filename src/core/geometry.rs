@@ -60,12 +60,12 @@ impl Face {
 
         let mut vertices = vec![];
         let mut indices = vec![];
-        let mut up = false;
+        let mut up = true;
 
         for k in 0..n_z {
             for i in 0..n_x {
-                let x = i as f32 * dx;
-                let z = k as f32 * dz;
+                let x = domain_x.0 + i as f32 * dx;
+                let z = domain_z.0 + k as f32 * dz;
                 let y = height(x, z);
                 let gradient = approximate_gradient(height, (x, z));
                 let normal = Matrix3::from_angle_y(Rad(PI / 2.0)) * gradient;
