@@ -290,15 +290,16 @@ fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
 }
 
 fn rotate_to_axis(axis: Vector3<f32>, original: Vector3<f32>) -> Matrix3<f32> {
+    let axis = axis.normalize();
+    let original = original.normalize();
     if axis == -original {
-        return -Matrix3::identity();
+        let orthogonal = get_orthogonal(original).normalize();
+
+        return Matrix3::from_axis_angle(original.cross(orthogonal), Rad(PI));
     }
     if axis == original {
         return Matrix3::identity();
     }
-
-    let axis = axis.normalize();
-    let original = original.normalize();
 
     let v = original.cross(axis);
     let s = v.magnitude();
@@ -312,8 +313,18 @@ fn rotate_to_axis(axis: Vector3<f32>, original: Vector3<f32>) -> Matrix3<f32> {
     Matrix3::identity() + v_x + v_x * v_x * ((1.0 - c) / (s * s))
 }
 
+fn get_orthogonal(original: Vector3<f32>) -> Vector3<f32> {
+    Vector3::new(
+        original.y + original.z,
+        original.z - original.x,
+        -original.x - original.y,
+    )
+}
+
 mod test {
     #![allow(unused_imports, dead_code)]
+
+    use cgmath::assert_relative_eq;
 
     use super::*;
 
@@ -333,24 +344,66 @@ mod test {
         let orthonormal_p: Vector3<f32> = [_isq3, _isq3, _isq3].into();
         let orthonormal_n: Vector3<f32> = [-_isq3, -_isq3, -_isq3].into();
 
-        assert_eq!(
-            rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_n,
-            orthonormal_p
+        assert_relative_eq!(rotate_to_axis(-Y_AXIS, Y_AXIS) * Y_AXIS, -Y_AXIS);
+        assert_relative_eq!(
+            rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_p,
+            orthonormal_n
         );
-        assert_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * Y_AXIS, -X_AXIS);
-        assert_eq!(rotate_to_axis(X_AXIS, Y_AXIS) * Y_AXIS, X_AXIS);
+        assert_relative_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * Y_AXIS, -X_AXIS);
+        assert_relative_eq!(rotate_to_axis(X_AXIS, Y_AXIS) * Y_AXIS, X_AXIS);
 
-        assert_eq!(rotate_to_axis(Y_AXIS, X_AXIS) * X_AXIS, Y_AXIS);
+        assert_relative_eq!(rotate_to_axis(Y_AXIS, X_AXIS) * X_AXIS, Y_AXIS);
 
-        assert_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * ZERO, ZERO);
+        assert_relative_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * ZERO, ZERO);
 
-        assert_eq!(rotate_to_axis(-Z_AXIS, Y_AXIS) * Y_AXIS, -Z_AXIS);
+        assert_relative_eq!(rotate_to_axis(-Z_AXIS, Y_AXIS) * Y_AXIS, -Z_AXIS);
     }
 
     #[test]
     fn approx_normal_test() {
         let flat_normal = approximate_normal(|_, _| 0.0, (0.0, 0.0));
 
-        assert_eq!(flat_normal, Y_AXIS);
+        assert_relative_eq!(flat_normal, Y_AXIS);
+    }
+
+    #[test]
+    fn ortho_test() {
+        let test_axes = [
+            X_AXIS,
+            Y_AXIS,
+            Z_AXIS,
+            -X_AXIS,
+            -Y_AXIS,
+            -Z_AXIS,
+            Vector3::new(
+                1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+            ),
+            Vector3::new(
+                -1.0 / 3.0_f32.sqrt(),
+                -1.0 / 3.0_f32.sqrt(),
+                -1.0 / 3.0_f32.sqrt(),
+            ),
+            Vector3::new(
+                -1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+            ),
+            Vector3::new(
+                1.0 / 3.0_f32.sqrt(),
+                -1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+            ),
+            Vector3::new(
+                1.0 / 3.0_f32.sqrt(),
+                1.0 / 3.0_f32.sqrt(),
+                -1.0 / 3.0_f32.sqrt(),
+            ),
+        ];
+
+        for axis in test_axes {
+            assert_relative_eq!(get_orthogonal(axis).dot(axis), 0.0);
+        }
     }
 }

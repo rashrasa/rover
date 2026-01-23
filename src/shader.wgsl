@@ -52,7 +52,7 @@ fn vs_main(
     );
     var out: VertexOutput;
     out.world_position = transform * vec4<f32>(model.position, 1.0);
-    out.normal = model.normal;
+    out.normal = mat3x3<f32>(transform[0].xyz, transform[1].xyz, transform[2].xyz) * model.normal;
     out.clip_position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
     out.tex_coords = model.tex_coords;
     return out;

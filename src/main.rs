@@ -88,12 +88,68 @@ fn main() {
         vec![],
     )
     .unwrap();
+
+    let roundish_mesh = Shape3::new(
+        vec![
+            Face::from_function(
+                [0.0, 1.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, -1.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+            Face::from_function(
+                [1.0, 0.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+            Face::from_function(
+                [-1.0, 0.0, 0.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, 0.0, 1.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+            Face::from_function(
+                [0.0, 0.0, -1.0].into(),
+                (-0.5, 0.5),
+                (-0.5, 0.5),
+                (8.0, 8.0),
+                |x, z| 1.0 - x * x - z * z,
+            )
+            .unwrap(),
+        ],
+        vec![],
+    )
+    .unwrap();
+
     app.add_meshes(
         [
             (
                 "Experimental_Cube2",
-                cube2_mesh.vertices(),
-                cube2_mesh.indices(),
+                roundish_mesh.vertices(),
+                roundish_mesh.indices(),
             ),
             ("Flat16", ground.vertices(), ground.indices()),
         ]
@@ -106,21 +162,22 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -5..6 {
-        for j in 0..6 {
-            for k in -5..6 {
+    for i in -20..21 {
+        for j in 15..16 {
+            for k in -20..21 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Experimental_Cube2",
-                    Vector3::new(0.0, 0.0, 0.0),
-                    Vector3::new(0.0, 0.0, 0.0),
+                    Vector3::new(-0.9 * i as f32, 0.0, -0.9 * k as f32),
+                    Vector3::new(i as f32 * 0.1, 0.0, k as f32 * 0.1),
                     (
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,
                         Vector3::new(-1.0, -1.0, -1.0) / 2.0,
                     ),
                     Matrix4::from_translation(
                         [2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
-                    ) * Matrix4::from_angle_z(Rad(-PI / 2.0)),
+                    ) * Matrix4::from_angle_z(Rad(-PI / 4.0))
+                        * Matrix4::from_scale(10.0),
                 ));
             }
         }

@@ -390,7 +390,7 @@ impl Renderer {
             &mut device,
             [0.0, GROUND_HEIGHT as f32 + 1.0, 0.0, 1.0],
             [1.0, 1.0, 0.1, 1.0],
-            1000.0,
+            10000.0,
         );
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
