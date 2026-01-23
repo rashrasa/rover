@@ -3,7 +3,7 @@ pub mod lights;
 pub mod textures;
 pub mod vertex;
 
-use std::{f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
+use std::{collections::HashMap, f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
 
 use cgmath::{Matrix4, Rad, SquareMatrix};
 use image::DynamicImage;
@@ -245,8 +245,7 @@ pub struct Renderer {
 
     meshes: MeshStorage,
 
-    instances: InstanceStorage,
-    ground: InstanceStorage,
+    instances: HashMap<String, InstanceStorage>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
@@ -448,8 +447,6 @@ impl Renderer {
         });
 
         let mesh_storage = MeshStorage::new(&device);
-        let instance_storage = InstanceStorage::new(&device);
-        let ground = InstanceStorage::new(&device);
 
         window.set_visible(true);
 
@@ -473,8 +470,7 @@ impl Renderer {
             lights,
 
             meshes: mesh_storage,
-            instances: instance_storage,
-            ground,
+            instances: HashMap::new(),
             textures: TextureStorage::new(),
             texture_bind_group_layout,
 
@@ -493,6 +489,12 @@ impl Renderer {
         for (mesh_id, vertices, indices) in meshes {
             if let Err(e) = self.meshes.add_mesh(*mesh_id, *vertices, *indices) {
                 return Err(e);
+            }
+            if let Some(_) = self
+                .instances
+                .insert(mesh_id.to_string(), InstanceStorage::new(&self.device))
+            {
+                return Err(MeshStorageError::MeshExists);
             }
         }
 
@@ -522,21 +524,22 @@ impl Renderer {
     /// Batch updating of instances. All instances will be synced to the GPU in this call.
     ///
     /// This is the main update function to be called before each render call.
-    pub fn upsert_instances(&mut self, world: &World) {
+    pub fn upsert_instances(&mut self, world: &World) -> Result<(), String> {
         for entity in world.iter_entities() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
             let transform = entity.model();
 
-            if mesh_id == "Flat16" {
-                self.ground.upsert_instance(entity_id, transform);
-            } else {
-                self.instances.upsert_instance(entity_id, transform);
-            }
+            self.instances.entry(mesh_id.to_string()).and_modify(|e| {
+                e.upsert_instance(entity_id, transform);
+            });
         }
 
-        self.instances.update_gpu(&mut self.queue, &mut self.device);
-        self.ground.update_gpu(&mut self.queue, &mut self.device);
+        for storage in self.instances.values_mut() {
+            storage.update_gpu(&mut self.queue, &mut self.device);
+        }
+
+        Ok(())
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -600,26 +603,14 @@ impl Renderer {
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
             render_pass.set_bind_group(1, &self.textures.get("test").unwrap().3, &[]);
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
-            if self.instances.len() > 0 {
-                render_pass.set_vertex_buffer(1, self.instances.slice(..));
-                let (start, end) = self
-                    .meshes
-                    .get_mesh_index_bounds("Experimental_Cube2")
-                    .unwrap();
-                render_pass.draw_indexed(
-                    (*start) as u32..(*end) as u32,
-                    0,
-                    0..self.instances.len() as u32,
-                );
-            }
-            if self.ground.len() > 0 {
-                render_pass.set_vertex_buffer(1, self.ground.slice(..));
-                let (start, end) = self.meshes.get_mesh_index_bounds("Flat16").unwrap();
 
+            for (mesh_id, storage) in self.instances.iter() {
+                render_pass.set_vertex_buffer(1, storage.slice(..));
+                let (start, end) = self.meshes.get_mesh_index_bounds(mesh_id).unwrap();
                 render_pass.draw_indexed(
                     (*start) as u32..(*end) as u32,
                     0,
-                    0..self.ground.len() as u32,
+                    0..storage.len() as u32,
                 );
             }
         }

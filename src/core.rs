@@ -182,6 +182,8 @@ pub enum MeshStorageError {
 
     /// >2^16 vertices were added.
     MaxVerticesExceeded,
+
+    MeshExists,
 }
 
 /// Maps an entity id to an index into a transform array. Once an entity is added,

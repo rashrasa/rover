@@ -28,7 +28,7 @@ fn main() {
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
         ),
-        |x, z| 1.0e-2 * (x * x + z * z),
+        |_, _| GROUND_HEIGHT as f32,
     )
     .unwrap();
 
