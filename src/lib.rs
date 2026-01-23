@@ -15,6 +15,7 @@ use crate::{
     render::{textures::MipLevel, vertex::Vertex},
 };
 
+pub const GLOBAL_INTEGRATOR: Integrator = Integrator::RK4;
 pub const CHUNK_SIZE_M: usize = 64;
 pub const RENDER_DISTANCE: usize = 8;
 pub const GROUND_HEIGHT: i64 = -5;
@@ -99,4 +100,10 @@ pub fn init_logging() {
         .filter_level(log::LevelFilter::Info)
         .target(env_logger::Target::Stdout)
         .init();
+}
+
+#[derive(Clone, Debug)]
+pub enum Integrator {
+    Euler,
+    RK4,
 }

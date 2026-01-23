@@ -1,6 +1,8 @@
 use cgmath::{Matrix4, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
+use crate::Integrator;
+
 #[derive(Clone, Debug)]
 /// Long-lived struct containing all data relevant to an entity.
 ///
@@ -42,21 +44,28 @@ impl Entity {
     }
 
     pub fn tick(&mut self, dt: f32) {
-        let k1 = self.acceleration;
-        let k2 = self.acceleration + k1 * dt / 2.0;
-        let k3 = self.acceleration + k2 * dt / 2.0;
-        let k4 = self.acceleration + k3 * dt;
-        self.velocity += (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
+        match crate::GLOBAL_INTEGRATOR {
+            Integrator::RK4 => {
+                let k1 = self.acceleration;
+                let k2 = self.acceleration + k1 * dt / 2.0;
+                let k3 = self.acceleration + k2 * dt / 2.0;
+                let k4 = self.acceleration + k3 * dt;
+                self.velocity += (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
 
-        let k1 = self.velocity;
-        let k2 = self.velocity + k1 * dt / 2.0;
-        let k3 = self.velocity + k2 * dt / 2.0;
-        let k4 = self.velocity + k3 * dt;
+                let k1 = self.velocity;
+                let k2 = self.velocity + k1 * dt / 2.0;
+                let k3 = self.velocity + k2 * dt / 2.0;
+                let k4 = self.velocity + k3 * dt;
 
-        let translation = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
-        self.model.w.x += translation.x;
-        self.model.w.y += translation.y;
-        self.model.w.z += translation.z;
+                let translation = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
+                self.model.w.x += translation.x;
+                self.model.w.y += translation.y;
+                self.model.w.z += translation.z;
+            }
+            Integrator::Euler => {
+                todo!();
+            }
+        }
     }
 
     pub fn position(&self) -> &Vector4<f32> {

@@ -1,3 +1,4 @@
+pub mod continuous;
 pub mod entity;
 pub mod geometry;
 pub mod world;
