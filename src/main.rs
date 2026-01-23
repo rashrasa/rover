@@ -28,7 +28,7 @@ fn main() {
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
         ),
-        |x, z| 0.0,
+        |x, z| 1.0e-2 * (x * x + z * z),
     )
     .unwrap();
 
@@ -162,9 +162,9 @@ fn main() {
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
 
-    for i in -20..21 {
+    for i in -10..11 {
         for j in 15..16 {
-            for k in -20..21 {
+            for k in -10..11 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
                     "Experimental_Cube2",

@@ -108,7 +108,7 @@ impl InputController {
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::ControlLeft) {
             if *p {
-                fly_speed *= 10.0;
+                fly_speed *= 100.0;
             }
         }
 
