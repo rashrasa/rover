@@ -13,14 +13,33 @@ pub trait Mesh {
 pub struct Face {
     vertices: Vec<Vertex>,
     indices: Vec<u16>,
+
+    // Currently only makes sense for a flat rectangular mesh.
+    // Needs to be updated if other types are added.
+    edge_px: Vec<u16>,
+    edge_nx: Vec<u16>,
+    edge_pz: Vec<u16>,
+    edge_nz: Vec<u16>,
 }
 
 impl Face {
     /// Try using one of the convenience functions (i.e. Face::from_function)
-    pub fn new(y_up_vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
+    pub fn new(
+        y_up_vertices: Vec<Vertex>,
+        indices: Vec<u16>,
+        edge_px: Vec<u16>,
+        edge_nx: Vec<u16>,
+        edge_pz: Vec<u16>,
+        edge_nz: Vec<u16>,
+    ) -> Self {
         Self {
             vertices: y_up_vertices,
             indices,
+
+            edge_px,
+            edge_nx,
+            edge_pz,
+            edge_nz,
         }
     }
 
@@ -35,6 +54,9 @@ impl Face {
     ///
     /// Normals will be approximated by the negative inverse of the gradient of the height function.
     /// It's important that [height] is a function which is continuous and differentiable on the domain provided.
+    ///
+    /// edge_{p/n}{x/z} are lists of indices of the vertices on the border of the flat mesh before any transformations.
+    /// They are in counter-clockwise order when looking down on the x/z plane, with -z on the top and +x on the right.
     pub fn from_function(
         up: Vector3<f32>,
         domain_x: (f32, f32),
@@ -70,10 +92,17 @@ impl Face {
 
         let mut vertices = vec![];
         let mut indices = vec![];
+
+        let mut edge_px: Vec<u16> = vec![];
+        let mut edge_pz: Vec<u16> = vec![];
+        let mut edge_nx: Vec<u16> = vec![];
+        let mut edge_nz: Vec<u16> = vec![];
+
         let mut v_up = true;
 
         for k in 0..n_z {
             for i in 0..n_x {
+                let this_index = i as u16 + k as u16 * n_x as u16;
                 let x = domain_x.0 + i as f32 * dx;
                 let z = domain_z.0 + k as f32 * dz;
                 let y = height(x, z);
@@ -89,21 +118,34 @@ impl Face {
                     tex_coords: [(x - domain_x.0) / length_x, (z - domain_z.0) / length_z],
                 });
 
+                if i == 0 {
+                    edge_nx.push(this_index);
+                }
+                if i == n_x - 1 {
+                    edge_px.insert(0, this_index);
+                }
+                if k == 0 {
+                    edge_nz.insert(0, this_index);
+                }
+                if k == n_z - 1 {
+                    edge_pz.push(this_index);
+                }
+
                 // add indices if possible
                 if k > 0 {
                     if v_up && i != n_x - 1 {
                         indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
                         indices.push((i + (k - 1) * n_x) as u16); // up
-                        indices.push((i + k * n_x) as u16); // this
+                        indices.push(this_index); // this
                         v_up = false;
                     } else if !v_up {
                         indices.push(((i - 1) + k * n_x) as u16); // left
-                        indices.push((i + k * n_x) as u16); // this
+                        indices.push(this_index); // this
                         indices.push((i + (k - 1) * n_x) as u16); // up
                         if i != n_x - 1 {
                             indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
                             indices.push((i + (k - 1) * n_x) as u16); // up
-                            indices.push((i + k * n_x) as u16); // this
+                            indices.push(this_index); // this
                             v_up = false;
                         } else {
                             v_up = true;
@@ -114,7 +156,15 @@ impl Face {
             v_up = true;
         }
 
-        Ok(Self { vertices, indices })
+        Ok(Self {
+            vertices,
+            indices,
+
+            edge_px,
+            edge_nx,
+            edge_pz,
+            edge_nz,
+        })
     }
 }
 
@@ -129,7 +179,7 @@ impl Mesh for Face {
 }
 
 /// Edges are expected to be linearly seperable (one set doesnt intersect another).
-/// If this is not the case, a join will be done anyways but will look distorted.
+/// If this is not the case, a join will be done anyways but may look distorted.
 pub struct EdgeJoin {
     // indices are in their own space
     edge_lower: Vec<u16>,
