@@ -112,12 +112,12 @@ impl Camera {
 
     pub fn look_up(&mut self, amount: Rad<f32>) {
         self.pitch += amount;
-        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.01));
+        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1));
     }
 
     pub fn look_down(&mut self, amount: Rad<f32>) {
         self.pitch -= amount;
-        self.pitch = Rad(self.pitch.0.min(PI / 2.0 - 0.01));
+        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1));
     }
 
     pub fn look_right(&mut self, amount: Rad<f32>) {
