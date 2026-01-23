@@ -605,13 +605,15 @@ impl Renderer {
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
 
             for (mesh_id, storage) in self.instances.iter() {
-                render_pass.set_vertex_buffer(1, storage.slice(..));
-                let (start, end) = self.meshes.get_mesh_index_bounds(mesh_id).unwrap();
-                render_pass.draw_indexed(
-                    (*start) as u32..(*end) as u32,
-                    0,
-                    0..storage.len() as u32,
-                );
+                if storage.len() > 0 {
+                    render_pass.set_vertex_buffer(1, storage.slice(..));
+                    let (start, end) = self.meshes.get_mesh_index_bounds(mesh_id).unwrap();
+                    render_pass.draw_indexed(
+                        (*start) as u32..(*end) as u32,
+                        0,
+                        0..storage.len() as u32,
+                    );
+                }
             }
         }
         self.queue.submit(std::iter::once(encoder.finish()));
