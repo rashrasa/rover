@@ -318,8 +318,12 @@ mod test {
     use super::*;
 
     const X_AXIS: Vector3<f32> = Vector3::<f32>::new(1.0, 0.0, 0.0);
-    const Z_AXIS: Vector3<f32> = Vector3::<f32>::new(0.0, 0.0, 1.0);
     const Y_AXIS: Vector3<f32> = Vector3::<f32>::new(0.0, 1.0, 0.0);
+    const Z_AXIS: Vector3<f32> = Vector3::<f32>::new(0.0, 0.0, 1.0);
+
+    const ZERO: Vector3<f32> = Vector3::<f32>::new(0.0, 0.0, 0.0);
+
+    const AXES: [Vector3<f32>; 3] = [X_AXIS, Y_AXIS, Z_AXIS];
 
     #[test]
     fn rotate_to_axis_basic_test() {
@@ -329,10 +333,18 @@ mod test {
         let orthonormal_p: Vector3<f32> = [_isq3, _isq3, _isq3].into();
         let orthonormal_n: Vector3<f32> = [-_isq3, -_isq3, -_isq3].into();
 
-        let rotation = rotate_to_axis(Y_AXIS, X_AXIS);
+        assert_eq!(
+            rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_n,
+            orthonormal_p
+        );
+        assert_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * Y_AXIS, -X_AXIS);
+        assert_eq!(rotate_to_axis(X_AXIS, Y_AXIS) * Y_AXIS, X_AXIS);
 
-        assert!(rotation * X_AXIS == Y_AXIS);
-        assert!(orthonormal_p == rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_n);
+        assert_eq!(rotate_to_axis(Y_AXIS, X_AXIS) * X_AXIS, Y_AXIS);
+
+        assert_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * ZERO, ZERO);
+
+        assert_eq!(rotate_to_axis(-Z_AXIS, Y_AXIS) * Y_AXIS, -Z_AXIS);
     }
 
     #[test]
