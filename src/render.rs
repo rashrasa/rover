@@ -387,9 +387,9 @@ impl Renderer {
 
         let lights = LightSourceStorage::new(
             &mut device,
-            [0.0, GROUND_HEIGHT as f32 + 20.0, 0.0, 1.0],
+            [1000.0, 1000.0, 1000.0, 1.0],
             [252.0 / 255.0, 150.0 / 255.0, 1.0 / 255.0, 1.0],
-            100000.0,
+            1.0e7,
         );
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
