@@ -148,6 +148,11 @@ fn main() {
         [
             (
                 "Experimental_Cube2",
+                cube2_mesh.vertices(),
+                cube2_mesh.indices(),
+            ),
+            (
+                "Roundish",
                 roundish_mesh.vertices(),
                 roundish_mesh.indices(),
             ),
@@ -167,9 +172,13 @@ fn main() {
             for k in -10..11 {
                 app.add_entity(Entity::new(
                     &format!("rover_{}_{}_{}", i, j, k),
-                    "Experimental_Cube2",
-                    Vector3::new(-0.9 * i as f32, 0.0, -0.9 * k as f32),
-                    Vector3::new(i as f32 * 0.1, 0.0, k as f32 * 0.1),
+                    if ((i + k) as i64).rem_euclid(2) == 0 {
+                        "Experimental_Cube2"
+                    } else {
+                        "Roundish"
+                    },
+                    Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
+                    Vector3::new(i as f32 * 0.2, 0.0, k as f32 * 0.2),
                     (
                         Vector3::new(1.0, 1.0, 1.0) / 2.0,
                         Vector3::new(-1.0, -1.0, -1.0) / 2.0,
