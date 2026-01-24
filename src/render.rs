@@ -367,7 +367,7 @@ impl Renderer {
         let depth_desc = TextureDescriptor {
             label: Some("Depth Texture"),
             size,
-            mip_level_count: MIPMAP_LEVELS.len() as u32,
+            mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: TextureFormat::Depth32Float,
@@ -456,7 +456,11 @@ impl Renderer {
         let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
         let sink = rodio::Sink::connect_new(&stream_handle.mixer());
         sink.pause();
-        sink.set_volume(0.2);
+        if crate::MUTE {
+            sink.set_volume(0.0);
+        } else {
+            sink.set_volume(0.2);
+        }
         sink.append(Decoder::try_from(File::open("assets/engine.wav").unwrap()).unwrap());
 
         window.set_visible(true);
@@ -611,10 +615,11 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
 
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
+
+            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
             render_pass.set_bind_group(1, &self.textures.get("test").unwrap().3, &[]);
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
 

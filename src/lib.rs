@@ -10,13 +10,16 @@ use crate::render::{textures::MipLevel, vertex::Vertex};
 use std::time::Duration;
 
 pub const GLOBAL_INTEGRATOR: Integrator = Integrator::RK4;
-pub const CHUNK_SIZE_M: usize = 64;
 pub const RENDER_DISTANCE: usize = 8;
+
+pub const CHUNK_SIZE_M: usize = 64;
 pub const GROUND_HEIGHT: i64 = -5;
-pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
+
 pub const CAMERA_SPEED: f32 = 5.0;
 pub const CAMERA_USES_PITCH: bool = true;
+
+pub const MUTE: bool = true;
 
 // must be in decreasing quality
 pub const MIPMAP_LEVELS: [MipLevel; 1] = [MipLevel::Square(2048)];
