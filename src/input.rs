@@ -50,7 +50,7 @@ impl InputController {
                     camera.look_up(Rad((size.height as f32 / 2.0 - position.y as f32)
                         / size.height as f32
                         * PI));
-                    camera.look_left(Rad((size.width as f32 / 2.0 - position.x as f32)
+                    camera.look_ccw(Rad((position.x as f32 - size.width as f32 / 2.0)
                         / size.width as f32
                         * PI));
                 }
@@ -64,7 +64,8 @@ impl InputController {
         let mut camera_right: f32 = 0.0;
         let mut yaw_ccw: f32 = 0.0;
         let mut fly: f32 = 0.0;
-        let mut fly_speed = CAMERA_SPEED;
+        let mut fly_speed: f32 = CAMERA_SPEED;
+        let mut roll_ccw: f32 = 0.0;
 
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyW) {
             if *p {
@@ -88,12 +89,12 @@ impl InputController {
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyQ) {
             if *p {
-                yaw_ccw += 0.25;
+                roll_ccw += 0.025;
             }
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::KeyE) {
             if *p {
-                yaw_ccw -= 0.25;
+                roll_ccw -= 0.025;
             }
         }
         if let Some(p) = self.keys_pressed.get(&KeyCode::Space) {
@@ -133,10 +134,14 @@ impl InputController {
         if fly.is_nan() {
             fly = 0.0;
         }
+        if roll_ccw.is_nan() {
+            roll_ccw = 0.0;
+        }
 
         camera.forward(camera_forward);
         camera.right(camera_right);
-        camera.look_left(Rad(yaw_ccw));
+        camera.look_ccw(Rad(yaw_ccw));
+        camera.roll_ccw(Rad(roll_ccw));
         camera.translate(&[0.0, fly, 0.0].into());
     }
 }

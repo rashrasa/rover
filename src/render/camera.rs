@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use cgmath::{Angle, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector3};
+use cgmath::{Angle, EuclideanSpace, InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, Device, Queue,
@@ -19,6 +19,8 @@ pub struct Camera {
     position: Point3<f32>,
     yaw: Rad<f32>,
     pitch: Rad<f32>,
+    roll: Rad<f32>,
+
     projection: Projection,
 
     // generated
@@ -31,6 +33,7 @@ impl Camera {
         position: Point3<f32>,
         yaw: Rad<f32>,
         pitch: Rad<f32>,
+        roll: Rad<f32>,
         projection: Projection,
     ) -> Self {
         let (sin_yaw, cos_yaw) = yaw.0.sin_cos();
@@ -77,6 +80,7 @@ impl Camera {
             yaw,
             pitch,
             projection,
+            roll,
 
             view_proj,
             bind_group,
@@ -95,37 +99,29 @@ impl Camera {
 
     pub fn forward(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
-        self.translate(&[amount * cos, 0.0, amount * sin].into());
-    }
-    pub fn backward(&mut self, amount: f32) {
-        let (sin, cos) = self.yaw.sin_cos();
-        self.translate(&[-amount * cos, 0.0, -amount * sin].into());
-    }
-    pub fn left(&mut self, amount: f32) {
-        let (sin, cos) = self.yaw.sin_cos();
-        self.translate(&[amount * sin, 0.0, -amount * cos].into());
+        let p_sin = self.pitch.sin();
+        let dy = {
+            if crate::CAMERA_USES_PITCH {
+                amount * p_sin
+            } else {
+                0.0
+            }
+        };
+        self.translate(&[amount * cos, dy, amount * sin].into());
     }
     pub fn right(&mut self, amount: f32) {
         let (sin, cos) = self.yaw.sin_cos();
         self.translate(&[-amount * sin, 0.0, amount * cos].into());
     }
-
     pub fn look_up(&mut self, amount: Rad<f32>) {
         self.pitch += amount;
         self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1));
     }
-
-    pub fn look_down(&mut self, amount: Rad<f32>) {
-        self.pitch -= amount;
-        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1));
-    }
-
-    pub fn look_right(&mut self, amount: Rad<f32>) {
+    pub fn look_ccw(&mut self, amount: Rad<f32>) {
         self.yaw += amount;
     }
-
-    pub fn look_left(&mut self, amount: Rad<f32>) {
-        self.yaw -= amount;
+    pub fn roll_ccw(&mut self, amount: Rad<f32>) {
+        self.roll += amount;
     }
 
     pub fn update(&mut self, queue: &mut Queue) {
@@ -135,7 +131,7 @@ impl Camera {
         let view = Matrix4::look_at_rh(
             self.position,
             Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position.to_vec(),
-            [0.0, 1.0, 0.0].into(),
+            Matrix3::from_angle_z(self.roll) * Vector3::new(0.0, 1.0, 0.0),
         );
 
         self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();

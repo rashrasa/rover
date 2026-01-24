@@ -1,4 +1,6 @@
-use cgmath::{Matrix4, Vector3, Vector4};
+use std::f32::consts::PI;
+
+use cgmath::{Matrix4, Rad, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 use crate::Integrator;

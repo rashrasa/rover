@@ -28,7 +28,7 @@ fn main() {
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
             32.0 / (CHUNK_SIZE_M as f32 / 2.0),
         ),
-        |_, _| GROUND_HEIGHT as f32,
+        |x, z| -0.01 * (x * x + z * z),
     )
     .unwrap();
 
@@ -192,8 +192,8 @@ fn main() {
         }
     }
 
-    for x in -10..11 {
-        for z in -10..11 {
+    for x in -50..51 {
+        for z in -50..51 {
             app.load_chunk(x, z);
         }
     }

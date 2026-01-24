@@ -322,6 +322,7 @@ impl Renderer {
             (0.0, 5.0, 10.0).into(),
             Rad(-PI / 4.0),
             Rad(-PI / 12.0),
+            Rad(0.0),
             Projection::new(
                 config.width as f32,
                 config.height as f32,

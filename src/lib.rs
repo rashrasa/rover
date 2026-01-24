@@ -6,14 +6,8 @@ pub mod render;
 
 // All constants will be stored here.
 
-use std::{f32::consts::PI, time::Duration};
-
-use cgmath::{Matrix4, Rad, Rotation, Vector3, Vector4};
-
-use crate::{
-    core::world::HeightMap,
-    render::{textures::MipLevel, vertex::Vertex},
-};
+use crate::render::{textures::MipLevel, vertex::Vertex};
+use std::time::Duration;
 
 pub const GLOBAL_INTEGRATOR: Integrator = Integrator::RK4;
 pub const CHUNK_SIZE_M: usize = 64;
@@ -22,6 +16,7 @@ pub const GROUND_HEIGHT: i64 = -5;
 pub const INITIAL_INSTANCE_CAPACITY: usize = 10;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 pub const CAMERA_SPEED: f32 = 5.0;
+pub const CAMERA_USES_PITCH: bool = true;
 
 // must be in decreasing quality
 pub const MIPMAP_LEVELS: [MipLevel; 1] = [MipLevel::Square(2048)];
