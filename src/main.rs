@@ -5,7 +5,7 @@ use image::imageops::FilterType;
 use log::{debug, info};
 use rodio::Decoder;
 use rover::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH,
+    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH, IDBank,
     core::{
         entity::Entity,
         geometry::{EdgeJoin, Face, Mesh, Shape3},
@@ -145,38 +145,38 @@ fn main() {
     )
     .unwrap();
 
+    const MESH_CUBE2: u64 = 0;
+    const MESH_ROUNDISH: u64 = 1;
+    const MESH_FLAT16: u64 = 2;
+
     app.add_meshes(
         [
+            (&MESH_CUBE2, cube2_mesh.vertices(), cube2_mesh.indices()),
             (
-                "Experimental_Cube2",
-                cube2_mesh.vertices(),
-                cube2_mesh.indices(),
-            ),
-            (
-                "Roundish",
+                &MESH_ROUNDISH,
                 roundish_mesh.vertices(),
                 roundish_mesh.indices(),
             ),
-            ("Flat16", ground.vertices(), ground.indices()),
+            (&MESH_FLAT16, ground.vertices(), ground.indices()),
         ]
         .iter(),
     );
 
     app.add_texture(
-        "test".into(),
+        0,
         image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png")).unwrap(),
         ResizeStrategy::Stretch(FilterType::Gaussian),
     );
-
+    let mut id_bank = IDBank::new();
     for i in -10..11 {
         for j in 15..16 {
             for k in -10..11 {
                 app.add_entity(Entity::new(
-                    &format!("rover_{}_{}_{}", i, j, k),
+                    id_bank.next(),
                     if ((i + k) as i64).rem_euclid(2) == 0 {
-                        "Experimental_Cube2"
+                        MESH_CUBE2
                     } else {
-                        "Roundish"
+                        MESH_ROUNDISH
                     },
                     Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
                     Vector3::new(i as f32 * 0.2, 0.0, k as f32 * 0.2),
@@ -195,7 +195,7 @@ fn main() {
 
     for x in -50..51 {
         for z in -50..51 {
-            app.load_chunk(x, z);
+            app.load_chunk(x, z, &mut id_bank);
         }
     }
 

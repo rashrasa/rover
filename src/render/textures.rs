@@ -37,7 +37,7 @@ type TextureEntry = (Texture, TextureView, Sampler, BindGroup);
 
 #[derive(Debug)]
 pub struct TextureStorage {
-    textures: HashMap<String, TextureEntry>,
+    textures: HashMap<u64, TextureEntry>,
 }
 
 impl TextureStorage {
@@ -47,7 +47,7 @@ impl TextureStorage {
         }
     }
 
-    pub fn get(&self, texture_id: &str) -> Option<&TextureEntry> {
+    pub fn get(&self, texture_id: &u64) -> Option<&TextureEntry> {
         self.textures.get(texture_id)
     }
 
@@ -59,7 +59,7 @@ impl TextureStorage {
         &mut self,
         device: &mut Device,
         queue: &mut Queue,
-        texture_id: String,
+        texture_id: u64,
         full_size_image: DynamicImage,
         resize_strategy: ResizeStrategy,
         bind_group_layout: &BindGroupLayout,

@@ -22,7 +22,7 @@ use crate::render::vertex::Vertex;
 /// Meshes can't be removed once added, for now. Max vertices: 2^16 = 65536
 #[derive(Debug)]
 pub struct MeshStorage {
-    map: HashMap<String, (usize, usize, usize, usize)>, // vertex inclusive start, exclusive end, index inclusive start, exclusive end
+    map: HashMap<u64, (usize, usize, usize, usize)>, // vertex inclusive start, exclusive end, index inclusive start, exclusive end
 
     vertex_storage: Vec<Vertex>,
     vertex_buffer: Buffer,
@@ -62,7 +62,7 @@ impl MeshStorage {
     /// [indices] should be relative to [vertices] location in slice.
     pub fn add_mesh(
         &mut self,
-        mesh_id: &str,
+        mesh_id: &u64,
         vertices: &[Vertex],
         indices: &[u16],
     ) -> Result<(), MeshStorageError> {
@@ -89,7 +89,7 @@ impl MeshStorage {
 
         // TODO: Inserting a mesh with the same mesh_id multiple times will result in dead vertices/indices.
         self.map.insert(
-            mesh_id.into(),
+            *mesh_id,
             (
                 before_count_vertices,
                 self.vertex_storage.len(),
@@ -159,14 +159,14 @@ impl MeshStorage {
     }
 
     /// Returns the start and end of mesh in index buffer to be used in draw calls.
-    pub fn get_mesh_index_bounds(&self, mesh_id: &str) -> Option<(&usize, &usize)> {
+    pub fn get_mesh_index_bounds(&self, mesh_id: &u64) -> Option<(&usize, &usize)> {
         self.map.get(mesh_id).map(|(_, _, s_i, e_i)| (s_i, e_i))
     }
 
     /// Returns a direct representation of a mesh.
     ///
     /// Likely not needed for draw calls. Use get_mesh_index_bounds instead.
-    pub fn get_mesh(&self, mesh_id: &str) -> Option<(&[Vertex], &[u16])> {
+    pub fn get_mesh(&self, mesh_id: &u64) -> Option<(&[Vertex], &[u16])> {
         self.map.get(mesh_id).map(|(s_v, e_v, s_i, e_i)| {
             (
                 &self.vertex_storage[*s_v..*e_v],
@@ -193,7 +193,7 @@ pub enum MeshStorageError {
 /// Also, it's likely faster to borrow the transforms Vec than it is to iterate over values in a Hashmap.
 #[derive(Debug)]
 pub struct InstanceStorage {
-    map: HashMap<String, usize>,
+    map: HashMap<u64, usize>,
     transforms: Vec<[f32; 4]>, // 4 [f32;4] chunks
 
     instance_buffer: Buffer,
@@ -214,7 +214,7 @@ impl InstanceStorage {
         }
     }
 
-    pub fn get_instance(&self, entity_id: &str) -> Option<&usize> {
+    pub fn get_instance(&self, entity_id: &u64) -> Option<&usize> {
         self.map.get(entity_id)
     }
 
@@ -227,14 +227,14 @@ impl InstanceStorage {
     }
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
-    pub fn upsert_instance(&mut self, entity_id: &str, transform: &Matrix4<f32>) {
+    pub fn upsert_instance(&mut self, entity_id: &u64, transform: &Matrix4<f32>) {
         let cols: [[f32; 4]; 4] = [
             transform.x.into(),
             transform.y.into(),
             transform.z.into(),
             transform.w.into(),
         ];
-        match self.map.entry(entity_id.into()) {
+        match self.map.entry(*entity_id) {
             Entry::Occupied(occ) => {
                 let i = *occ.get() * 4;
                 for j in 0..4 {

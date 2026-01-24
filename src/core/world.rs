@@ -2,6 +2,7 @@ use std::{collections::HashMap, ops::Index};
 
 use cgmath::{InnerSpace, Vector2, Vector3};
 use rand::RngCore;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, core::entity::Entity};
 
@@ -69,14 +70,7 @@ impl World {
         //     }
         // }
 
-        for i in 0..self.entities.len() {
-            let entity = self.entities.get_mut(i).unwrap();
-            // let ground = translate_height.get(i).unwrap();
-            // let pos = entity.position();
-            // entity.translate(Vector3::new(0.0, pos.y - ground, 0.0));
-
-            entity.tick(dt);
-        }
+        self.entities.iter_mut().for_each(|e| e.tick(dt));
     }
 
     pub fn height(&mut self, xz: Vector2<f32>) -> f32 {
@@ -175,42 +169,43 @@ impl World {
     }
 
     fn perform_collisions(&mut self) {
+        // TODO: redo
+
         // Perform ground collisions
+        // // Checks all possible collisions
+        // let mut actions: HashMap<u64, Vec<Box<dyn Fn(&mut Entity) -> ()>>> =
+        //     HashMap::with_capacity(self.entities.len());
+        // for a in self.entities.iter() {
+        //     let a_id = a.id();
+        //     for b in self.entities.iter() {
+        //         if a as *const Entity != b as *const Entity {
+        //             let a_actions = match actions.get_mut(a_id) {
+        //                 Some(a) => a,
+        //                 None => {
+        //                     actions.insert(*a_id, vec![]);
+        //                     actions.get_mut(a_id).unwrap()
+        //                 }
+        //             };
+        //             let top_intersection = (a.position().y + a.bounding_box().0.y)
+        //                 - (b.position().y + b.bounding_box().1.y);
 
-        // Checks all possible collisions
-        let mut actions: HashMap<String, Vec<Box<dyn Fn(&mut Entity) -> ()>>> =
-            HashMap::with_capacity(self.entities.len());
-        for a in self.entities.iter() {
-            let a_id = a.id();
-            for b in self.entities.iter() {
-                if a as *const Entity != b as *const Entity {
-                    let a_actions = match actions.get_mut(a_id) {
-                        Some(a) => a,
-                        None => {
-                            actions.insert(a_id.to_string(), vec![]);
-                            actions.get_mut(a_id).unwrap()
-                        }
-                    };
-                    let top_intersection = (a.position().y + a.bounding_box().0.y)
-                        - (b.position().y + b.bounding_box().1.y);
+        //             a_actions.push(Box::new(move |a: &mut Entity| {
+        //                 a.translate(Vector3::new(0.0, top_intersection.clone(), 0.0))
+        //             }));
+        //         }
+        //     }
+        // }
+        // let mut entities = HashMap::with_capacity(self.entities.len());
 
-                    a_actions.push(Box::new(move |a: &mut Entity| {
-                        a.translate(Vector3::new(0.0, top_intersection.clone(), 0.0))
-                    }));
-                }
-            }
-        }
-        let mut entities = HashMap::with_capacity(self.entities.len());
-
-        for entity in self.entities.iter_mut() {
-            entities.insert(entity.id().to_string(), entity);
-        }
-        for (entity_id, actions) in actions {
-            let entity = entities.get_mut(&entity_id).unwrap();
-            for action in actions {
-                action(entity);
-            }
-        }
+        // for entity in self.entities.iter_mut() {
+        //     entities.insert(entity.id(), entity);
+        // }
+        // for (entity_id, actions) in actions {
+        //     let entity = entities.get_mut(&entity_id).unwrap();
+        //     for action in actions {
+        //         action(entity);
+        //     }
+        // }
     }
 }
 

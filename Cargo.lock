@@ -2447,6 +2447,7 @@ dependencies = [
  "nalgebra",
  "pollster",
  "rand",
+ "rayon",
  "rodio",
  "tobj",
  "wgpu",

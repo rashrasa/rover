@@ -10,8 +10,8 @@ use crate::Integrator;
 ///
 /// Ideally never cloned.
 pub struct Entity {
-    id: String,
-    mesh_id: String,
+    id: u64,
+    mesh_id: u64,
     velocity: Vector3<f32>,
     acceleration: Vector3<f32>,
     bounding_box: (Vector3<f32>, Vector3<f32>),
@@ -20,16 +20,16 @@ pub struct Entity {
 
 impl Entity {
     pub fn new(
-        id: &str,
-        mesh_id: &str,
+        id: u64,
+        mesh_id: u64,
         velocity: Vector3<f32>,
         acceleration: Vector3<f32>,
         bounding_box: (Vector3<f32>, Vector3<f32>),
         model: Matrix4<f32>,
     ) -> Self {
         Self {
-            id: id.into(),
-            mesh_id: mesh_id.into(),
+            id: id,
+            mesh_id: mesh_id,
             velocity,
             acceleration,
             bounding_box,
@@ -37,11 +37,11 @@ impl Entity {
         }
     }
 
-    pub fn id(&self) -> &str {
+    pub fn id(&self) -> &u64 {
         &self.id
     }
 
-    pub fn mesh_id(&self) -> &str {
+    pub fn mesh_id(&self) -> &u64 {
         &self.mesh_id
     }
 

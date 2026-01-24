@@ -32,7 +32,7 @@ use winit::{
 };
 
 use crate::{
-    CHUNK_SIZE_M, GROUND_HEIGHT, METRICS_INTERVAL, MIPMAP_LEVELS,
+    CHUNK_SIZE_M, GROUND_HEIGHT, IDBank, METRICS_INTERVAL, MIPMAP_LEVELS,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     input::InputController,
@@ -49,9 +49,9 @@ enum AppState {
     NeedsInit(
         u32,
         u32,
-        Vec<(String, Vec<Vertex>, Vec<u16>)>,
+        Vec<(u64, Vec<Vertex>, Vec<u16>)>,
         Vec<Entity>,
-        Vec<(String, DynamicImage, ResizeStrategy)>,
+        Vec<(u64, DynamicImage, ResizeStrategy)>,
     ),
     Started(Renderer),
 }
@@ -77,11 +77,11 @@ impl App {
         }
     }
 
-    pub fn add_meshes(&mut self, meshes: Iter<(&str, &[vertex::Vertex], &[u16])>) {
+    pub fn add_meshes(&mut self, meshes: Iter<(&u64, &[vertex::Vertex], &[u16])>) {
         match &mut self.state {
             AppState::NeedsInit(_, _, mesh_queue, _, _) => {
                 for (mesh_id, vertices, indices) in meshes {
-                    mesh_queue.push((mesh_id.to_string(), vertices.to_vec(), indices.to_vec()));
+                    mesh_queue.push((**mesh_id, vertices.to_vec(), indices.to_vec()));
                 }
             }
             AppState::Started(renderer) => {
@@ -104,7 +104,7 @@ impl App {
 
     pub fn add_texture(
         &mut self,
-        texture_id: String,
+        texture_id: u64,
         full_size_image: DynamicImage,
         resize_strategy: ResizeStrategy,
     ) {
@@ -119,12 +119,12 @@ impl App {
     }
 
     /// Loads chunk with (0,0) at (x/16, z/16)
-    pub fn load_chunk(&mut self, x: i64, z: i64) {
+    pub fn load_chunk(&mut self, x: i64, z: i64, id: &mut IDBank) {
         let height_map = self.world.request_chunk_exact(x, z);
 
         self.add_entity(Entity::new(
-            &format!("ground_{}.{}", x, z),
-            "Flat16",
+            id.next(),
+            2,
             [0.0, 0.0, 0.0].into(),
             [0.0, 0.0, 0.0].into(),
             (
@@ -166,8 +166,8 @@ impl ApplicationHandler<Event> for App {
                     .add_meshes(
                         meshes
                             .iter()
-                            .map(|(id, v, i)| (id.as_str(), v.as_slice(), i.as_slice()))
-                            .collect::<Vec<(&str, &[Vertex], &[u16])>>()
+                            .map(|(id, v, i)| (id, v.as_slice(), i.as_slice()))
+                            .collect::<Vec<(&u64, &[Vertex], &[u16])>>()
                             .iter(),
                     )
                     .unwrap();
@@ -246,7 +246,7 @@ pub struct Renderer {
 
     meshes: MeshStorage,
 
-    instances: HashMap<String, InstanceStorage>,
+    instances: HashMap<u64, InstanceStorage>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
@@ -502,7 +502,7 @@ impl Renderer {
     /// meshes: (mesh_id, vertices, indices)
     pub fn add_meshes(
         &mut self,
-        meshes: Iter<(&str, &[Vertex], &[u16])>,
+        meshes: Iter<(&u64, &[Vertex], &[u16])>,
     ) -> Result<(), MeshStorageError> {
         for (mesh_id, vertices, indices) in meshes {
             if let Err(e) = self.meshes.add_mesh(*mesh_id, *vertices, *indices) {
@@ -510,7 +510,7 @@ impl Renderer {
             }
             if let Some(_) = self
                 .instances
-                .insert(mesh_id.to_string(), InstanceStorage::new(&self.device))
+                .insert(**mesh_id, InstanceStorage::new(&self.device))
             {
                 return Err(MeshStorageError::MeshExists);
             }
@@ -523,7 +523,7 @@ impl Renderer {
 
     pub fn new_texture(
         &mut self,
-        texture_id: String,
+        texture_id: u64,
         full_size_image: DynamicImage,
         resize_strategy: ResizeStrategy,
     ) {
@@ -548,7 +548,7 @@ impl Renderer {
             let entity_id = entity.id();
             let transform = entity.model();
 
-            self.instances.entry(mesh_id.to_string()).and_modify(|e| {
+            self.instances.entry(*mesh_id).and_modify(|e| {
                 e.upsert_instance(entity_id, transform);
             });
         }
@@ -620,7 +620,7 @@ impl Renderer {
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
             render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
-            render_pass.set_bind_group(1, &self.textures.get("test").unwrap().3, &[]);
+            render_pass.set_bind_group(1, &self.textures.get(&0).unwrap().3, &[]);
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
 
             for (mesh_id, storage) in self.instances.iter() {
