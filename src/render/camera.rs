@@ -131,7 +131,7 @@ impl Camera {
         let view = Matrix4::look_at_rh(
             self.position,
             Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position.to_vec(),
-            Matrix3::from_angle_z(self.roll) * Vector3::new(0.0, 1.0, 0.0),
+            Matrix3::from_axis_angle(center, self.roll) * Vector3::new(0.0, 1.0, 0.0),
         );
 
         self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();
