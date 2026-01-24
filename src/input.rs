@@ -1,6 +1,8 @@
-use std::{collections::HashMap, f32::consts::PI};
+use std::{collections::HashMap, f32::consts::PI, time::Duration};
 
 use cgmath::Rad;
+use log::info;
+use rodio::Sink;
 use winit::{
     dpi::PhysicalPosition,
     event::WindowEvent,
@@ -59,7 +61,7 @@ impl InputController {
         }
     }
 
-    pub fn update(&mut self, dt: f32, camera: &mut Camera) {
+    pub fn update(&mut self, dt: f32, camera: &mut Camera, sink: &mut Sink) {
         let mut camera_forward: f32 = 0.0;
         let mut camera_right: f32 = 0.0;
         let mut yaw_ccw: f32 = 0.0;
@@ -110,7 +112,12 @@ impl InputController {
         if let Some(p) = self.keys_pressed.get(&KeyCode::ControlLeft) {
             if *p {
                 fly_speed *= 100.0;
+                sink.set_speed(2.0);
+            } else {
+                sink.set_speed(1.0);
             }
+        } else {
+            sink.set_speed(1.0);
         }
 
         let mag = (camera_forward * camera_forward + camera_right * camera_right).sqrt();
@@ -143,5 +150,14 @@ impl InputController {
         camera.look_ccw(Rad(yaw_ccw));
         camera.roll_ccw(Rad(roll_ccw));
         camera.translate(&[0.0, fly, 0.0].into());
+
+        if camera_forward.abs() + camera_right.abs() > 1.0e-2 {
+            sink.play();
+            if sink.get_pos() > Duration::new(5, 0) {
+                sink.try_seek(Duration::ZERO).unwrap();
+            }
+        } else {
+            sink.pause();
+        }
     }
 }

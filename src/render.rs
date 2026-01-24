@@ -3,11 +3,12 @@ pub mod lights;
 pub mod textures;
 pub mod vertex;
 
-use std::{collections::HashMap, f32::consts::PI, slice::Iter, sync::Arc, time::Instant};
+use std::{collections::HashMap, f32::consts::PI, fs::File, slice::Iter, sync::Arc, time::Instant};
 
 use cgmath::{Matrix4, Rad, SquareMatrix};
 use image::DynamicImage;
 use log::{error, info};
+use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
     AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
@@ -96,7 +97,7 @@ impl App {
             }
             AppState::Started(renderer) => {
                 self.world.add_entity(entity);
-                renderer.upsert_instances(&self.world);
+                renderer.upsert_instances(&self.world).unwrap();
             }
         }
     }
@@ -181,7 +182,7 @@ impl ApplicationHandler<Event> for App {
                     renderer.new_texture(texture_id, full_size_image, resize_strategy);
                 }
                 info!("Creating GPU buffers");
-                renderer.upsert_instances(&self.world);
+                renderer.upsert_instances(&self.world).unwrap();
                 self.state = AppState::Started(renderer);
                 window.request_redraw();
             }
@@ -212,9 +213,10 @@ impl ApplicationHandler<Event> for App {
             WindowEvent::RedrawRequested => {
                 if let AppState::Started(renderer) = &mut self.state {
                     self.world.update();
-                    self.input.update(1.0 / 240.0, &mut renderer.camera);
+                    self.input
+                        .update(1.0 / 240.0, &mut renderer.camera, &mut renderer.sink);
 
-                    renderer.upsert_instances(&self.world);
+                    renderer.upsert_instances(&self.world).unwrap();
 
                     match renderer.render() {
                         Ok(_) => {}
@@ -228,7 +230,6 @@ impl ApplicationHandler<Event> for App {
     }
 }
 
-#[derive(Debug)]
 pub struct Renderer {
     window: Arc<Window>,
 
@@ -255,6 +256,9 @@ pub struct Renderer {
     depth_texture: Texture,
     depth_view: TextureView,
     depth_sampler: Sampler,
+
+    sink: Sink,
+    stream_handle: OutputStream,
 
     // metrics
     start: Instant,
@@ -449,6 +453,12 @@ impl Renderer {
 
         let mesh_storage = MeshStorage::new(&device);
 
+        let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
+        let sink = rodio::Sink::connect_new(&stream_handle.mixer());
+        sink.pause();
+        sink.set_volume(0.2);
+        sink.append(Decoder::try_from(File::open("assets/engine.wav").unwrap()).unwrap());
+
         window.set_visible(true);
 
         Self {
@@ -474,6 +484,9 @@ impl Renderer {
             instances: HashMap::new(),
             textures: TextureStorage::new(),
             texture_bind_group_layout,
+
+            sink,
+            stream_handle,
 
             start: Instant::now(),
             n_renders: 0,
