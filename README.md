@@ -8,7 +8,7 @@ Early camera testing       |  Lighting testing
 
 **Testing MVP Release**
 
-https://github.com/user-attachments/assets/ecef908c-1c68-4b81-b36a-b4508570cbcf
+<video src="demos/mvp_demo.mp4" controls></video>
 
 ## Components
 
