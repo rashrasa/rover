@@ -42,10 +42,6 @@ impl World {
         &self.entities
     }
 
-    pub fn update(&mut self) {
-        self.tick(1.0 / 240.0);
-    }
-
     pub fn tick(&mut self, dt: f32) {
         // // Perform physics calculations
         // self.perform_collisions();

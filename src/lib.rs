@@ -16,7 +16,7 @@ pub const CHUNK_SIZE_M: usize = 64;
 pub const GROUND_HEIGHT: i64 = -5;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 
-pub const CAMERA_SPEED: f32 = 5.0;
+pub const CAMERA_SPEED: f32 = 1000.0;
 pub const CAMERA_USES_PITCH: bool = true;
 
 pub const MUTE: bool = true;

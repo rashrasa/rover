@@ -3,7 +3,14 @@ pub mod lights;
 pub mod textures;
 pub mod vertex;
 
-use std::{collections::HashMap, f32::consts::PI, fs::File, slice::Iter, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    f32::consts::PI,
+    fs::File,
+    slice::Iter,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use cgmath::{Matrix4, Rad, SquareMatrix};
 use image::DynamicImage;
@@ -15,13 +22,14 @@ use wgpu::{
     CompareFunction, DepthBiasState, DepthStencilState, Device, ExperimentalFeatures, Extent3d,
     Face, Features, FilterMode, FragmentState, FrontFace, IndexFormat, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
-    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState,
-    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler,
-    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StencilState, StoreOp, Surface, SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView,
-    TextureViewDescriptor, TextureViewDimension, Trace, VertexState, wgt::DeviceDescriptor,
+    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
+    PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StencilState, StoreOp,
+    Surface, SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
+    TextureViewDimension, Trace, VertexState, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -212,11 +220,18 @@ impl ApplicationHandler<Event> for App {
 
             WindowEvent::RedrawRequested => {
                 if let AppState::Started(renderer) = &mut self.state {
-                    self.world.update();
-                    self.input
-                        .update(1.0 / 240.0, &mut renderer.camera, &mut renderer.sink);
+                    let elapsed = renderer.last_update.elapsed().as_secs_f32();
+                    renderer.last_update = Instant::now();
+                    let start = Instant::now();
 
+                    self.world.tick(elapsed);
+                    self.input
+                        .update(elapsed, &mut renderer.camera, &mut renderer.sink);
+                    renderer.camera.update(&mut renderer.queue);
                     renderer.upsert_instances(&self.world).unwrap();
+
+                    renderer.t_ticking += start.elapsed();
+                    renderer.n_ticks += 1;
 
                     match renderer.render() {
                         Ok(_) => {}
@@ -260,9 +275,13 @@ pub struct Renderer {
     sink: Sink,
     stream_handle: OutputStream,
 
+    last_update: Instant,
+
     // metrics
     start: Instant,
     n_renders: u64,
+    t_ticking: Duration,
+    n_ticks: u64,
 }
 
 impl Renderer {
@@ -310,7 +329,7 @@ impl Renderer {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: surface_caps.present_modes[0],
+            present_mode: PresentMode::Immediate,
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -489,11 +508,15 @@ impl Renderer {
             textures: TextureStorage::new(),
             texture_bind_group_layout,
 
+            last_update: Instant::now(),
+
             sink,
             stream_handle,
 
             start: Instant::now(),
             n_renders: 0,
+            t_ticking: Duration::ZERO,
+            n_ticks: 0,
         }
     }
 
@@ -584,7 +607,6 @@ impl Renderer {
                 label: Some("Render Encoder"),
             });
 
-        self.camera.update(&mut self.queue);
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -644,8 +666,14 @@ impl Renderer {
                 "FPS: {:.2}",
                 self.n_renders as f64 / METRICS_INTERVAL.as_secs_f64()
             );
+            info!(
+                "Average update/copy duration (ms): {:.4}",
+                (self.t_ticking.as_secs_f64() / self.n_ticks as f64) * 1000.0
+            );
             self.start = Instant::now();
             self.n_renders = 0;
+            self.t_ticking = Duration::ZERO;
+            self.n_ticks = 0;
         }
         Ok(())
     }
