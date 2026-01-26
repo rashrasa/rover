@@ -6,9 +6,9 @@ Early camera testing       |  Lighting testing
 :-------------------------:|:-------------------------:
 <img src="https://github.com/user-attachments/assets/c9903064-b028-4226-ac45-40e4edb63471" width="480"> | <img width="480" src="https://github.com/user-attachments/assets/b971fce0-d7d7-48e6-b35d-b655a94486e2" />
 
-**Testing MVP Release**
+**Testing MVP Release (Video not working on FireFox)**
 
-<video src="demos/mvp_demo.mp4" controls></video>
+https://github.com/user-attachments/assets/e3c861e7-889f-4313-b2e2-1c446752a3e2
 
 ## Components
 
