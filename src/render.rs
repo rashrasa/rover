@@ -40,10 +40,11 @@ use winit::{
 };
 
 use crate::{
-    CHUNK_SIZE_M, GROUND_HEIGHT, IDBank, METRICS_INTERVAL, MIPMAP_LEVELS,
+    CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_FLAT16, METRICS_INTERVAL,
+    MIPMAP_LEVELS,
     assets::ICON,
     core::{InstanceStorage, MeshStorage, MeshStorageError},
-    entity::Entity,
+    entity::player::Entity,
     input::InputController,
     render::{
         camera::{Camera, NoClipCamera, Projection},
@@ -107,7 +108,7 @@ impl App {
             }
             AppState::Started(renderer) => {
                 self.world.add_entity(entity);
-                renderer.upsert_instances(&self.world).unwrap();
+                renderer.insert_instances(&self.world).unwrap();
             }
         }
     }
@@ -134,7 +135,7 @@ impl App {
 
         self.add_entity(Entity::new(
             id.next(),
-            2,
+            MESH_FLAT16,
             [0.0, 0.0, 0.0].into(),
             [0.0, 0.0, 0.0].into(),
             (
@@ -146,9 +147,9 @@ impl App {
                 y: [0.0, 1.0, 0.0, 0.0].into(),
                 z: [0.0, 0.0, 1.0, 0.0].into(),
                 w: [
-                    x as f32 * CHUNK_SIZE_M as f32,
+                    x as f32 * CHUNK_SIZE as f32,
                     GROUND_HEIGHT as f32,
-                    z as f32 * CHUNK_SIZE_M as f32,
+                    z as f32 * CHUNK_SIZE as f32,
                     1.0,
                 ]
                 .into(),
@@ -192,7 +193,7 @@ impl ApplicationHandler<Event> for App {
                     renderer.new_texture(texture_id, full_size_image, resize_strategy);
                 }
                 info!("Creating GPU buffers");
-                renderer.upsert_instances(&self.world).unwrap();
+                renderer.insert_instances(&self.world).unwrap();
                 self.state = AppState::Started(renderer);
                 window.request_redraw();
             }
@@ -230,7 +231,7 @@ impl ApplicationHandler<Event> for App {
                     self.input
                         .update(elapsed, &mut renderer.camera, &mut renderer.sink);
                     renderer.camera.update_gpu(&mut renderer.queue);
-                    renderer.upsert_instances(&self.world).unwrap();
+                    renderer.update_instances(&self.world).unwrap();
 
                     renderer.t_ticking += start.elapsed();
                     renderer.n_ticks += 1;
@@ -563,11 +564,7 @@ impl Renderer {
     }
 
     // TODO: All instances get synced even ones not updated, optimize later.
-
-    /// Batch updating of instances. All instances will be synced to the GPU in this call.
-    ///
-    /// This is the main update function to be called before each render call.
-    pub fn upsert_instances(&mut self, world: &World) -> Result<(), String> {
+    pub fn insert_instances(&mut self, world: &World) -> Result<(), String> {
         for entity in world.iter_entities() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
@@ -578,8 +575,31 @@ impl Renderer {
             });
         }
 
-        for storage in self.instances.values_mut() {
+        for (mesh_id, storage) in self.instances.iter_mut() {
             storage.update_gpu(&mut self.queue, &mut self.device);
+        }
+
+        Ok(())
+    }
+    /// Batch updating of instances. All instances will be synced to the GPU in this call.
+    ///
+    /// This is the main update function to be called before each render call.
+    pub fn update_instances(&mut self, world: &World) -> Result<(), String> {
+        for entity in world.iter_entities() {
+            let mesh_id = entity.mesh_id();
+            let entity_id = entity.id();
+            let transform = entity.model();
+            if *mesh_id != MESH_FLAT16 {
+                self.instances.entry(*mesh_id).and_modify(|e| {
+                    e.upsert_instance(entity_id, transform);
+                });
+            }
+        }
+
+        for (mesh_id, storage) in self.instances.iter_mut() {
+            if *mesh_id != MESH_FLAT16 {
+                storage.update_gpu(&mut self.queue, &mut self.device);
+            }
         }
 
         Ok(())

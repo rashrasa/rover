@@ -1,16 +1,20 @@
-use std::{f32::consts::PI, fs::File};
+use std::{f32::consts::PI, fs::File, thread};
 
 use cgmath::{Matrix4, Rad, Vector3, Vector4};
 use image::imageops::FilterType;
 use log::{debug, info};
 use rodio::Decoder;
 use rover::{
-    CHUNK_SIZE_M, IDBank,
+    CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
     core::geometry::{EdgeJoin, Face, Mesh, Shape3},
-    entity::Entity,
-    render::{App, textures::ResizeStrategy, vertex::Vertex},
+    entity::player::Entity,
+    render::{App, Event, textures::ResizeStrategy, vertex::Vertex},
 };
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::{
+    event::WindowEvent,
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowId,
+};
 
 fn main() {
     rover::init_logging();
@@ -21,13 +25,13 @@ fn main() {
 
     let ground = Face::from_function(
         [0.0, 1.0, 0.0].into(),
-        (-(CHUNK_SIZE_M as f32) / 2.0, CHUNK_SIZE_M as f32 / 2.0),
-        (-(CHUNK_SIZE_M as f32) / 2.0, CHUNK_SIZE_M as f32 / 2.0),
+        (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
+        (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
         (
-            32.0 / (CHUNK_SIZE_M as f32 / 2.0),
-            32.0 / (CHUNK_SIZE_M as f32 / 2.0),
+            CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
+            CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
         ),
-        |x, z| -0.01 * (x * x + z * z),
+        |x, z| GROUND_HEIGHT as f32,
     )
     .unwrap();
 
@@ -143,10 +147,6 @@ fn main() {
     )
     .unwrap();
 
-    const MESH_CUBE2: u64 = 0;
-    const MESH_ROUNDISH: u64 = 1;
-    const MESH_FLAT16: u64 = 2;
-
     app.add_meshes(
         [
             (&MESH_CUBE2, cube2_mesh.vertices(), cube2_mesh.indices()),
@@ -191,8 +191,8 @@ fn main() {
         }
     }
 
-    for x in -50..51 {
-        for z in -50..51 {
+    for x in -0..1 {
+        for z in -0..1 {
             app.load_chunk(x, z, &mut id_bank);
         }
     }

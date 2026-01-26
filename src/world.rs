@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Index};
 use cgmath::{InnerSpace, Vector2, Vector3};
 use rand::RngCore;
 
-use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, entity::Entity};
+use crate::{CHUNK_RESOLUTION, RENDER_DISTANCE, entity::player::Entity};
 
 #[derive(Debug)]
 pub struct World {
@@ -22,9 +22,9 @@ impl World {
             chunk_loader: |_, _, _| {
                 let mut rng = rand::rng();
                 let mut sample = || ((rng.next_u32() as f64 / u32::MAX as f64) * 1.0) as i64;
-                let mut data = [[0; CHUNK_SIZE_M]; CHUNK_SIZE_M];
-                for i in 0..CHUNK_SIZE_M {
-                    for j in 0..CHUNK_SIZE_M {
+                let mut data = [[0; CHUNK_RESOLUTION]; CHUNK_RESOLUTION];
+                for i in 0..CHUNK_RESOLUTION {
+                    for j in 0..CHUNK_RESOLUTION {
                         data[j][i] = sample()
                     }
                 }
@@ -89,12 +89,12 @@ impl World {
         let chunk_1 = self.request_chunk_exact(x_1, z_1);
 
         let h_0 = chunk_0[(
-            x_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-            z_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
+            x_0.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
+            z_0.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
         )] as f32;
         let h_1 = chunk_1[(
-            x_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-            z_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
+            x_1.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
+            z_1.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
         )] as f32;
         h_0 * alpha_0 + h_1 * (1.0 - alpha_0)
     }
@@ -127,12 +127,12 @@ impl World {
         };
 
         let h_0 = chunk_0[(
-            x_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-            z_0.rem_euclid(CHUNK_SIZE_M as i64) as usize,
+            x_0.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
+            z_0.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
         )] as f32;
         let h_1 = chunk_1[(
-            x_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
-            z_1.rem_euclid(CHUNK_SIZE_M as i64) as usize,
+            x_1.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
+            z_1.rem_euclid(CHUNK_RESOLUTION as i64) as usize,
         )] as f32;
 
         Ok(h_0 * alpha_0 + h_1 * (1.0 - alpha_0))
@@ -206,16 +206,16 @@ impl World {
 
 #[derive(Clone, Debug)]
 pub struct HeightMap {
-    map: [[i64; CHUNK_SIZE_M]; CHUNK_SIZE_M],
+    map: [[i64; CHUNK_RESOLUTION]; CHUNK_RESOLUTION],
 }
 
 impl HeightMap {
-    fn new(map: [[i64; CHUNK_SIZE_M]; CHUNK_SIZE_M]) -> Self {
+    fn new(map: [[i64; CHUNK_RESOLUTION]; CHUNK_RESOLUTION]) -> Self {
         Self { map }
     }
     fn flat(height: i64) -> Self {
         Self {
-            map: [[height; CHUNK_SIZE_M]; CHUNK_SIZE_M],
+            map: [[height; CHUNK_RESOLUTION]; CHUNK_RESOLUTION],
         }
     }
 }

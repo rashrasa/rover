@@ -20,6 +20,7 @@ use crate::render::vertex::Vertex;
 /// Meshes can't be removed once added, for now. Max vertices: 2^16 = 65536
 #[derive(Debug)]
 pub struct MeshStorage {
+    // TODO: Use Vec with mesh ids being the index into it
     map: HashMap<u64, (usize, usize, usize, usize)>, // vertex inclusive start, exclusive end, index inclusive start, exclusive end
 
     vertex_storage: Vec<Vertex>,
