@@ -14,15 +14,15 @@ use std::time::Duration;
 pub const GLOBAL_INTEGRATOR: Integrator = Integrator::RK4;
 pub const RENDER_DISTANCE: usize = 8;
 
-pub const CHUNK_RESOLUTION: usize = 8;
-pub const CHUNK_SIZE: f64 = 20000.0;
+pub const CHUNK_RESOLUTION: usize = 30;
+pub const CHUNK_SIZE: f64 = 200000.0;
 pub const GROUND_HEIGHT: i64 = -5;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];
 
-pub const CAMERA_SPEED: f32 = 1000.0;
+pub const CAMERA_SPEED: f32 = 20.0;
 pub const CAMERA_USES_PITCH: bool = true;
 
-pub const MUTE: bool = true;
+pub const MUTE: bool = false;
 
 pub const MESH_CUBE2: u64 = 0;
 pub const MESH_ROUNDISH: u64 = 1;

@@ -196,6 +196,8 @@ impl ApplicationHandler<Event> for App {
                 renderer.insert_instances(&self.world).unwrap();
                 self.state = AppState::Started(renderer);
                 window.request_redraw();
+
+                info!("Started! Use WASD for movement and Left Control for speed");
             }
             AppState::Started(_) => {}
         }
