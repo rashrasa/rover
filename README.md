@@ -2,13 +2,14 @@
 
 A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events. Built without a game/graphics engine, using wgpu as the WebGPU API provider.
 
-![Recording 2026-01-17 204454](https://github.com/user-attachments/assets/c9903064-b028-4226-ac45-40e4edb63471)
+Early camera testing       |  Lighting testing
+:-------------------------:|:-------------------------:
+<img src="https://github.com/user-attachments/assets/c9903064-b028-4226-ac45-40e4edb63471" width="480"> | <img width="480" src="https://github.com/user-attachments/assets/b971fce0-d7d7-48e6-b35d-b655a94486e2" />
 
-*Early stage graphics development and camera testing*
+**Testing MVP Release**
 
-<img width="1922" height="1128" alt="image" src="https://github.com/user-attachments/assets/b971fce0-d7d7-48e6-b35d-b655a94486e2" />
+https://github.com/user-attachments/assets/ecef908c-1c68-4b81-b36a-b4508570cbcf
 
-*Lighting testing*
 ## Components
 
 These are specific components which are needed for the functioning of this application.
