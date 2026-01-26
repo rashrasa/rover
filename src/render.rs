@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use cgmath::{Matrix4, Rad, SquareMatrix};
+use cgmath::{Deg, Matrix4, Rad, SquareMatrix};
 use image::DynamicImage;
 use log::{error, info};
 use rodio::{Decoder, OutputStream, Sink};
@@ -45,7 +45,7 @@ use crate::{
     core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
     input::InputController,
     render::{
-        camera::{Camera, Projection},
+        camera::{Camera, NoClipCamera, Projection},
         lights::LightSourceStorage,
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
@@ -227,7 +227,7 @@ impl ApplicationHandler<Event> for App {
                     self.world.tick(elapsed);
                     self.input
                         .update(elapsed, &mut renderer.camera, &mut renderer.sink);
-                    renderer.camera.update(&mut renderer.queue);
+                    renderer.camera.update_gpu(&mut renderer.queue);
                     renderer.upsert_instances(&self.world).unwrap();
 
                     renderer.t_ticking += start.elapsed();
@@ -257,7 +257,7 @@ pub struct Renderer {
     render_pipeline: RenderPipeline,
     render_pipeline_layout: PipelineLayout,
 
-    camera: Camera,
+    camera: NoClipCamera,
 
     meshes: MeshStorage,
 
@@ -340,7 +340,7 @@ impl Renderer {
             source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let camera = Camera::new(
+        let camera = NoClipCamera::new(
             &mut device,
             (0.0, 5.0, 10.0).into(),
             Rad(-PI / 4.0),
@@ -349,7 +349,7 @@ impl Renderer {
             Projection::new(
                 config.width as f32,
                 config.height as f32,
-                Rad(PI / 2.0),
+                Deg(60.0).into(),
                 0.1,
                 10000.0,
             ),
@@ -528,7 +528,7 @@ impl Renderer {
         meshes: Iter<(&u64, &[Vertex], &[u16])>,
     ) -> Result<(), MeshStorageError> {
         for (mesh_id, vertices, indices) in meshes {
-            if let Err(e) = self.meshes.add_mesh(*mesh_id, *vertices, *indices) {
+            if let Err(e) = self.meshes.add_mesh(mesh_id, *vertices, *indices) {
                 return Err(e);
             }
             if let Some(_) = self

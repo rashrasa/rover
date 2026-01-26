@@ -5,7 +5,7 @@ use image::imageops::FilterType;
 use log::{debug, info};
 use rodio::Decoder;
 use rover::{
-    CHUNK_SIZE_M, CUBE_MESH_INDICES, GROUND_HEIGHT, GROUND_MESH, IDBank,
+    CHUNK_SIZE_M, IDBank,
     core::{
         entity::Entity,
         geometry::{EdgeJoin, Face, Mesh, Shape3},
