@@ -6,10 +6,8 @@ use log::{debug, info};
 use rodio::Decoder;
 use rover::{
     CHUNK_SIZE_M, IDBank,
-    core::{
-        entity::Entity,
-        geometry::{EdgeJoin, Face, Mesh, Shape3},
-    },
+    core::geometry::{EdgeJoin, Face, Mesh, Shape3},
+    entity::Entity,
     render::{App, textures::ResizeStrategy, vertex::Vertex},
 };
 use winit::event_loop::{ControlFlow, EventLoop};

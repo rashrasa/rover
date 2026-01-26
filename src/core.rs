@@ -1,7 +1,5 @@
 pub mod continuous;
-pub mod entity;
 pub mod geometry;
-pub mod world;
 
 use std::{
     collections::{HashMap, hash_map::Entry},

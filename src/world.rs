@@ -2,9 +2,8 @@ use std::{collections::HashMap, ops::Index};
 
 use cgmath::{InnerSpace, Vector2, Vector3};
 use rand::RngCore;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, core::entity::Entity};
+use crate::{CHUNK_SIZE_M, RENDER_DISTANCE, entity::Entity};
 
 #[derive(Debug)]
 pub struct World {

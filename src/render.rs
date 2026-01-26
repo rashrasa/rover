@@ -42,7 +42,8 @@ use winit::{
 use crate::{
     CHUNK_SIZE_M, GROUND_HEIGHT, IDBank, METRICS_INTERVAL, MIPMAP_LEVELS,
     assets::ICON,
-    core::{InstanceStorage, MeshStorage, MeshStorageError, entity::Entity, world::World},
+    core::{InstanceStorage, MeshStorage, MeshStorageError},
+    entity::Entity,
     input::InputController,
     render::{
         camera::{Camera, NoClipCamera, Projection},
@@ -50,6 +51,7 @@ use crate::{
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
+    world::World,
 };
 
 enum AppState {

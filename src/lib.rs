@@ -1,8 +1,10 @@
 pub mod assets;
 pub mod audio;
 pub mod core;
+pub mod entity;
 pub mod input;
 pub mod render;
+pub mod world;
 
 // All constants will be stored here.
 
