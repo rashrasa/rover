@@ -17,13 +17,17 @@ pub trait Position {
     fn set_position(&mut self, p: [f32; 3]);
 }
 
+pub trait Mass {
+    fn mass(&self) -> &f32;
+}
+
 /// Entities that have a mutable acceleration and velocity component.
 pub trait Dynamic: Position + Tick {
     fn velocity(&self) -> &[f32; 3];
-    fn set_velocity(&mut self, p: [f32; 3]);
+    fn set_velocity(&mut self, v: [f32; 3]);
 
     fn acceleration(&self) -> &[f32; 3];
-    fn set_acceleration(&mut self, p: [f32; 3]);
+    fn set_acceleration(&mut self, a: [f32; 3]);
 }
 
 /// Entities that can be used as a view.
@@ -39,7 +43,7 @@ pub trait Render {
 }
 
 /// Entities that can collide. Bounding box should be in world space.
-pub trait Collide {
+pub trait Collide: Dynamic + Mass {
     fn bounding_box(&self) -> &BoundingBox;
     fn response(&self) -> &CollisionResponse;
 }
