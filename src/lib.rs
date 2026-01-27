@@ -14,7 +14,7 @@ use std::time::Duration;
 pub const GLOBAL_INTEGRATOR: Integrator = Integrator::RK4;
 pub const RENDER_DISTANCE: usize = 8;
 
-pub const CHUNK_RESOLUTION: usize = 30;
+pub const CHUNK_RESOLUTION: usize = 64;
 pub const CHUNK_SIZE: f64 = 200000.0;
 pub const GROUND_HEIGHT: i64 = -5;
 pub const GROUND_COLOR: [f32; 3] = [0.37, 0.36, 0.26];

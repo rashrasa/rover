@@ -233,7 +233,6 @@ impl Camera for NoClipCamera {
         self.look_ccw(Rad(yaw_ccw));
         self.roll_ccw(Rad(roll_ccw));
         self.translate(&[0.0, fly, 0.0].into());
-        self.position.y = GROUND_HEIGHT as f32; // TODO: remove
 
         if camera_forward.abs() + camera_right.abs() > 1.0e-2 * dt {
             sink.play();
