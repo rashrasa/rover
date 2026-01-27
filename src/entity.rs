@@ -17,12 +17,13 @@ pub trait Position {
     fn set_position(&mut self, p: [f32; 3]);
 }
 
+/// Entities that have a mass component.
 pub trait Mass {
     fn mass(&self) -> &f32;
 }
 
 /// Entities that have a mutable acceleration and velocity component.
-pub trait Dynamic: Position + Tick {
+pub trait Dynamic: Position {
     fn velocity(&self) -> &[f32; 3];
     fn set_velocity(&mut self, v: [f32; 3]);
 
