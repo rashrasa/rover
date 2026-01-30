@@ -52,7 +52,7 @@ impl Face {
     /// Resolution is the approximate number of vertices desired per 1.0 unit on each of the x and z axes.
     /// This will be floored to fit in the domain provided.
     ///
-    /// Normals will be approximated by the negative inverse of the gradient of the height function.
+    /// Normals will be approximated by the gradient of the height function.
     /// It's important that [height] is a function which is continuous and differentiable on the domain provided.
     ///
     /// edge_{p/n}{x/z} are lists of indices of the vertices on the border of the flat mesh before any transformations.
