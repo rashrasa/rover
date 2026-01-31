@@ -14,31 +14,27 @@ Early camera testing       |  Lighting testing
 
 These are specific components which are needed for the functioning of this application.
 
-### Global Tick
+### App (Event Loop + Window + World)
 
 - Owns world state, window + rendering context, renderer
 - Advances the world
 - Triggers renders
 - Propogates inputs into physics
 
-### World System
+#### Renderer
 
-- Materials, properties
-- Collision state
-- Weather events and their state
-- Camera position
-- Entities
-- Atmosphere
-- Specialized physics "functions" to be called in the step function
+- Part of "App"
+- Iterates over data provided by the world and renders it
 
-#### World Generator
+### World
 
-- Creates an entire world from a single seed
+- Stores materials, properties, meshes, textures, entities
+- Physics logic
+- Provides data for rendering
 
-### Rendering Engine
+#### Terrain Generator
 
-- Renders visuals based on world state, atmosphere, camera position
-- Renders fog, storms
+- Creates world terrain from a 64 bit value
 
 ### Input Event System
 
