@@ -4,25 +4,31 @@ use nalgebra::{Matrix4, Vector3};
 use wgpu::BindGroup;
 use winit::keyboard::KeyCode;
 
-use crate::Integrator;
+use crate::{Integrator, core::camera::Projection};
 
 // Each entity module is simply just a unique composition of these traits below.
 pub mod object;
 pub mod player;
 
+/// Entities are unique objects in the world.
+/// Any traits functions with &self or &mut self as a parameter will (likely) need to be unique.
+pub trait Entity {
+    fn id(&self) -> &u64;
+}
+
 /// Entities that have a mutable position component.
-pub trait Transform {
+pub trait Transform: Entity {
     fn transform(&self) -> &Matrix4<f32>;
     fn transform_mut(&mut self) -> &mut Matrix4<f32>;
 }
 
 /// Entities that have a mass component.
-pub trait Mass {
+pub trait Mass: Entity {
     fn mass(&self) -> &f32;
 }
 
 /// Entities that have a mutable acceleration and velocity component.
-pub trait Dynamic: Transform {
+pub trait Dynamic: Transform + Entity {
     fn velocity(&self) -> &Vector3<f32>;
     fn velocity_mut(&mut self) -> &mut Vector3<f32>;
 
@@ -31,25 +37,32 @@ pub trait Dynamic: Transform {
 }
 
 /// Entities that can be used as a view.
-pub trait View {
+pub trait View: Entity {
+    fn set_projection(&mut self, projection: Projection);
     fn view_proj(&self) -> &Matrix4<f32>;
 }
 
 /// Entities that can be rendered.
-pub trait Render: Transform {
+pub trait Render: Transform + Entity {
     fn texture_id(&self) -> &u64;
     fn mesh_id(&self) -> &u64;
     fn bind_group(&self) -> &BindGroup;
 }
 
+/// Entities that can be rendered and should be instanced.
+pub trait RenderInstanced: Transform + Entity {
+    fn texture_id(&self) -> &u64;
+    fn mesh_id(&self) -> &u64;
+}
+
 /// Entities that can collide. Bounding box should be in world space.
-pub trait Collide: Dynamic + Mass {
+pub trait Collide: Dynamic + Mass + Entity {
     fn bounding_box(&self) -> &BoundingBox;
     fn response(&self) -> &CollisionResponse;
 }
 
-pub trait KeyControl {
-    fn handle_input(&mut self, state: &HashMap<KeyCode, bool>);
+pub trait Illuminate: Transform + Render + Entity {
+    fn luminance(&self) -> &f64;
 }
 
 /// Elastic collisions have CollisionResponse::Inelastic(1.0).

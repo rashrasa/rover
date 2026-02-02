@@ -114,6 +114,23 @@ impl NoClipCamera {
         self.roll += amount;
     }
 
+    fn create_view(&self) -> Matrix4<f32> {
+        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
+        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
+        let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
+        Matrix4::look_at_rh(
+            &(self.position.into()),
+            &(Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position),
+            &(Rotation3::from_axis_angle(&(UnitVector3::new_normalize(center)), self.roll)
+                * Vector3::new(0.0, 1.0, 0.0)),
+        )
+    }
+
+    pub fn set_projection(&mut self, projection: Projection) {
+        self.projection = projection;
+        self.view_proj = self.projection.projection() * self.create_view();
+    }
+
     pub fn view_proj(&self) -> &nalgebra::Matrix4<f32> {
         &self.view_proj
     }
@@ -228,15 +245,8 @@ impl Camera for NoClipCamera {
         } else {
             sink.pause();
         }
-        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
-        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
-        let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
-        let view = Matrix4::look_at_rh(
-            &(self.position.into()),
-            &(Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position),
-            &(Rotation3::from_axis_angle(&(UnitVector3::new_normalize(center)), self.roll)
-                * Vector3::new(0.0, 1.0, 0.0)),
-        );
+
+        let view = self.create_view();
 
         self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();
     }

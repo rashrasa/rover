@@ -11,8 +11,8 @@ use rover::{
         geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
     render::{
-        App, Event, MeshInitData, PlayerInitData, TextureInitData, textures::ResizeStrategy,
-        vertex::Vertex,
+        App, Event, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData,
+        textures::ResizeStrategy, vertex::Vertex,
     },
 };
 use winit::{
@@ -176,11 +176,28 @@ fn main() {
             .unwrap(),
         resize: ResizeStrategy::Stretch(FilterType::Gaussian),
     });
+
     let mut id_bank = IDBank::new();
+
+    app.add_player(PlayerInitData {
+        id: id_bank.next(),
+        mesh_id: MESH_CUBE2,
+        texture_id: 0,
+        velocity: Vector3::new(0.0, 0.0, 0.0),
+        acceleration: Vector3::new(0.0, 0.0, 0.0),
+        bounding_box: BoundingBox::new(
+            (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
+            (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
+        ),
+        model: Matrix4::new_translation(&[0.0, 10.0, 0.0].into()),
+        response: CollisionResponse::Inelastic(1.0),
+        mass: 1.0,
+    });
+
     for i in -10..11 {
         for j in 15..16 {
             for k in -10..11 {
-                app.add_player(PlayerInitData {
+                app.add_object(ObjectInitData {
                     id: id_bank.next(),
                     mesh_id: if ((i + k) as i64).rem_euclid(2) == 0 {
                         MESH_CUBE2
@@ -204,7 +221,7 @@ fn main() {
                     .to_homogeneous()
                         * Matrix4::new_scaling(10.0),
 
-                    response: CollisionResponse::Inelastic(1.0),
+                    response: CollisionResponse::Inelastic(0.9),
                 });
             }
         }
@@ -212,7 +229,7 @@ fn main() {
 
     for x in -0..1 {
         for z in -0..1 {
-            app.load_chunk(x, z, &mut id_bank);
+            app.load_chunk(x, z);
         }
     }
 

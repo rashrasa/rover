@@ -45,7 +45,11 @@ use crate::{
     core::{
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{self, BoundingBox, CollisionResponse, Transform, player::Player},
+        entity::{
+            self, BoundingBox, CollisionResponse, Entity, RenderInstanced, Transform,
+            object::{self, Object},
+            player::Player,
+        },
         instance::InstanceStorage,
         lights::LightSourceStorage,
         mesh::{MeshStorage, MeshStorageError},
@@ -62,8 +66,9 @@ pub struct AppInitData {
     pub width: u32,
     pub height: u32,
     pub meshes: Vec<MeshInitData>,
-    pub players: Vec<PlayerInitData>,
     pub textures: Vec<TextureInitData>,
+    pub players: Vec<PlayerInitData>,
+    pub objects: Vec<ObjectInitData>,
 }
 
 impl AppInitData {
@@ -74,12 +79,14 @@ impl AppInitData {
         Vec<MeshInitData>,
         Vec<PlayerInitData>,
         Vec<TextureInitData>,
+        Vec<ObjectInitData>,
     ) {
         (
             (self.width, self.height),
             self.meshes,
             self.players,
             self.textures,
+            self.objects,
         )
     }
 }
@@ -88,6 +95,18 @@ pub struct MeshInitData {
     pub id: u64,
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u16>,
+}
+
+pub struct ObjectInitData {
+    pub id: u64,
+    pub mesh_id: u64,
+    pub texture_id: u64,
+    pub velocity: Vector3<f32>,
+    pub acceleration: Vector3<f32>,
+    pub bounding_box: BoundingBox,
+    pub model: Matrix4<f32>,
+    pub response: CollisionResponse,
+    pub mass: f32,
 }
 
 pub struct PlayerInitData {
@@ -112,6 +131,7 @@ pub struct TextureInitData {
 pub struct ActiveState {
     current_player: Player,
     players: Vec<Player>,
+    objects: Vec<Object>,
 }
 
 enum AppState {
@@ -129,6 +149,8 @@ enum AppState {
 pub enum Event {
     WindowEvent(WindowId, WindowEvent),
 }
+
+// TODO: Global ID system for objects, meshes, textures, etc.
 
 /// Main struct for the entire app.
 ///
@@ -150,9 +172,10 @@ impl App {
             state: AppState::NeedsInit(AppInitData {
                 width,
                 height,
-                meshes: Vec::new(),
-                players: Vec::new(),
-                textures: Vec::new(),
+                meshes: vec![],
+                players: vec![],
+                objects: vec![],
+                textures: vec![],
             }),
             world: World::new(seed),
             input: InputController::new(),
@@ -210,6 +233,29 @@ impl App {
         }
     }
 
+    pub fn add_object(&mut self, object: ObjectInitData) {
+        match &mut self.state {
+            AppState::NeedsInit(init_data) => {
+                init_data.objects.push(object);
+            }
+            AppState::Started { renderer, state } => {
+                let object = Object::new(
+                    object.id,
+                    object.mesh_id,
+                    object.texture_id,
+                    object.mass,
+                    object.response,
+                    object.bounding_box,
+                    object.model,
+                    object.acceleration,
+                    object.velocity,
+                );
+                state.objects.push(object);
+                renderer.insert_instances(state).unwrap();
+            }
+        }
+    }
+
     pub fn add_texture(&mut self, data: TextureInitData) {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
@@ -222,7 +268,7 @@ impl App {
     }
 
     /// Loads chunk with (0,0) at (x/16, z/16)
-    pub fn load_chunk(&mut self, x: i64, z: i64, id: &mut IDBank) {
+    pub fn load_chunk(&mut self, x: i64, z: i64) {
         let height_map = self.world.request_chunk_exact(x, z);
 
         // TODO: Create Terrain
@@ -238,10 +284,12 @@ impl ApplicationHandler<Event> for App {
                 height: 0,
                 meshes: vec![],
                 players: vec![],
+                objects: vec![],
                 textures: vec![],
             };
             std::mem::swap(&mut old_data, data);
-            let (size, mut meshes, mut players_init, mut textures) = old_data.inner();
+            let (size, mut meshes, mut players_init, mut textures, mut objects_init) =
+                old_data.inner();
             let mut win_attr = Window::default_attributes();
             win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(size.0, size.1)));
             win_attr.title = "Rover".into();
@@ -286,6 +334,24 @@ impl ApplicationHandler<Event> for App {
                 );
                 players.push(player);
             }
+
+            let mut objects = vec![];
+            while let Some(object_init) = objects_init.pop() {
+                let object = Object::new(
+                    object_init.id,
+                    object_init.mesh_id,
+                    object_init.texture_id,
+                    object_init.mass,
+                    object_init.response,
+                    object_init.bounding_box,
+                    object_init.model,
+                    object_init.acceleration,
+                    object_init.velocity,
+                );
+
+                objects.push(object);
+            }
+
             info!("Creating textures");
             while let Some(data) = textures.pop() {
                 renderer.new_texture(TextureInitData {
@@ -298,6 +364,7 @@ impl ApplicationHandler<Event> for App {
             let mut active_state = ActiveState {
                 current_player: players.pop().unwrap(),
                 players,
+                objects,
             };
 
             renderer.insert_instances(&mut active_state).unwrap();
@@ -343,6 +410,10 @@ impl ApplicationHandler<Event> for App {
                         entity::tick(player, elapsed);
                     }
                     entity::tick(&mut state.current_player, elapsed);
+
+                    for object in state.objects.iter_mut() {
+                        entity::tick(object, elapsed);
+                    }
 
                     self.input
                         .update(elapsed, &mut state.current_player, &mut renderer.sink);
@@ -674,10 +745,20 @@ impl Renderer {
     }
 
     pub fn insert_instances(&mut self, state: &mut ActiveState) -> Result<(), String> {
-        for entity in state.players.iter() {
-            let mesh_id = entity.mesh_id();
-            let entity_id = entity.id();
-            let transform = entity.transform();
+        for player in state.players.iter() {
+            let mesh_id = player.mesh_id();
+            let entity_id = player.id();
+            let transform = player.transform();
+
+            self.instances.entry(*mesh_id).and_modify(|e| {
+                e.upsert_instance(entity_id, transform);
+            });
+        }
+
+        for object in state.objects.iter() {
+            let mesh_id = object.mesh_id();
+            let entity_id = object.id();
+            let transform = object.transform();
 
             self.instances.entry(*mesh_id).and_modify(|e| {
                 e.upsert_instance(entity_id, transform);
@@ -694,15 +775,24 @@ impl Renderer {
     ///
     /// This is the main update function to be called before each render call.
     pub fn update_instances(&mut self, state: &ActiveState) -> Result<(), String> {
-        for entity in state.players.iter() {
-            let mesh_id = entity.mesh_id();
-            let entity_id = entity.id();
-            let transform = entity.transform();
-            if *mesh_id != MESH_FLAT16 {
-                self.instances.entry(*mesh_id).and_modify(|e| {
-                    e.upsert_instance(entity_id, transform);
-                });
-            }
+        for player in state.players.iter() {
+            let mesh_id = player.mesh_id();
+            let entity_id = player.id();
+            let transform = player.transform();
+
+            self.instances.entry(*mesh_id).and_modify(|e| {
+                e.upsert_instance(entity_id, transform);
+            });
+        }
+
+        for object in state.objects.iter() {
+            let mesh_id = object.mesh_id();
+            let entity_id = object.id();
+            let transform = object.transform();
+
+            self.instances.entry(*mesh_id).and_modify(|e| {
+                e.upsert_instance(entity_id, transform);
+            });
         }
 
         for (mesh_id, storage) in self.instances.iter_mut() {

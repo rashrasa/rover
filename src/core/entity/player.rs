@@ -91,7 +91,7 @@ impl Player {
     }
 }
 
-impl entity::Transform for Player {
+impl super::Transform for Player {
     fn transform(&self) -> &Matrix4<f32> {
         &self.model
     }
@@ -100,13 +100,13 @@ impl entity::Transform for Player {
     }
 }
 
-impl entity::Mass for Player {
+impl super::Mass for Player {
     fn mass(&self) -> &f32 {
         &self.mass
     }
 }
 
-impl entity::Dynamic for Player {
+impl super::Dynamic for Player {
     fn velocity(&self) -> &Vector3<f32> {
         &self.velocity
     }
@@ -124,7 +124,7 @@ impl entity::Dynamic for Player {
     }
 }
 
-impl entity::Collide for Player {
+impl super::Collide for Player {
     fn bounding_box(&self) -> &BoundingBox {
         &self.bounding_box
     }
@@ -133,9 +133,33 @@ impl entity::Collide for Player {
     }
 }
 
-impl entity::View for Player {
+impl super::Render for Player {
+    fn texture_id(&self) -> &u64 {
+        &self.texture_id
+    }
+
+    fn mesh_id(&self) -> &u64 {
+        &self.mesh_id
+    }
+
+    fn bind_group(&self) -> &wgpu::BindGroup {
+        self.camera.bind_group()
+    }
+}
+
+impl super::Entity for Player {
+    fn id(&self) -> &u64 {
+        &self.id
+    }
+}
+
+impl super::View for Player {
     fn view_proj(&self) -> &Matrix4<f32> {
         self.camera.view_proj()
+    }
+
+    fn set_projection(&mut self, projection: crate::core::camera::Projection) {
+        self.camera.set_projection(projection);
     }
 }
 
