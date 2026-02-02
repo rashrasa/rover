@@ -180,7 +180,7 @@ fn main() {
     for i in -10..11 {
         for j in 15..16 {
             for k in -10..11 {
-                app.add_entity(PlayerInitData {
+                app.add_player(PlayerInitData {
                     id: id_bank.next(),
                     mesh_id: if ((i + k) as i64).rem_euclid(2) == 0 {
                         MESH_CUBE2

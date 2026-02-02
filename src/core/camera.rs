@@ -267,7 +267,8 @@ impl Projection {
             near,
             far,
             model: OPENGL_TO_WGPU_MATRIX
-                * nalgebra::Perspective3::new(width / height, fovy, near, far).as_matrix(),
+                * nalgebra::Perspective3::new(width / height, fovy * 180.0 / PI, near, far)
+                    .as_matrix(),
         }
     }
 

@@ -8,10 +8,11 @@ use crate::{
     core::entity::{self, Collide, Dynamic, Mass, Transform, player::Player},
 };
 
+pub mod terrain;
+
 #[derive(Debug)]
 pub struct World {
     seed: u64,
-    entities: Vec<Player>,
     chunks_loaded: HashMap<(i64, i64), HeightMap>,
     chunk_loader: fn(i64, i64, u64) -> HeightMap,
 }
@@ -20,7 +21,6 @@ impl World {
     pub fn new(seed: u64) -> Self {
         Self {
             seed: seed,
-            entities: Vec::with_capacity(16),
             chunks_loaded: HashMap::with_capacity(RENDER_DISTANCE * RENDER_DISTANCE),
             chunk_loader: |_, _, _| {
                 let mut rng = rand::rng();
@@ -34,35 +34,6 @@ impl World {
                 HeightMap::new(data)
             },
         }
-    }
-
-    pub fn add_entity(&mut self, entity: Player) {
-        self.entities.push(entity);
-    }
-
-    pub fn iter_entities(&self) -> &Vec<Player> {
-        &self.entities
-    }
-
-    pub fn take_player(&mut self, id: u64) -> Option<Player> {
-        for i in 0..self.entities.len() {
-            if *self.entities[i].id() == id {
-                return Some(self.entities.swap_remove(i));
-            }
-        }
-        return None;
-    }
-
-    pub fn take_player_any(&mut self) -> Option<Player> {
-        self.entities.pop()
-    }
-
-    pub fn tick(&mut self, dt: f32) {
-        // Perform physics calculations
-
-        self.entities.iter_mut().for_each(|a| {
-            entity::tick(a, dt);
-        });
     }
 
     pub fn height(&mut self, xz: Vector2<f32>) -> f32 {

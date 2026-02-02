@@ -6,9 +6,9 @@ use winit::keyboard::KeyCode;
 
 use crate::Integrator;
 
+// Each entity module is simply just a unique composition of these traits below.
 pub mod object;
 pub mod player;
-pub mod terrain;
 
 /// Entities that have a mutable position component.
 pub trait Transform {

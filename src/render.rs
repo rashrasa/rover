@@ -41,12 +41,11 @@ use winit::{
 };
 
 use crate::{
-    CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_FLAT16, METRICS_INTERVAL,
-    MIPMAP_LEVELS,
+    IDBank, MESH_FLAT16, METRICS_INTERVAL,
     core::{
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{BoundingBox, CollisionResponse, Transform, player::Player},
+        entity::{self, BoundingBox, CollisionResponse, Transform, player::Player},
         instance::InstanceStorage,
         lights::LightSourceStorage,
         mesh::{MeshStorage, MeshStorageError},
@@ -109,14 +108,19 @@ pub struct TextureInitData {
     pub resize: ResizeStrategy,
 }
 
+// Data only available once the window and renderer are created.
 pub struct ActiveState {
     current_player: Player,
+    players: Vec<Player>,
 }
 
 enum AppState {
-    /// window width, height, mesh queue, entity queue, texture queue
-    NeedsInit(AppInitData),
+    NeedsInit(
+        // Data temporarily stored before the app starts.
+        AppInitData,
+    ),
     Started {
+        // Data available once the window is created.
         renderer: Renderer,
         state: ActiveState,
     },
@@ -134,8 +138,8 @@ pub enum Event {
 ///     - Input
 ///     - Window
 pub struct App {
+    // Always available fields
     state: AppState,
-
     world: World,
     input: InputController,
 }
@@ -150,7 +154,6 @@ impl App {
                 players: Vec::new(),
                 textures: Vec::new(),
             }),
-
             world: World::new(seed),
             input: InputController::new(),
         }
@@ -169,40 +172,40 @@ impl App {
         }
     }
 
-    pub fn add_entity(&mut self, entity: PlayerInitData) {
+    pub fn add_player(&mut self, player: PlayerInitData) {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
-                init_data.players.push(entity);
+                init_data.players.push(player);
             }
-            AppState::Started { renderer, state: _ } => {
+            AppState::Started { renderer, state } => {
                 let player = Player::new(
-                    entity.id,
-                    entity.mesh_id,
-                    entity.texture_id,
-                    entity.velocity,
-                    entity.acceleration,
-                    entity.bounding_box,
-                    entity.model,
+                    player.id,
+                    player.mesh_id,
+                    player.texture_id,
+                    player.velocity,
+                    player.acceleration,
+                    player.bounding_box,
+                    player.model,
                     NoClipCamera::new(
                         &mut renderer.device,
                         &renderer.camera_bind_group_layout,
-                        entity.model.column(3).xyz(),
+                        player.model.column(3).xyz(),
                         0.0,
                         0.0,
                         0.0,
                         Projection::new(
                             renderer.config.width as f32,
                             renderer.config.height as f32,
-                            60.0,
+                            90.0,
                             0.1,
                             10000.0,
                         ),
                     ),
-                    entity.response,
-                    entity.mass,
+                    player.response,
+                    player.mass,
                 );
-                self.world.add_entity(player);
-                renderer.insert_instances(&self.world).unwrap();
+                state.players.push(player);
+                renderer.insert_instances(state).unwrap();
             }
         }
     }
@@ -238,7 +241,7 @@ impl ApplicationHandler<Event> for App {
                 textures: vec![],
             };
             std::mem::swap(&mut old_data, data);
-            let (size, mut meshes, mut players, mut textures) = old_data.inner();
+            let (size, mut meshes, mut players_init, mut textures) = old_data.inner();
             let mut win_attr = Window::default_attributes();
             win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(size.0, size.1)));
             win_attr.title = "Rover".into();
@@ -252,9 +255,9 @@ impl ApplicationHandler<Event> for App {
             info!("Adding meshes");
             renderer.add_meshes(meshes);
 
-            // TODO: Use map instead
             info!("Adding entities");
-            while let Some(entity) = players.pop() {
+            let mut players = vec![];
+            while let Some(entity) = players_init.pop() {
                 let player = Player::new(
                     entity.id,
                     entity.mesh_id,
@@ -273,7 +276,7 @@ impl ApplicationHandler<Event> for App {
                         Projection::new(
                             renderer.config.width as f32,
                             renderer.config.height as f32,
-                            60.0,
+                            90.0,
                             0.1,
                             10000.0,
                         ),
@@ -281,7 +284,7 @@ impl ApplicationHandler<Event> for App {
                     entity.response,
                     entity.mass,
                 );
-                self.world.add_entity(player);
+                players.push(player);
             }
             info!("Creating textures");
             while let Some(data) = textures.pop() {
@@ -292,13 +295,18 @@ impl ApplicationHandler<Event> for App {
                 });
             }
             info!("Creating GPU buffers");
-            renderer.insert_instances(&self.world).unwrap();
+            let mut active_state = ActiveState {
+                current_player: players.pop().unwrap(),
+                players,
+            };
+
+            renderer.insert_instances(&mut active_state).unwrap();
+
             self.state = AppState::Started {
                 renderer,
-                state: ActiveState {
-                    current_player: self.world.take_player_any().unwrap(),
-                },
+                state: active_state,
             };
+
             window.request_redraw();
 
             info!("Started! Use WASD for movement and Left Control for speed");
@@ -331,13 +339,16 @@ impl ApplicationHandler<Event> for App {
                     renderer.last_update = Instant::now();
                     let start = Instant::now();
 
-                    self.world.tick(elapsed);
+                    for player in state.players.iter_mut() {
+                        entity::tick(player, elapsed);
+                    }
+                    entity::tick(&mut state.current_player, elapsed);
 
                     self.input
                         .update(elapsed, &mut state.current_player, &mut renderer.sink);
 
                     state.current_player.update_gpu(&mut renderer.queue);
-                    renderer.update_instances(&self.world).unwrap();
+                    renderer.update_instances(state).unwrap();
 
                     renderer.t_ticking += start.elapsed();
                     renderer.n_ticks += 1;
@@ -662,8 +673,8 @@ impl Renderer {
         );
     }
 
-    pub fn insert_instances(&mut self, world: &World) -> Result<(), String> {
-        for entity in world.iter_entities() {
+    pub fn insert_instances(&mut self, state: &mut ActiveState) -> Result<(), String> {
+        for entity in state.players.iter() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
             let transform = entity.transform();
@@ -682,8 +693,8 @@ impl Renderer {
     /// Batch updating of instances. All instances will be synced to the GPU in this call.
     ///
     /// This is the main update function to be called before each render call.
-    pub fn update_instances(&mut self, world: &World) -> Result<(), String> {
-        for entity in world.iter_entities() {
+    pub fn update_instances(&mut self, state: &ActiveState) -> Result<(), String> {
+        for entity in state.players.iter() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
             let transform = entity.transform();
