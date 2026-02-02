@@ -1556,6 +1556,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nalgebra-glm"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "784a598b961eafe0f3329861482ebdb73ecdcc02f771192783c099dd3b438461"
+dependencies = [
+ "approx 0.5.1",
+ "nalgebra",
+ "num-traits",
+ "simba",
+]
+
+[[package]]
 name = "nalgebra-macros"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2445,6 +2457,7 @@ dependencies = [
  "image",
  "log",
  "nalgebra",
+ "nalgebra-glm",
  "pollster",
  "rand",
  "rayon",

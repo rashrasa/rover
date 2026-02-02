@@ -1,31 +1,32 @@
-pub mod camera;
-pub mod lights;
 pub mod textures;
 pub mod vertex;
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     f32::consts::PI,
     fs::File,
+    rc::Rc,
     slice::Iter,
     sync::Arc,
     time::{Duration, Instant},
 };
 
-use cgmath::{Deg, Matrix4, Rad, SquareMatrix};
+use cgmath::{Deg, Rad};
 use image::DynamicImage;
 use log::{error, info};
+use nalgebra::{Matrix4, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
     AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
-    CompareFunction, DepthBiasState, DepthStencilState, Device, ExperimentalFeatures, Extent3d,
-    Face, Features, FilterMode, FragmentState, FrontFace, IndexFormat, Instance,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
-    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
-    PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
+    BindingType, BlendState, BufferBindingType, Color, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
+    ExperimentalFeatures, Extent3d, Face, Features, FilterMode, FragmentState, FrontFace,
+    IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
+    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PolygonMode,
+    PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
     SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StencilState, StoreOp,
     Surface, SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
@@ -42,35 +43,96 @@ use winit::{
 use crate::{
     CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_FLAT16, METRICS_INTERVAL,
     MIPMAP_LEVELS,
-    assets::ICON,
-    core::{InstanceStorage, MeshStorage, MeshStorageError},
-    entity::player::Entity,
+    core::{
+        assets::ICON,
+        camera::{Camera, NoClipCamera, Projection},
+        entity::{BoundingBox, CollisionResponse, Transform, player::Player},
+        instance::InstanceStorage,
+        lights::LightSourceStorage,
+        mesh::{MeshStorage, MeshStorageError},
+        world::World,
+    },
     input::InputController,
     render::{
-        camera::{Camera, NoClipCamera, Projection},
-        lights::LightSourceStorage,
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
-    world::World,
 };
+
+pub struct AppInitData {
+    pub width: u32,
+    pub height: u32,
+    pub meshes: Vec<MeshInitData>,
+    pub players: Vec<PlayerInitData>,
+    pub textures: Vec<TextureInitData>,
+}
+
+impl AppInitData {
+    pub fn inner(
+        self,
+    ) -> (
+        (u32, u32),
+        Vec<MeshInitData>,
+        Vec<PlayerInitData>,
+        Vec<TextureInitData>,
+    ) {
+        (
+            (self.width, self.height),
+            self.meshes,
+            self.players,
+            self.textures,
+        )
+    }
+}
+
+pub struct MeshInitData {
+    pub id: u64,
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u16>,
+}
+
+pub struct PlayerInitData {
+    pub id: u64,
+    pub mesh_id: u64,
+    pub texture_id: u64,
+    pub velocity: Vector3<f32>,
+    pub acceleration: Vector3<f32>,
+    pub bounding_box: BoundingBox,
+    pub model: Matrix4<f32>,
+    pub response: CollisionResponse,
+    pub mass: f32,
+}
+
+pub struct TextureInitData {
+    pub id: u64,
+    pub image: DynamicImage,
+    pub resize: ResizeStrategy,
+}
+
+pub struct ActiveState {
+    current_player: Player,
+}
 
 enum AppState {
     /// window width, height, mesh queue, entity queue, texture queue
-    NeedsInit(
-        u32,
-        u32,
-        Vec<(u64, Vec<Vertex>, Vec<u16>)>,
-        Vec<Entity>,
-        Vec<(u64, DynamicImage, ResizeStrategy)>,
-    ),
-    Started(Renderer),
+    NeedsInit(AppInitData),
+    Started {
+        renderer: Renderer,
+        state: ActiveState,
+    },
 }
 
 pub enum Event {
     WindowEvent(WindowId, WindowEvent),
 }
 
+/// Main struct for the entire app.
+///
+/// Contains all communications between:
+///     - World
+///     - Renderer
+///     - Input
+///     - Window
 pub struct App {
     state: AppState,
 
@@ -81,50 +143,77 @@ pub struct App {
 impl App {
     pub fn new(_: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
         Self {
-            state: AppState::NeedsInit(width, height, Vec::new(), Vec::new(), Vec::new()),
+            state: AppState::NeedsInit(AppInitData {
+                width,
+                height,
+                meshes: Vec::new(),
+                players: Vec::new(),
+                textures: Vec::new(),
+            }),
 
             world: World::new(seed),
             input: InputController::new(),
         }
     }
 
-    pub fn add_meshes(&mut self, meshes: Iter<(&u64, &[vertex::Vertex], &[u16])>) {
+    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData>) {
         match &mut self.state {
-            AppState::NeedsInit(_, _, mesh_queue, _, _) => {
-                for (mesh_id, vertices, indices) in meshes {
-                    mesh_queue.push((**mesh_id, vertices.to_vec(), indices.to_vec()));
+            AppState::NeedsInit(init_data) => {
+                while let Some(data) = meshes.pop() {
+                    init_data.meshes.push(data);
                 }
             }
-            AppState::Started(renderer) => {
+            AppState::Started { renderer, state: _ } => {
                 renderer.add_meshes(meshes).unwrap();
             }
         }
     }
 
-    pub fn add_entity(&mut self, entity: Entity) {
+    pub fn add_entity(&mut self, entity: PlayerInitData) {
         match &mut self.state {
-            AppState::NeedsInit(_, _, _, entity_queue, _) => {
-                entity_queue.push(entity);
+            AppState::NeedsInit(init_data) => {
+                init_data.players.push(entity);
             }
-            AppState::Started(renderer) => {
-                self.world.add_entity(entity);
+            AppState::Started { renderer, state: _ } => {
+                let player = Player::new(
+                    entity.id,
+                    entity.mesh_id,
+                    entity.texture_id,
+                    entity.velocity,
+                    entity.acceleration,
+                    entity.bounding_box,
+                    entity.model,
+                    NoClipCamera::new(
+                        &mut renderer.device,
+                        &renderer.camera_bind_group_layout,
+                        entity.model.column(3).xyz(),
+                        0.0,
+                        0.0,
+                        0.0,
+                        Projection::new(
+                            renderer.config.width as f32,
+                            renderer.config.height as f32,
+                            60.0,
+                            0.1,
+                            10000.0,
+                        ),
+                    ),
+                    entity.response,
+                    entity.mass,
+                );
+                self.world.add_entity(player);
                 renderer.insert_instances(&self.world).unwrap();
             }
         }
     }
 
-    pub fn add_texture(
-        &mut self,
-        texture_id: u64,
-        full_size_image: DynamicImage,
-        resize_strategy: ResizeStrategy,
-    ) {
+    pub fn add_texture(&mut self, data: TextureInitData) {
         match &mut self.state {
-            AppState::NeedsInit(_, _, _, _, textures) => {
-                textures.push((texture_id, full_size_image, resize_strategy));
+            AppState::NeedsInit(init_data) => {
+                init_data.textures.push(data);
             }
-            AppState::Started(renderer) => {
-                renderer.new_texture(texture_id, full_size_image, resize_strategy);
+            AppState::Started { renderer, state: _ } => {
+                renderer.new_texture(data);
             }
         }
     }
@@ -133,73 +222,86 @@ impl App {
     pub fn load_chunk(&mut self, x: i64, z: i64, id: &mut IDBank) {
         let height_map = self.world.request_chunk_exact(x, z);
 
-        self.add_entity(Entity::new(
-            id.next(),
-            MESH_FLAT16,
-            [0.0, 0.0, 0.0].into(),
-            [0.0, 0.0, 0.0].into(),
-            (
-                [0.0, 0.0, 0.0].into(),
-                [-f32::INFINITY, -f32::INFINITY, -f32::INFINITY].into(),
-            ),
-            Matrix4 {
-                x: [1.0, 0.0, 0.0, 0.0].into(),
-                y: [0.0, 1.0, 0.0, 0.0].into(),
-                z: [0.0, 0.0, 1.0, 0.0].into(),
-                w: [
-                    x as f32 * CHUNK_SIZE as f32,
-                    GROUND_HEIGHT as f32,
-                    z as f32 * CHUNK_SIZE as f32,
-                    1.0,
-                ]
-                .into(),
-            },
-        ));
+        // TODO: Create Terrain
+        //todo!();
     }
 }
 
 impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        match &mut self.state {
-            AppState::NeedsInit(w, h, meshes, entities, textures) => {
-                let mut win_attr = Window::default_attributes();
-                win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(*w, *h)));
-                win_attr.title = "Rover".into();
-                win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
-                win_attr.visible = false;
+        if let AppState::NeedsInit(data) = &mut self.state {
+            let mut old_data = AppInitData {
+                width: 0,
+                height: 0,
+                meshes: vec![],
+                players: vec![],
+                textures: vec![],
+            };
+            std::mem::swap(&mut old_data, data);
+            let (size, mut meshes, mut players, mut textures) = old_data.inner();
+            let mut win_attr = Window::default_attributes();
+            win_attr.inner_size = Some(Size::Physical(PhysicalSize::new(size.0, size.1)));
+            win_attr.title = "Rover".into();
+            win_attr.window_icon = Some(Icon::from_rgba(ICON.to_vec(), 8, 8).unwrap());
+            win_attr.visible = false;
 
-                let window = Arc::new(event_loop.create_window(win_attr).unwrap());
+            let window = Arc::new(event_loop.create_window(win_attr).unwrap());
 
-                let mut renderer = pollster::block_on(Renderer::new(window.clone()));
+            let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
-                info!("Adding meshes");
-                renderer
-                    .add_meshes(
-                        meshes
-                            .iter()
-                            .map(|(id, v, i)| (id, v.as_slice(), i.as_slice()))
-                            .collect::<Vec<(&u64, &[Vertex], &[u16])>>()
-                            .iter(),
-                    )
-                    .unwrap();
+            info!("Adding meshes");
+            renderer.add_meshes(meshes);
 
-                // TODO: Use map instead
-                info!("Adding entities");
-                while let Some(entity) = entities.pop() {
-                    self.world.add_entity(entity);
-                }
-                info!("Creating textures");
-                while let Some((texture_id, full_size_image, resize_strategy)) = textures.pop() {
-                    renderer.new_texture(texture_id, full_size_image, resize_strategy);
-                }
-                info!("Creating GPU buffers");
-                renderer.insert_instances(&self.world).unwrap();
-                self.state = AppState::Started(renderer);
-                window.request_redraw();
-
-                info!("Started! Use WASD for movement and Left Control for speed");
+            // TODO: Use map instead
+            info!("Adding entities");
+            while let Some(entity) = players.pop() {
+                let player = Player::new(
+                    entity.id,
+                    entity.mesh_id,
+                    entity.texture_id,
+                    entity.velocity,
+                    entity.acceleration,
+                    entity.bounding_box,
+                    entity.model,
+                    NoClipCamera::new(
+                        &mut renderer.device,
+                        &renderer.camera_bind_group_layout,
+                        entity.model.column(3).xyz(),
+                        0.0,
+                        0.0,
+                        0.0,
+                        Projection::new(
+                            renderer.config.width as f32,
+                            renderer.config.height as f32,
+                            60.0,
+                            0.1,
+                            10000.0,
+                        ),
+                    ),
+                    entity.response,
+                    entity.mass,
+                );
+                self.world.add_entity(player);
             }
-            AppState::Started(_) => {}
+            info!("Creating textures");
+            while let Some(data) = textures.pop() {
+                renderer.new_texture(TextureInitData {
+                    id: data.id,
+                    image: data.image,
+                    resize: data.resize,
+                });
+            }
+            info!("Creating GPU buffers");
+            renderer.insert_instances(&self.world).unwrap();
+            self.state = AppState::Started {
+                renderer,
+                state: ActiveState {
+                    current_player: self.world.take_player_any().unwrap(),
+                },
+            };
+            window.request_redraw();
+
+            info!("Started! Use WASD for movement and Left Control for speed");
         }
     }
 
@@ -209,14 +311,14 @@ impl ApplicationHandler<Event> for App {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        if let AppState::Started(renderer) = &mut self.state {
+        if let AppState::Started { renderer, state } = &mut self.state {
             self.input
-                .window_event(&event, &renderer.window, &mut renderer.camera);
+                .window_event(&event, &renderer.window, &mut state.current_player);
         }
 
         match event {
             WindowEvent::Resized(physical_size) => {
-                if let AppState::Started(renderer) = &mut self.state {
+                if let AppState::Started { renderer, state } = &mut self.state {
                     renderer.resize(physical_size.width, physical_size.height);
                 }
             }
@@ -224,21 +326,23 @@ impl ApplicationHandler<Event> for App {
             WindowEvent::Destroyed => event_loop.exit(),
 
             WindowEvent::RedrawRequested => {
-                if let AppState::Started(renderer) = &mut self.state {
+                if let AppState::Started { renderer, state } = &mut self.state {
                     let elapsed = renderer.last_update.elapsed().as_secs_f32();
                     renderer.last_update = Instant::now();
                     let start = Instant::now();
 
                     self.world.tick(elapsed);
+
                     self.input
-                        .update(elapsed, &mut renderer.camera, &mut renderer.sink);
-                    renderer.camera.update_gpu(&mut renderer.queue);
+                        .update(elapsed, &mut state.current_player, &mut renderer.sink);
+
+                    state.current_player.update_gpu(&mut renderer.queue);
                     renderer.update_instances(&self.world).unwrap();
 
                     renderer.t_ticking += start.elapsed();
                     renderer.n_ticks += 1;
 
-                    match renderer.render() {
+                    match renderer.render(state) {
                         Ok(_) => {}
                         Err(e) => error!("{}", e),
                     }
@@ -262,14 +366,14 @@ pub struct Renderer {
     render_pipeline: RenderPipeline,
     render_pipeline_layout: PipelineLayout,
 
-    camera: NoClipCamera,
-
     meshes: MeshStorage,
 
     instances: HashMap<u64, InstanceStorage>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
+
+    camera_bind_group_layout: BindGroupLayout,
 
     lights: LightSourceStorage,
 
@@ -345,21 +449,6 @@ impl Renderer {
             source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let camera = NoClipCamera::new(
-            &mut device,
-            (0.0, 5.0, 10.0).into(),
-            Rad(-PI / 4.0),
-            Rad(-PI / 12.0),
-            Rad(0.0),
-            Projection::new(
-                config.width as f32,
-                config.height as f32,
-                Deg(60.0).into(),
-                0.1,
-                10000.0,
-            ),
-        );
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
@@ -381,6 +470,21 @@ impl Renderer {
                     },
                 ],
                 label: Some("Texture Bind Group Layout"),
+            });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
             });
         let size = Extent3d {
             width: config.width.max(1),
@@ -424,7 +528,7 @@ impl Renderer {
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[
-                camera.bind_group_layout(),
+                &camera_bind_group_layout,
                 &texture_bind_group_layout,
                 lights.layout(),
             ],
@@ -437,7 +541,7 @@ impl Renderer {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc(), Entity::desc()],
+                buffers: &[Vertex::desc(), Player::desc()],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {
@@ -500,8 +604,6 @@ impl Renderer {
             render_pipeline,
             render_pipeline_layout,
 
-            camera,
-
             depth_texture,
             depth_view,
             depth_sampler,
@@ -512,6 +614,8 @@ impl Renderer {
             instances: HashMap::new(),
             textures: TextureStorage::new(),
             texture_bind_group_layout,
+
+            camera_bind_group_layout,
 
             last_update: Instant::now(),
 
@@ -526,19 +630,17 @@ impl Renderer {
     }
 
     /// Batch adding of meshes. Meshes will be synced to the GPU in this call.
-    ///
-    /// meshes: (mesh_id, vertices, indices)
-    pub fn add_meshes(
-        &mut self,
-        meshes: Iter<(&u64, &[Vertex], &[u16])>,
-    ) -> Result<(), MeshStorageError> {
-        for (mesh_id, vertices, indices) in meshes {
-            if let Err(e) = self.meshes.add_mesh(mesh_id, *vertices, *indices) {
+    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData>) -> Result<(), MeshStorageError> {
+        while let Some(data) = meshes.pop() {
+            if let Err(e) = self
+                .meshes
+                .add_mesh(&data.id, &data.vertices, &data.indices)
+            {
                 return Err(e);
             }
             if let Some(_) = self
                 .instances
-                .insert(**mesh_id, InstanceStorage::new(&self.device))
+                .insert(data.id, InstanceStorage::new(&self.device))
             {
                 return Err(MeshStorageError::MeshExists);
             }
@@ -549,28 +651,22 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn new_texture(
-        &mut self,
-        texture_id: u64,
-        full_size_image: DynamicImage,
-        resize_strategy: ResizeStrategy,
-    ) {
+    pub fn new_texture(&mut self, data: TextureInitData) {
         self.textures.new_texture(
             &mut self.device,
             &mut self.queue,
-            texture_id,
-            full_size_image,
-            resize_strategy,
+            data.id,
+            data.image,
+            data.resize,
             &self.texture_bind_group_layout,
         );
     }
 
-    // TODO: All instances get synced even ones not updated, optimize later.
     pub fn insert_instances(&mut self, world: &World) -> Result<(), String> {
         for entity in world.iter_entities() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
-            let transform = entity.model();
+            let transform = entity.transform();
 
             self.instances.entry(*mesh_id).and_modify(|e| {
                 e.upsert_instance(entity_id, transform);
@@ -590,7 +686,7 @@ impl Renderer {
         for entity in world.iter_entities() {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
-            let transform = entity.model();
+            let transform = entity.transform();
             if *mesh_id != MESH_FLAT16 {
                 self.instances.entry(*mesh_id).and_modify(|e| {
                     e.upsert_instance(entity_id, transform);
@@ -614,7 +710,7 @@ impl Renderer {
         self.is_surface_configured = true;
     }
 
-    pub fn render(&mut self) -> Result<(), SurfaceError> {
+    pub fn render(&mut self, state: &mut ActiveState) -> Result<(), SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -665,7 +761,7 @@ impl Renderer {
             render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
             render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
-            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
+            render_pass.set_bind_group(0, state.current_player.bind_group(), &[]);
             render_pass.set_bind_group(1, &self.textures.get(&0).unwrap().3, &[]);
             render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
 

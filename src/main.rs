@@ -1,14 +1,19 @@
 use std::{f32::consts::PI, fs::File, thread};
 
-use cgmath::{Matrix4, Rad, Vector3, Vector4};
 use image::imageops::FilterType;
 use log::{debug, info};
+use nalgebra::{Matrix4, Rotation3, Unit, UnitVector3, Vector3, Vector4};
 use rodio::Decoder;
 use rover::{
     CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
-    core::geometry::{EdgeJoin, Face, Mesh, Shape3},
-    entity::player::Entity,
-    render::{App, Event, textures::ResizeStrategy, vertex::Vertex},
+    core::{
+        entity::{BoundingBox, CollisionResponse},
+        geometry::{EdgeJoin, Face, Mesh, Shape3},
+    },
+    render::{
+        App, Event, MeshInitData, PlayerInitData, TextureInitData, textures::ResizeStrategy,
+        vertex::Vertex,
+    },
 };
 use winit::{
     event::WindowEvent,
@@ -147,46 +152,60 @@ fn main() {
     )
     .unwrap();
 
-    app.add_meshes(
-        [
-            (&MESH_CUBE2, cube2_mesh.vertices(), cube2_mesh.indices()),
-            (
-                &MESH_ROUNDISH,
-                roundish_mesh.vertices(),
-                roundish_mesh.indices(),
-            ),
-            (&MESH_FLAT16, ground.vertices(), ground.indices()),
-        ]
-        .iter(),
-    );
+    app.add_meshes(vec![
+        MeshInitData {
+            id: MESH_CUBE2,
+            vertices: cube2_mesh.vertices().to_vec(),
+            indices: cube2_mesh.indices().to_vec(),
+        },
+        MeshInitData {
+            id: MESH_ROUNDISH,
+            vertices: roundish_mesh.vertices().to_vec(),
+            indices: roundish_mesh.indices().to_vec(),
+        },
+        MeshInitData {
+            id: MESH_FLAT16,
+            vertices: ground.vertices().to_vec(),
+            indices: ground.indices().to_vec(),
+        },
+    ]);
 
-    app.add_texture(
-        0,
-        image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png")).unwrap(),
-        ResizeStrategy::Stretch(FilterType::Gaussian),
-    );
+    app.add_texture(TextureInitData {
+        id: 0,
+        image: image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png"))
+            .unwrap(),
+        resize: ResizeStrategy::Stretch(FilterType::Gaussian),
+    });
     let mut id_bank = IDBank::new();
     for i in -10..11 {
         for j in 15..16 {
             for k in -10..11 {
-                app.add_entity(Entity::new(
-                    id_bank.next(),
-                    if ((i + k) as i64).rem_euclid(2) == 0 {
+                app.add_entity(PlayerInitData {
+                    id: id_bank.next(),
+                    mesh_id: if ((i + k) as i64).rem_euclid(2) == 0 {
                         MESH_CUBE2
                     } else {
                         MESH_ROUNDISH
                     },
-                    Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
-                    Vector3::new(i as f32 * 0.2, 0.0, k as f32 * 0.2),
-                    (
-                        Vector3::new(1.0, 1.0, 1.0) / 2.0,
-                        Vector3::new(-1.0, -1.0, -1.0) / 2.0,
+                    texture_id: 0,
+                    velocity: Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
+                    acceleration: Vector3::new(i as f32 * 0.2, 0.0, k as f32 * 0.2),
+                    bounding_box: BoundingBox::new(
+                        (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
+                        (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
-                    Matrix4::from_translation(
-                        [2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
-                    ) * Matrix4::from_angle_z(Rad(-PI / 4.0))
-                        * Matrix4::from_scale(10.0),
-                ));
+                    mass: 1.0,
+                    model: Matrix4::new_translation(
+                        &[2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
+                    ) * Rotation3::from_axis_angle(
+                        &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
+                        -PI / 4.0,
+                    )
+                    .to_homogeneous()
+                        * Matrix4::new_scaling(10.0),
+
+                    response: CollisionResponse::Inelastic(1.0),
+                });
             }
         }
     }

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, f32::consts::PI, time::Duration};
 
-use cgmath::{Angle, EuclideanSpace, InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
+use nalgebra::{Matrix3, Matrix4, Point3, Rotation3, UnitVector3, Vector3};
 use rodio::Sink;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -8,13 +8,13 @@ use wgpu::{
     ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
-use winit::keyboard::{Key, KeyCode};
+use winit::keyboard::KeyCode;
 
-use crate::{CAMERA_SPEED, GROUND_HEIGHT, OPENGL_TO_WGPU_MATRIX};
+use crate::{CAMERA_SPEED, OPENGL_TO_WGPU_MATRIX};
 
 pub trait Camera {
-    fn look_up(&mut self, amount: Rad<f32>);
-    fn look_ccw(&mut self, amount: Rad<f32>);
+    fn look_up(&mut self, amount: f32);
+    fn look_ccw(&mut self, amount: f32);
     fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, sink: &mut Sink, dt: f32);
     fn update_gpu(&mut self, queue: &mut Queue);
     fn bind_group(&self) -> &BindGroup;
@@ -24,56 +24,43 @@ pub trait Camera {
 pub struct NoClipCamera {
     buffer: Buffer,
     bind_group: BindGroup,
-    bind_group_layout: BindGroupLayout,
 
-    position: Point3<f32>,
-    yaw: Rad<f32>,
-    pitch: Rad<f32>,
-    roll: Rad<f32>,
+    position: Vector3<f32>,
+    yaw: f32,
+    pitch: f32,
+    roll: f32,
 
     projection: Projection,
 
     // generated
-    view_proj: [[f32; 4]; 4],
+    view_proj: nalgebra::Matrix4<f32>,
 }
 
 impl NoClipCamera {
     pub fn new(
         device: &mut Device,
-        position: Point3<f32>,
-        yaw: Rad<f32>,
-        pitch: Rad<f32>,
-        roll: Rad<f32>,
+        bind_group_layout: &BindGroupLayout,
+        position: Vector3<f32>,
+        yaw: f32,
+        pitch: f32,
+        roll: f32,
         projection: Projection,
     ) -> Self {
-        let (sin_yaw, cos_yaw) = yaw.0.sin_cos();
-        let (sin_pitch, cos_pitch) = pitch.0.sin_cos();
+        let (sin_yaw, cos_yaw) = yaw.sin_cos();
+        let (sin_pitch, cos_pitch) = pitch.sin_cos();
 
         let view = Matrix4::look_at_rh(
-            position,
-            Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position.to_vec(),
-            [0.0, 1.0, 0.0].into(),
+            &position.into(),
+            &(Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position),
+            &[0.0, 1.0, 0.0].into(),
         );
-        let view_proj = (OPENGL_TO_WGPU_MATRIX * projection.projection() * view).into();
+        let view_proj: Matrix4<f32> =
+            (OPENGL_TO_WGPU_MATRIX * projection.projection() * view).into();
 
         let buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[view_proj]),
+            contents: bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(view_proj)]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("camera_bind_group_layout"),
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -92,14 +79,13 @@ impl NoClipCamera {
             projection,
             roll,
 
-            view_proj,
             bind_group,
             buffer,
-            bind_group_layout,
+            view_proj,
         }
     }
 
-    pub fn set_position(&mut self, position: &Point3<f32>) {
+    pub fn set_position(&mut self, position: &Vector3<f32>) {
         self.position = *position;
     }
 
@@ -124,12 +110,12 @@ impl NoClipCamera {
         self.translate(&[-amount * sin, 0.0, amount * cos].into());
     }
 
-    pub fn roll_ccw(&mut self, amount: Rad<f32>) {
+    pub fn roll_ccw(&mut self, amount: f32) {
         self.roll += amount;
     }
 
-    pub fn bind_group_layout(&self) -> &BindGroupLayout {
-        &self.bind_group_layout
+    pub fn view_proj(&self) -> &nalgebra::Matrix4<f32> {
+        &self.view_proj
     }
 }
 
@@ -137,11 +123,11 @@ impl Camera for NoClipCamera {
     fn bind_group(&self) -> &BindGroup {
         &self.bind_group
     }
-    fn look_up(&mut self, amount: Rad<f32>) {
+    fn look_up(&mut self, amount: f32) {
         self.pitch += amount;
-        self.pitch = Rad(self.pitch.0.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1));
+        self.pitch = self.pitch.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1);
     }
-    fn look_ccw(&mut self, amount: Rad<f32>) {
+    fn look_ccw(&mut self, amount: f32) {
         self.yaw += amount;
     }
     fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, sink: &mut Sink, dt: f32) {
@@ -230,8 +216,8 @@ impl Camera for NoClipCamera {
 
         self.forward(camera_forward);
         self.right(camera_right);
-        self.look_ccw(Rad(yaw_ccw));
-        self.roll_ccw(Rad(roll_ccw));
+        self.look_ccw(yaw_ccw);
+        self.roll_ccw(roll_ccw);
         self.translate(&[0.0, fly, 0.0].into());
 
         if camera_forward.abs() + camera_right.abs() > 1.0e-2 * dt {
@@ -242,26 +228,31 @@ impl Camera for NoClipCamera {
         } else {
             sink.pause();
         }
-        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
-        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
+        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
         let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
         let view = Matrix4::look_at_rh(
-            self.position,
-            Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position.to_vec(),
-            Matrix3::from_axis_angle(center, self.roll) * Vector3::new(0.0, 1.0, 0.0),
+            &(self.position.into()),
+            &(Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position),
+            &(Rotation3::from_axis_angle(&(UnitVector3::new_normalize(center)), self.roll)
+                * Vector3::new(0.0, 1.0, 0.0)),
         );
 
         self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();
     }
     fn update_gpu(&mut self, queue: &mut Queue) {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.view_proj));
+        queue.write_buffer(
+            &self.buffer,
+            0,
+            bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(self.view_proj)]),
+        );
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Projection {
     aspect: f32,
-    fovy: Rad<f32>,
+    fovy: f32,
     near: f32,
     far: f32,
 
@@ -269,13 +260,14 @@ pub struct Projection {
 }
 
 impl Projection {
-    pub fn new(width: f32, height: f32, fovy: Rad<f32>, near: f32, far: f32) -> Self {
+    pub fn new(width: f32, height: f32, fovy: f32, near: f32, far: f32) -> Self {
         Self {
             aspect: width / height,
             fovy: fovy,
             near,
             far,
-            model: OPENGL_TO_WGPU_MATRIX * cgmath::perspective(fovy, width / height, near, far),
+            model: OPENGL_TO_WGPU_MATRIX
+                * nalgebra::Perspective3::new(width / height, fovy, near, far).as_matrix(),
         }
     }
 
@@ -290,6 +282,6 @@ impl Projection {
 
     fn update(&mut self) {
         self.model = OPENGL_TO_WGPU_MATRIX
-            * cgmath::perspective(self.fovy, self.aspect, self.near, self.far);
+            * nalgebra::Matrix4::new_perspective(self.aspect, self.fovy, self.near, self.far);
     }
 }

@@ -3,12 +3,15 @@ use std::{collections::HashMap, ops::Index};
 use cgmath::{InnerSpace, Vector2, Vector3};
 use rand::RngCore;
 
-use crate::{CHUNK_RESOLUTION, RENDER_DISTANCE, entity::player::Entity};
+use crate::{
+    CHUNK_RESOLUTION, Integrator, RENDER_DISTANCE,
+    core::entity::{self, Collide, Dynamic, Mass, Transform, player::Player},
+};
 
 #[derive(Debug)]
 pub struct World {
     seed: u64,
-    entities: Vec<Entity>,
+    entities: Vec<Player>,
     chunks_loaded: HashMap<(i64, i64), HeightMap>,
     chunk_loader: fn(i64, i64, u64) -> HeightMap,
 }
@@ -33,39 +36,33 @@ impl World {
         }
     }
 
-    pub fn add_entity(&mut self, entity: Entity) {
+    pub fn add_entity(&mut self, entity: Player) {
         self.entities.push(entity);
     }
 
-    pub fn iter_entities(&self) -> &Vec<Entity> {
+    pub fn iter_entities(&self) -> &Vec<Player> {
         &self.entities
     }
 
+    pub fn take_player(&mut self, id: u64) -> Option<Player> {
+        for i in 0..self.entities.len() {
+            if *self.entities[i].id() == id {
+                return Some(self.entities.swap_remove(i));
+            }
+        }
+        return None;
+    }
+
+    pub fn take_player_any(&mut self) -> Option<Player> {
+        self.entities.pop()
+    }
+
     pub fn tick(&mut self, dt: f32) {
-        // // Perform physics calculations
-        // self.perform_collisions();
+        // Perform physics calculations
 
-        // // Do at the end
-        // let mut translate_height = vec![];
-
-        // for entity in self.entities.iter() {
-        //     let pos = entity.position();
-        //     let ground = match self.try_height((pos.x, pos.y).into()) {
-        //         Ok(h) => h,
-        //         Err(()) => {
-        //             error!("Failed to clip entity to ground, skipping");
-        //             translate_height.push(0.0);
-        //             continue;
-        //         }
-        //     };
-        //     if pos.y - ground < 0.0 {
-        //         translate_height.push(pos.y - ground);
-        //     } else {
-        //         translate_height.push(0.0);
-        //     }
-        // }
-
-        self.entities.iter_mut().for_each(|e| e.tick(dt));
+        self.entities.iter_mut().for_each(|a| {
+            entity::tick(a, dt);
+        });
     }
 
     pub fn height(&mut self, xz: Vector2<f32>) -> f32 {
@@ -161,46 +158,6 @@ impl World {
                     .clone()
             }
         }
-    }
-
-    fn perform_collisions(&mut self) {
-        // TODO: redo
-
-        // Perform ground collisions
-        // // Checks all possible collisions
-        // let mut actions: HashMap<u64, Vec<Box<dyn Fn(&mut Entity) -> ()>>> =
-        //     HashMap::with_capacity(self.entities.len());
-        // for a in self.entities.iter() {
-        //     let a_id = a.id();
-        //     for b in self.entities.iter() {
-        //         if a as *const Entity != b as *const Entity {
-        //             let a_actions = match actions.get_mut(a_id) {
-        //                 Some(a) => a,
-        //                 None => {
-        //                     actions.insert(*a_id, vec![]);
-        //                     actions.get_mut(a_id).unwrap()
-        //                 }
-        //             };
-        //             let top_intersection = (a.position().y + a.bounding_box().0.y)
-        //                 - (b.position().y + b.bounding_box().1.y);
-
-        //             a_actions.push(Box::new(move |a: &mut Entity| {
-        //                 a.translate(Vector3::new(0.0, top_intersection.clone(), 0.0))
-        //             }));
-        //         }
-        //     }
-        // }
-        // let mut entities = HashMap::with_capacity(self.entities.len());
-
-        // for entity in self.entities.iter_mut() {
-        //     entities.insert(entity.id(), entity);
-        // }
-        // for (entity_id, actions) in actions {
-        //     let entity = entities.get_mut(&entity_id).unwrap();
-        //     for action in actions {
-        //         action(entity);
-        //     }
-        // }
     }
 }
 

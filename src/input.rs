@@ -10,7 +10,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{CAMERA_SPEED, render::camera::Camera};
+use crate::core::camera::Camera;
 
 pub struct InputController {
     keys_pressed: HashMap<KeyCode, bool>,
@@ -49,12 +49,12 @@ impl InputController {
                     window
                         .set_cursor_position(PhysicalPosition::new(size.width / 2, size.height / 2))
                         .unwrap();
-                    camera.look_up(Rad((size.height as f32 / 2.0 - position.y as f32)
-                        / size.height as f32
-                        * PI));
-                    camera.look_ccw(Rad((position.x as f32 - size.width as f32 / 2.0)
-                        / size.width as f32
-                        * PI));
+                    camera.look_up(
+                        (size.height as f32 / 2.0 - position.y as f32) / size.height as f32 * PI,
+                    );
+                    camera.look_ccw(
+                        (position.x as f32 - size.width as f32 / 2.0) / size.width as f32 * PI,
+                    );
                 }
             }
             _ => {}

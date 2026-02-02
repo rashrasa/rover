@@ -1,10 +1,6 @@
-pub mod assets;
-pub mod audio;
 pub mod core;
-pub mod entity;
 pub mod input;
 pub mod render;
-pub mod world;
 
 // All constants will be stored here.
 
@@ -47,6 +43,29 @@ pub enum Integrator {
     RK4,
 }
 
+type FLOAT = f32;
+
+type Mat<const N: usize, const M: usize> = nalgebra::Matrix<
+    FLOAT,
+    nalgebra::Const<N>,
+    nalgebra::Const<M>,
+    nalgebra::ArrayStorage<FLOAT, N, M>,
+>;
+
+type View<'a, const N: usize, const M: usize> = nalgebra::Matrix<
+    FLOAT,
+    nalgebra::Const<N>,
+    nalgebra::Const<M>,
+    nalgebra::ViewStorageMut<
+        'a,
+        FLOAT,
+        nalgebra::Const<N>,
+        nalgebra::Const<M>,
+        nalgebra::Const<1>,
+        nalgebra::Const<1>,
+    >,
+>;
+
 pub struct IDBank {
     next: u64,
 }
@@ -60,9 +79,10 @@ impl IDBank {
     }
 }
 
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
-    cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 1.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: nalgebra::Matrix4<f32> = nalgebra::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.5,
+    0.0, 0.0, 0.0, 1.0,
 );
