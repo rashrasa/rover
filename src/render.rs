@@ -326,7 +326,7 @@ impl ApplicationHandler<Event> for App {
 
         match event {
             WindowEvent::Resized(physical_size) => {
-                if let AppState::Started { renderer, state } = &mut self.state {
+                if let AppState::Started { renderer, state: _ } = &mut self.state {
                     renderer.resize(physical_size.width, physical_size.height);
                 }
             }
@@ -718,6 +718,25 @@ impl Renderer {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
+
+        self.depth_texture = self.device.create_texture(&TextureDescriptor {
+            label: Some("Depth Texture"),
+            size: Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        self.depth_view = self
+            .depth_texture
+            .create_view(&TextureViewDescriptor::default());
+
         self.is_surface_configured = true;
     }
 
