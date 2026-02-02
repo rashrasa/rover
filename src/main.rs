@@ -189,7 +189,7 @@ fn main() {
             (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
             (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
         ),
-        model: Matrix4::new_translation(&[0.0, 10.0, 0.0].into()),
+        transform: Matrix4::new_translation(&[0.0, 10.0, 0.0].into()),
         response: CollisionResponse::Inelastic(1.0),
         mass: 1.0,
     });
@@ -212,7 +212,7 @@ fn main() {
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
                     mass: 1.0,
-                    model: Matrix4::new_translation(
+                    transform: Matrix4::new_translation(
                         &[2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
                     ) * Rotation3::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),

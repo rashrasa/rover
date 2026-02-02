@@ -16,7 +16,7 @@ pub const TERRAIN_MESH: u64 = 2;
 
 // Static instance of flat mesh
 pub struct Chunk {
-    pub model: [[f32; 4]; 4],
+    pub transform: [[f32; 4]; 4],
 }
 
 pub struct Terrain {

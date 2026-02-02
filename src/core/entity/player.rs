@@ -20,7 +20,7 @@ pub struct Player {
     velocity: Vector3<f32>,
     acceleration: Vector3<f32>,
     bounding_box: BoundingBox,
-    model: Matrix4<f32>,
+    transform: Matrix4<f32>,
     camera: NoClipCamera,
     response: CollisionResponse,
     mass: f32,
@@ -34,7 +34,7 @@ impl Player {
         velocity: Vector3<f32>,
         acceleration: Vector3<f32>,
         bounding_box: BoundingBox,
-        model: Matrix4<f32>,
+        transform: Matrix4<f32>,
         camera: NoClipCamera,
         response: CollisionResponse,
         mass: f32,
@@ -46,7 +46,7 @@ impl Player {
             velocity,
             acceleration,
             bounding_box,
-            model,
+            transform,
             camera,
             response,
             mass,
@@ -93,10 +93,10 @@ impl Player {
 
 impl super::Transform for Player {
     fn transform(&self) -> &Matrix4<f32> {
-        &self.model
+        &self.transform
     }
     fn transform_mut(&mut self) -> &mut Matrix4<f32> {
-        &mut self.model
+        &mut self.transform
     }
 }
 

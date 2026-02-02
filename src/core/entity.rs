@@ -194,10 +194,10 @@ pub fn tick(a: &mut impl Dynamic, dt: f32) {
             let k4 = velocity + k3 * dt;
 
             let translation = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
-            let model = a.transform_mut();
-            model.m14 += translation.x;
-            model.m24 += translation.y;
-            model.m34 += translation.z;
+            let transform = a.transform_mut();
+            transform.m14 += translation.x;
+            transform.m24 += translation.y;
+            transform.m34 += translation.z;
         }
         Integrator::Euler => {
             todo!();

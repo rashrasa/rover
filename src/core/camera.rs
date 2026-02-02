@@ -266,7 +266,7 @@ pub struct Projection {
     near: f32,
     far: f32,
 
-    model: Matrix4<f32>,
+    transform: Matrix4<f32>,
 }
 
 impl Projection {
@@ -276,7 +276,7 @@ impl Projection {
             fovy: fovy,
             near,
             far,
-            model: OPENGL_TO_WGPU_MATRIX
+            transform: OPENGL_TO_WGPU_MATRIX
                 * nalgebra::Perspective3::new(width / height, fovy * 180.0 / PI, near, far)
                     .as_matrix(),
         }
@@ -288,11 +288,11 @@ impl Projection {
     }
 
     pub fn projection(&self) -> &Matrix4<f32> {
-        &self.model
+        &self.transform
     }
 
     fn update(&mut self) {
-        self.model = OPENGL_TO_WGPU_MATRIX
+        self.transform = OPENGL_TO_WGPU_MATRIX
             * nalgebra::Matrix4::new_perspective(self.aspect, self.fovy, self.near, self.far);
     }
 }

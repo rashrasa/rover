@@ -104,7 +104,7 @@ pub struct ObjectInitData {
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
-    pub model: Matrix4<f32>,
+    pub transform: Matrix4<f32>,
     pub response: CollisionResponse,
     pub mass: f32,
 }
@@ -116,7 +116,7 @@ pub struct PlayerInitData {
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
-    pub model: Matrix4<f32>,
+    pub transform: Matrix4<f32>,
     pub response: CollisionResponse,
     pub mass: f32,
 }
@@ -208,11 +208,11 @@ impl App {
                     player.velocity,
                     player.acceleration,
                     player.bounding_box,
-                    player.model,
+                    player.transform,
                     NoClipCamera::new(
                         &mut renderer.device,
                         &renderer.camera_bind_group_layout,
-                        player.model.column(3).xyz(),
+                        player.transform.column(3).xyz(),
                         0.0,
                         0.0,
                         0.0,
@@ -246,7 +246,7 @@ impl App {
                     object.mass,
                     object.response,
                     object.bounding_box,
-                    object.model,
+                    object.transform,
                     object.acceleration,
                     object.velocity,
                 );
@@ -313,11 +313,11 @@ impl ApplicationHandler<Event> for App {
                     entity.velocity,
                     entity.acceleration,
                     entity.bounding_box,
-                    entity.model,
+                    entity.transform,
                     NoClipCamera::new(
                         &mut renderer.device,
                         &renderer.camera_bind_group_layout,
-                        entity.model.column(3).xyz(),
+                        entity.transform.column(3).xyz(),
                         0.0,
                         0.0,
                         0.0,
@@ -344,7 +344,7 @@ impl ApplicationHandler<Event> for App {
                     object_init.mass,
                     object_init.response,
                     object_init.bounding_box,
-                    object_init.model,
+                    object_init.transform,
                     object_init.acceleration,
                     object_init.velocity,
                 );
