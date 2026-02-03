@@ -14,35 +14,85 @@ Early camera testing       |  Lighting testing
 
 These are specific components which are needed for the functioning of this application.
 
-### App (Event Loop + Window + World)
+### App (Event Loop + Window + Renderer + World)
 
 - Owns world state, window + rendering context, renderer
 - Advances the world
 - Triggers renders
 - Propogates inputs into physics
 
-#### Renderer
-
-- Part of "App"
-- Iterates over data provided by the world and renders it
-
 ### World
 
 - Stores materials, properties, meshes, textures, entities
 - Physics logic
 - Provides data for rendering
+- Includes a deterministic procedural world generator seeded from a 64-bit value
 
-#### Terrain Generator
+### Other
 
-- Creates world terrain from a 64 bit value
+- Input event dispatch system
+- Audio system
 
-### Input Event System
+## Dev Highlights
 
-- Emits input events
+### Trait System
 
-### Audio System
+Using traits and trait-bounds to enforce the minimum requirements for functions. This way, we keep logic in one place, without tying the logic to specific concrete types. Can be found in `src/core/entity.rs`.
 
-- Generates sounds based on world state
+```rust
+pub trait Transform: Entity {
+    fn transform(&self) -> &Matrix4<f32>;
+    fn transform_mut(&mut self) -> &mut Matrix4<f32>;
+}
+pub trait Dynamic: Transform + Entity {
+    fn velocity(&self) -> &Vector3<f32>;
+    fn velocity_mut(&mut self) -> &mut Vector3<f32>;
+
+    fn acceleration(&self) -> &Vector3<f32>;
+    fn acceleration_mut(&mut self) -> &mut Vector3<f32>;
+}
+
+pub fn tick(a: &mut impl Dynamic, dt: f32) {
+    // tick logic written once and used for every type
+}
+```
+
+### State Machine Pattern
+
+Using Rust enums to statically enforce invariants, preventing access to certain data when pre-conditions aren't met. Can be found in `src/render.rs`.
+
+```rust
+enum AppState {
+    NeedsInit(
+        // Data temporarily stored before the app starts.
+        AppInitData,
+    ),
+    Started {
+        // Data available once the window is created.
+        renderer: Renderer,
+        // ...
+    },
+}
+pub struct App {
+    state: AppState,
+    // ...
+}
+
+impl App {
+    // ...
+    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData>) {
+        match &mut self.state {
+            AppState::NeedsInit(init_data) => {
+                // **** No renderer access. ****
+            }
+            AppState::Started { renderer, state: _ } => {
+                // **** Renderer can only be accessed when the app is started. **** 
+                renderer.add_meshes(meshes).unwrap();
+            }
+        }
+    }
+}
+```
 
 ## Credits
 

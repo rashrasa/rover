@@ -16,7 +16,7 @@ pub trait Entity {
     fn id(&self) -> &u64;
 }
 
-/// Entities that have a mutable position component.
+/// Entities that have a mutable transform component.
 pub trait Transform: Entity {
     fn transform(&self) -> &Matrix4<f32>;
     fn transform_mut(&mut self) -> &mut Matrix4<f32>;
