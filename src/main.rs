@@ -1,25 +1,20 @@
-use std::{f32::consts::PI, fs::File, thread};
+use std::f32::consts::PI;
 
 use image::imageops::FilterType;
-use log::{debug, info};
-use nalgebra::{Matrix4, Rotation3, Unit, UnitVector3, Vector3, Vector4};
-use rodio::Decoder;
+use log::info;
+use nalgebra::{Matrix4, Rotation3, UnitVector3, Vector3};
 use rover::{
-    CHUNK_RESOLUTION, CHUNK_SIZE, GROUND_HEIGHT, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
+    CHUNK_RESOLUTION, CHUNK_SIZE, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
     core::{
         entity::{BoundingBox, CollisionResponse},
-        geometry::{EdgeJoin, Face, Mesh, Shape3},
+        geometry::{Face, Mesh, Shape3},
     },
     render::{
-        App, Event, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData,
-        textures::ResizeStrategy, vertex::Vertex,
+        App, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData,
+        textures::ResizeStrategy,
     },
 };
-use winit::{
-    event::WindowEvent,
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowId,
-};
+use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
     rover::init_logging();
@@ -36,7 +31,7 @@ fn main() {
             CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
             CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
         ),
-        |x, z| GROUND_HEIGHT as f32,
+        |x, z| 5.0,
     )
     .unwrap();
 
