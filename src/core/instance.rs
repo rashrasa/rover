@@ -1,8 +1,10 @@
 use std::{
     collections::{HashMap, hash_map::Entry},
     ops::RangeBounds,
+    slice::Iter,
 };
 
+use bytemuck::{Pod, Zeroable};
 use log::debug;
 use nalgebra::Matrix4;
 use wgpu::{
@@ -14,19 +16,23 @@ use wgpu::{
     wgt::DeviceDescriptor,
 };
 
-/// Maps an entity id to an index into a transform array. Once an entity is added,
+/// Maps an entity id to an index into a transform array. Once an entity is added, it can't be removed (for now).
 ///
 /// Indirection is needed since instances are expected to have a specific ordering.
-/// Also, it's likely faster to borrow the transforms Vec than it is to iterate over values in a Hashmap.
 #[derive(Debug)]
-pub struct InstanceStorage {
-    map: HashMap<u64, usize>,
-    transforms: Vec<[f32; 4]>, // 4 [f32;4] chunks
+pub struct InstanceStorage<I>
+where
+    I: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
+{
+    data: Vec<I>,
 
     instance_buffer: Buffer,
 }
 
-impl InstanceStorage {
+impl<I> InstanceStorage<I>
+where
+    I: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
+{
     pub fn new(device: &Device) -> Self {
         let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Instance Buffer"),
@@ -35,18 +41,17 @@ impl InstanceStorage {
         });
 
         Self {
-            map: HashMap::new(),
-            transforms: Vec::new(),
+            data: Vec::new(),
             instance_buffer,
         }
     }
 
-    pub fn get_instance(&self, entity_id: &u64) -> Option<&usize> {
-        self.map.get(entity_id)
+    pub fn get_instance(&self, entity_id: &u64) -> Option<&I> {
+        self.data.get(*entity_id as usize)
     }
 
     pub fn len(&self) -> usize {
-        self.transforms.len() / 4
+        self.data.len()
     }
 
     pub fn slice<S: RangeBounds<u64>>(&self, bounds: S) -> BufferSlice<'_> {
@@ -54,25 +59,17 @@ impl InstanceStorage {
     }
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
-    pub fn upsert_instance(&mut self, entity_id: &u64, transform: &Matrix4<f32>) {
-        let cols: [[f32; 4]; 4] = (*transform).into();
-        match self.map.entry(*entity_id) {
-            Entry::Occupied(occ) => {
-                let i = *occ.get() * 4;
-                for j in 0..4 {
-                    self.transforms[i + j] = cols[j];
-                }
-            }
-            Entry::Vacant(vac) => {
-                vac.insert(self.transforms.len() / 4);
-                self.transforms.extend(cols);
-            }
+    pub fn upsert_instance(&mut self, entity_id: &u64, data: I) {
+        if (*entity_id as usize) < self.data.len() {
+            self.data[*entity_id as usize] = data;
+        } else {
+            self.data.push(data);
         }
     }
 
-    /// May re-allocate buffer. Should not be called during a render pass.
+    /// May re-allocate buffer. Should not be called during a render pass in its current state.
     pub fn update_gpu(&mut self, queue: &mut Queue, device: &mut Device) {
-        let bytes = bytemuck::cast_slice(&self.transforms);
+        let bytes = bytemuck::cast_slice(&self.data);
         if bytes.len() > self.instance_buffer.size() as usize {
             debug!(
                 "re-allocating instance buffer to {:.8} MB",
@@ -85,10 +82,6 @@ impl InstanceStorage {
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
         }
-        queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&self.transforms),
-        );
+        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&self.data));
     }
 }

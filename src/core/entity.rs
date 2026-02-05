@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
+use bytemuck::{Pod, Zeroable};
 use nalgebra::{Matrix4, Vector3};
 use wgpu::BindGroup;
 use winit::keyboard::KeyCode;
@@ -50,9 +51,13 @@ pub trait Render: Transform + Entity {
 }
 
 /// Entities that can be rendered and should be instanced.
-pub trait RenderInstanced: Transform + Entity {
+pub trait RenderInstanced<I>: Entity
+where
+    I: Pod + Zeroable + Clone + Copy + Debug,
+{
     fn texture_id(&self) -> &u64;
     fn mesh_id(&self) -> &u64;
+    fn instance(&self) -> &I;
 }
 
 /// Entities that can collide. Bounding box should be in world space.

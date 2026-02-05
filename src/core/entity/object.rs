@@ -8,6 +8,9 @@ pub struct Object {
     transform: nalgebra::Matrix4<f32>,
     acceleration: nalgebra::Vector3<f32>,
     velocity: nalgebra::Vector3<f32>,
+
+    // cached
+    instance: [[f32; 4]; 4],
 }
 
 impl Object {
@@ -32,6 +35,7 @@ impl Object {
             transform,
             acceleration,
             velocity,
+            instance: transform.into(),
         }
     }
 }
@@ -86,12 +90,16 @@ impl super::Entity for Object {
     }
 }
 
-impl super::RenderInstanced for Object {
+impl super::RenderInstanced<[[f32; 4]; 4]> for Object {
     fn texture_id(&self) -> &u64 {
         &self.texture_id
     }
 
     fn mesh_id(&self) -> &u64 {
         &self.mesh_id
+    }
+
+    fn instance(&self) -> &[[f32; 4]; 4] {
+        &self.instance
     }
 }

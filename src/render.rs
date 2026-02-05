@@ -1,3 +1,4 @@
+pub mod shader;
 pub mod textures;
 pub mod vertex;
 
@@ -12,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use bytemuck::{Pod, Zeroable};
 use cgmath::{Deg, Rad};
 use image::DynamicImage;
 use log::{error, info};
@@ -53,10 +55,11 @@ use crate::{
         instance::InstanceStorage,
         lights::LightSourceStorage,
         mesh::{MeshStorage, MeshStorageError},
-        world::World,
+        world::terrain::World,
     },
     input::InputController,
     render::{
+        shader::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
         textures::{ResizeStrategy, TextureStorage},
         vertex::Vertex,
     },
@@ -65,7 +68,7 @@ use crate::{
 pub struct AppInitData {
     pub width: u32,
     pub height: u32,
-    pub meshes: Vec<MeshInitData>,
+    pub transform_meshes: Vec<MeshInitData<Vertex>>,
     pub textures: Vec<TextureInitData>,
     pub players: Vec<PlayerInitData>,
     pub objects: Vec<ObjectInitData>,
@@ -76,14 +79,14 @@ impl AppInitData {
         self,
     ) -> (
         (u32, u32),
-        Vec<MeshInitData>,
+        Vec<MeshInitData<Vertex>>,
         Vec<PlayerInitData>,
         Vec<TextureInitData>,
         Vec<ObjectInitData>,
     ) {
         (
             (self.width, self.height),
-            self.meshes,
+            self.transform_meshes,
             self.players,
             self.textures,
             self.objects,
@@ -91,9 +94,12 @@ impl AppInitData {
     }
 }
 
-pub struct MeshInitData {
+pub struct MeshInitData<V>
+where
+    V: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
+{
     pub id: u64,
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<V>,
     pub indices: Vec<u16>,
 }
 
@@ -172,7 +178,7 @@ impl App {
             state: AppState::NeedsInit(AppInitData {
                 width,
                 height,
-                meshes: vec![],
+                transform_meshes: vec![],
                 players: vec![],
                 objects: vec![],
                 textures: vec![],
@@ -182,15 +188,20 @@ impl App {
         }
     }
 
-    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData>) {
+    /// "Vertex" is the most common vertex type to be used in most cases and
+    /// is the only one available to add for now.
+    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData<Vertex>>) {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
                 while let Some(data) = meshes.pop() {
-                    init_data.meshes.push(data);
+                    init_data.transform_meshes.push(data);
                 }
             }
             AppState::Started { renderer, state: _ } => {
-                renderer.add_meshes(meshes).unwrap();
+                renderer
+                    .render_module_transformed
+                    .add_meshes(&renderer.device, &renderer.queue, meshes)
+                    .unwrap();
             }
         }
     }
@@ -227,8 +238,11 @@ impl App {
                     player.response,
                     player.mass,
                 );
+                renderer
+                    .render_module_transformed
+                    .upsert_instance(&player)
+                    .unwrap();
                 state.players.push(player);
-                renderer.insert_instances(state).unwrap();
             }
         }
     }
@@ -250,8 +264,11 @@ impl App {
                     object.acceleration,
                     object.velocity,
                 );
+                renderer
+                    .render_module_transformed
+                    .upsert_instance(&object)
+                    .unwrap();
                 state.objects.push(object);
-                renderer.insert_instances(state).unwrap();
             }
         }
     }
@@ -282,7 +299,7 @@ impl ApplicationHandler<Event> for App {
             let mut old_data = AppInitData {
                 width: 0,
                 height: 0,
-                meshes: vec![],
+                transform_meshes: vec![],
                 players: vec![],
                 objects: vec![],
                 textures: vec![],
@@ -301,7 +318,11 @@ impl ApplicationHandler<Event> for App {
             let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
             info!("Adding meshes");
-            renderer.add_meshes(meshes);
+            renderer.render_module_transformed.add_meshes(
+                &renderer.device,
+                &renderer.queue,
+                meshes,
+            );
 
             info!("Adding entities");
             let mut players = vec![];
@@ -367,7 +388,7 @@ impl ApplicationHandler<Event> for App {
                 objects,
             };
 
-            renderer.insert_instances(&mut active_state).unwrap();
+            renderer.update_instances(&mut active_state);
 
             self.state = AppState::Started {
                 renderer,
@@ -419,7 +440,7 @@ impl ApplicationHandler<Event> for App {
                         .update(elapsed, &mut state.current_player, &mut renderer.sink);
 
                     state.current_player.update_gpu(&mut renderer.queue);
-                    renderer.update_instances(state).unwrap();
+                    renderer.update_instances(state);
 
                     renderer.t_ticking += start.elapsed();
                     renderer.n_ticks += 1;
@@ -445,16 +466,10 @@ pub struct Renderer {
     config: SurfaceConfiguration,
     is_surface_configured: bool,
 
-    render_pipeline: RenderPipeline,
-    render_pipeline_layout: PipelineLayout,
-
-    meshes: MeshStorage,
-
-    instances: HashMap<u64, InstanceStorage>,
+    render_module_transformed: InstancedRenderModule<Vertex, [[f32; 4]; 4]>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
-
     camera_bind_group_layout: BindGroupLayout,
 
     lights: LightSourceStorage,
@@ -525,11 +540,6 @@ impl Renderer {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -607,61 +617,62 @@ impl Renderer {
             1.0e7,
         );
 
-        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[
-                &camera_bind_group_layout,
-                &texture_bind_group_layout,
-                lights.layout(),
-            ],
-            push_constant_ranges: &[],
-        });
-
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc(), Player::desc()],
-                compilation_options: PipelineCompilationOptions::default(),
+        let render_module_transformed = InstancedRenderModule::new(
+            &device,
+            Some("Transformed"),
+            &VertexSpec {
+                vertex_layout: Vertex::desc(),
+                instance_layout: Player::desc(),
             },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(ColorTargetState {
+            &ShaderSpec {
+                path: "assets/shader.wgsl".into(),
+                vertex_shader_name: "vs_main".into(),
+                fragment_shader_name: "fs_main".into(),
+            },
+            (vec![
+                UniformSpec {
+                    bind_group_layout: camera_bind_group_layout.clone(),
+                },
+                UniformSpec {
+                    bind_group_layout: texture_bind_group_layout.clone(),
+                },
+                UniformSpec {
+                    bind_group_layout: lights.layout().clone(),
+                },
+            ])
+            .iter(),
+            &RenderPipelineSpec {
+                primitive: PrimitiveState {
+                    topology: PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: FrontFace::Ccw,
+                    cull_mode: Some(Face::Back),
+                    polygon_mode: PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: Some(DepthStencilState {
+                    format: TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: CompareFunction::Less,
+                    stencil: StencilState::default(),
+                    bias: DepthBiasState::default(),
+                }),
+                multisample: MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+                cache: None,
+                fragment_color_target_state: Some(ColorTargetState {
                     format: config.format,
                     blend: Some(BlendState::REPLACE),
                     write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: PipelineCompilationOptions::default(),
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: Some(Face::Back),
-                polygon_mode: PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
+                }),
             },
-            depth_stencil: Some(DepthStencilState {
-                format: TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: CompareFunction::Less,
-                stencil: StencilState::default(),
-                bias: DepthBiasState::default(),
-            }),
-            multisample: MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
-
-        let mesh_storage = MeshStorage::new(&device);
+        )
+        .unwrap();
 
         let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
         let sink = rodio::Sink::connect_new(&stream_handle.mixer());
@@ -683,8 +694,7 @@ impl Renderer {
             config,
             is_surface_configured: false,
 
-            render_pipeline,
-            render_pipeline_layout,
+            render_module_transformed,
 
             depth_texture,
             depth_view,
@@ -692,8 +702,6 @@ impl Renderer {
 
             lights,
 
-            meshes: mesh_storage,
-            instances: HashMap::new(),
             textures: TextureStorage::new(),
             texture_bind_group_layout,
 
@@ -711,26 +719,13 @@ impl Renderer {
         }
     }
 
-    /// Batch adding of meshes. Meshes will be synced to the GPU in this call.
-    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData>) -> Result<(), MeshStorageError> {
-        while let Some(data) = meshes.pop() {
-            if let Err(e) = self
-                .meshes
-                .add_mesh(&data.id, &data.vertices, &data.indices)
-            {
-                return Err(e);
-            }
-            if let Some(_) = self
-                .instances
-                .insert(data.id, InstanceStorage::new(&self.device))
-            {
-                return Err(MeshStorageError::MeshExists);
-            }
-        }
-
-        self.meshes.update_gpu(&mut self.queue, &self.device);
-
-        Ok(())
+    pub fn update_instances(&mut self, active_state: &ActiveState) {
+        self.render_module_transformed
+            .upsert_instances(active_state.players.iter());
+        self.render_module_transformed
+            .upsert_instances(active_state.objects.iter());
+        self.render_module_transformed
+            .upsert_instance(&active_state.current_player);
     }
 
     pub fn new_texture(&mut self, data: TextureInitData) {
@@ -742,66 +737,6 @@ impl Renderer {
             data.resize,
             &self.texture_bind_group_layout,
         );
-    }
-
-    pub fn insert_instances(&mut self, state: &mut ActiveState) -> Result<(), String> {
-        for player in state.players.iter() {
-            let mesh_id = player.mesh_id();
-            let entity_id = player.id();
-            let transform = player.transform();
-
-            self.instances.entry(*mesh_id).and_modify(|e| {
-                e.upsert_instance(entity_id, transform);
-            });
-        }
-
-        for object in state.objects.iter() {
-            let mesh_id = object.mesh_id();
-            let entity_id = object.id();
-            let transform = object.transform();
-
-            self.instances.entry(*mesh_id).and_modify(|e| {
-                e.upsert_instance(entity_id, transform);
-            });
-        }
-
-        for (mesh_id, storage) in self.instances.iter_mut() {
-            storage.update_gpu(&mut self.queue, &mut self.device);
-        }
-
-        Ok(())
-    }
-    /// Batch updating of instances. All instances will be synced to the GPU in this call.
-    ///
-    /// This is the main update function to be called before each render call.
-    pub fn update_instances(&mut self, state: &ActiveState) -> Result<(), String> {
-        for player in state.players.iter() {
-            let mesh_id = player.mesh_id();
-            let entity_id = player.id();
-            let transform = player.transform();
-
-            self.instances.entry(*mesh_id).and_modify(|e| {
-                e.upsert_instance(entity_id, transform);
-            });
-        }
-
-        for object in state.objects.iter() {
-            let mesh_id = object.mesh_id();
-            let entity_id = object.id();
-            let transform = object.transform();
-
-            self.instances.entry(*mesh_id).and_modify(|e| {
-                e.upsert_instance(entity_id, transform);
-            });
-        }
-
-        for (mesh_id, storage) in self.instances.iter_mut() {
-            if *mesh_id != MESH_FLAT16 {
-                storage.update_gpu(&mut self.queue, &mut self.device);
-            }
-        }
-
-        Ok(())
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -876,26 +811,7 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-
-            render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
-            render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
-
-            render_pass.set_bind_group(0, state.current_player.bind_group(), &[]);
-            render_pass.set_bind_group(1, &self.textures.get(&0).unwrap().3, &[]);
-            render_pass.set_bind_group(2, self.lights.bind_group(), &[]);
-
-            for (mesh_id, storage) in self.instances.iter() {
-                if storage.len() > 0 {
-                    render_pass.set_vertex_buffer(1, storage.slice(..));
-                    let (start, end) = self.meshes.get_mesh_index_bounds(mesh_id).unwrap();
-                    render_pass.draw_indexed(
-                        (*start) as u32..(*end) as u32,
-                        0,
-                        0..storage.len() as u32,
-                    );
-                }
-            }
+            // TODO: draw_all
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

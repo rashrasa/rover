@@ -43,7 +43,7 @@ pub enum Integrator {
     RK4,
 }
 
-type FLOAT = f32;
+pub type FLOAT = f32;
 
 type Mat<const N: usize, const M: usize> = nalgebra::Matrix<
     FLOAT,

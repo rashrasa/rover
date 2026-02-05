@@ -5,7 +5,10 @@ use crate::{
     Integrator,
     core::{
         camera::{Camera, NoClipCamera},
-        entity::{self, BoundingBox, Collide, CollisionResponse, Dynamic, Mass, Transform},
+        entity::{
+            self, BoundingBox, Collide, CollisionResponse, Dynamic, Mass, RenderInstanced,
+            Transform,
+        },
     },
 };
 
@@ -24,6 +27,9 @@ pub struct Player {
     camera: NoClipCamera,
     response: CollisionResponse,
     mass: f32,
+
+    // cached
+    instance: [[f32; 4]; 4],
 }
 
 impl Player {
@@ -50,6 +56,7 @@ impl Player {
             camera,
             response,
             mass,
+            instance: transform.into(),
         }
     }
 
@@ -187,5 +194,19 @@ impl Camera for Player {
 
     fn bind_group(&self) -> &wgpu::BindGroup {
         self.camera.bind_group()
+    }
+}
+
+impl RenderInstanced<[[f32; 4]; 4]> for Player {
+    fn texture_id(&self) -> &u64 {
+        &self.texture_id
+    }
+
+    fn mesh_id(&self) -> &u64 {
+        &self.mesh_id
+    }
+
+    fn instance(&self) -> &[[f32; 4]; 4] {
+        &self.instance
     }
 }
