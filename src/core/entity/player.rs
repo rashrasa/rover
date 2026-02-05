@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-/// Long-lived struct containing all data relevant to an entity.
+/// Long-lived struct containing all data relevant to a player.
 ///
 /// Ideally never cloned.
 pub struct Player {
@@ -24,7 +24,7 @@ pub struct Player {
     acceleration: Vector3<f32>,
     bounding_box: BoundingBox,
     transform: Matrix4<f32>,
-    camera: NoClipCamera,
+    camera: NoClipCamera, // TODO: camera and transform both store a position
     response: CollisionResponse,
     mass: f32,
 

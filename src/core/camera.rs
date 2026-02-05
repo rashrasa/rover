@@ -46,6 +46,7 @@ impl NoClipCamera {
         roll: f32,
         projection: Projection,
     ) -> Self {
+        let roll = roll + PI;
         let (sin_yaw, cos_yaw) = yaw.sin_cos();
         let (sin_pitch, cos_pitch) = pitch.sin_cos();
 
