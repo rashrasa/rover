@@ -1,7 +1,5 @@
-use std::{collections::HashMap, f32::consts::PI, time::Duration};
+use std::{collections::HashMap, f32::consts::PI};
 
-use cgmath::Rad;
-use log::info;
 use rodio::Sink;
 use winit::{
     dpi::PhysicalPosition,

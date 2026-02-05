@@ -10,7 +10,7 @@
 //  - Fragment shader
 //  - Render Pipeline (draw order, backface culling, render configuration)
 
-use std::{collections::HashMap, io::Read, num::NonZero, slice::Iter};
+use std::{io::Read, num::NonZero, slice::Iter};
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -22,13 +22,12 @@ use wgpu::{
 };
 
 use crate::{
-    core::{
-        entity::{Entity, RenderInstanced},
-        geometry::Mesh,
+    core::entity::{Entity, RenderInstanced},
+    render::{
+        MeshInitData,
         instance::InstanceStorage,
         mesh::{MeshStorage, MeshStorageError},
     },
-    render::{MeshInitData, vertex::Vertex},
 };
 
 // Utility data types
@@ -90,7 +89,9 @@ where
         pipeline_spec: &RenderPipelineSpec,
     ) -> Result<Self, std::io::Error> {
         let mut shader = String::new();
-        std::fs::File::open(&shader_spec.path)?.read_to_string(&mut shader);
+        std::fs::File::open(&shader_spec.path)?
+            .read_to_string(&mut shader)
+            .unwrap();
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),

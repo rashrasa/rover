@@ -4,8 +4,5 @@ pub mod camera;
 pub mod continuous;
 pub mod entity;
 pub mod geometry;
-pub mod instance;
 pub mod lights;
-pub mod mesh;
-pub mod texture;
 pub mod world;

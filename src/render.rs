@@ -1,20 +1,16 @@
+pub mod instance;
+pub mod mesh;
 pub mod shader;
 pub mod textures;
 pub mod vertex;
 
 use std::{
-    cell::RefCell,
-    collections::HashMap,
-    f32::consts::PI,
     fs::File,
-    rc::Rc,
-    slice::Iter,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use bytemuck::{Pod, Zeroable};
-use cgmath::{Deg, Rad};
 use image::DynamicImage;
 use log::{error, info};
 use nalgebra::{Matrix4, Vector3};
@@ -23,16 +19,14 @@ use wgpu::{
     AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BlendState, BufferBindingType, Color, ColorTargetState, ColorWrites,
     CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
-    ExperimentalFeatures, Extent3d, Face, Features, FilterMode, FragmentState, FrontFace,
-    IndexFormat, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
-    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PolygonMode,
-    PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType,
-    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StencilState, StoreOp,
-    Surface, SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
+    ExperimentalFeatures, Extent3d, Face, Features, FilterMode, FrontFace, Instance,
+    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PolygonMode, PowerPreference,
+    PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
+    SamplerBindingType, SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface,
+    SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
     TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
-    TextureViewDimension, Trace, VertexState, wgt::DeviceDescriptor,
+    TextureViewDimension, Trace, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -43,18 +37,12 @@ use winit::{
 };
 
 use crate::{
-    IDBank, MESH_FLAT16, METRICS_INTERVAL,
+    METRICS_INTERVAL,
     core::{
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{
-            self, BoundingBox, CollisionResponse, Entity, RenderInstanced, Transform,
-            object::{self, Object},
-            player::Player,
-        },
-        instance::InstanceStorage,
+        entity::{self, BoundingBox, CollisionResponse, object::Object, player::Player},
         lights::LightSourceStorage,
-        mesh::{MeshStorage, MeshStorageError},
         world::terrain::World,
     },
     input::InputController,
@@ -617,7 +605,7 @@ impl Renderer {
             1.0e7,
         );
 
-        let render_module_transformed = InstancedRenderModule::new(
+        let render_module_transformed = InstancedRenderModule::<Vertex, [[f32; 4]; 4]>::new(
             &device,
             Some("Transformed"),
             &VertexSpec {
