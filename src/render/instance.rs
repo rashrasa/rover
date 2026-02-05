@@ -68,7 +68,7 @@ where
     }
 
     /// May re-allocate buffer. Should not be called during a render pass in its current state.
-    pub fn update_gpu(&mut self, queue: &mut Queue, device: &mut Device) {
+    pub fn update_gpu(&mut self, queue: &Queue, device: &Device) {
         let bytes = bytemuck::cast_slice(&self.data);
         if bytes.len() > self.instance_buffer.size() as usize {
             debug!(

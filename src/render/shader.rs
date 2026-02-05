@@ -190,14 +190,21 @@ where
         Ok(())
     }
 
-    pub fn draw_all(&self, render_pass: &mut RenderPass, uniforms: &Vec<BindGroup>) {
+    pub fn update_gpu(&mut self, device: &Device, queue: &Queue) {
+        self.meshes.update_gpu(queue, device);
+        for instance in self.instances.iter_mut() {
+            instance.update_gpu(queue, device);
+        }
+    }
+
+    pub fn draw_all(&self, render_pass: &mut RenderPass, uniforms: Iter<&BindGroup>) {
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
         render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
-        for (i, bg) in uniforms.iter().enumerate() {
-            render_pass.set_bind_group(i as u32, bg, &[]);
+        for (i, bg) in uniforms.enumerate() {
+            render_pass.set_bind_group(i as u32, *bg, &[]);
         }
 
         for (mesh_id, storage) in self.instances.iter().enumerate() {

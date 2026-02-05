@@ -6,13 +6,14 @@ pub mod vertex;
 
 use std::{
     fs::File,
+    slice::Iter,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
-use log::{error, info};
+use log::{error, info, warn};
 use nalgebra::{Matrix4, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
@@ -126,6 +127,19 @@ pub struct ActiveState {
     current_player: Player,
     players: Vec<Player>,
     objects: Vec<Object>,
+}
+
+impl ActiveState {
+    fn update(&mut self, elapsed: f32) {
+        for player in self.players.iter_mut() {
+            entity::tick(player, elapsed);
+        }
+        entity::tick(&mut self.current_player, elapsed);
+
+        for object in self.objects.iter_mut() {
+            entity::tick(object, elapsed);
+        }
+    }
 }
 
 enum AppState {
@@ -306,11 +320,10 @@ impl ApplicationHandler<Event> for App {
             let mut renderer = pollster::block_on(Renderer::new(window.clone()));
 
             info!("Adding meshes");
-            renderer.render_module_transformed.add_meshes(
-                &renderer.device,
-                &renderer.queue,
-                meshes,
-            );
+            renderer
+                .render_module_transformed
+                .add_meshes(&renderer.device, &renderer.queue, meshes)
+                .unwrap();
 
             info!("Adding entities");
             let mut players = vec![];
@@ -415,17 +428,10 @@ impl ApplicationHandler<Event> for App {
                     renderer.last_update = Instant::now();
                     let start = Instant::now();
 
-                    for player in state.players.iter_mut() {
-                        entity::tick(player, elapsed);
-                    }
-                    entity::tick(&mut state.current_player, elapsed);
-
-                    for object in state.objects.iter_mut() {
-                        entity::tick(object, elapsed);
-                    }
-
                     self.input
                         .update(elapsed, &mut state.current_player, &mut renderer.sink);
+
+                    state.update(elapsed);
 
                     state.current_player.update_gpu(&mut renderer.queue);
                     renderer.update_instances(state);
@@ -709,11 +715,17 @@ impl Renderer {
 
     pub fn update_instances(&mut self, active_state: &ActiveState) {
         self.render_module_transformed
-            .upsert_instances(active_state.players.iter());
+            .upsert_instances(active_state.players.iter())
+            .unwrap();
         self.render_module_transformed
-            .upsert_instances(active_state.objects.iter());
+            .upsert_instances(active_state.objects.iter())
+            .unwrap();
         self.render_module_transformed
-            .upsert_instance(&active_state.current_player);
+            .upsert_instance(&active_state.current_player)
+            .unwrap();
+
+        self.render_module_transformed
+            .update_gpu(&self.device, &self.queue);
     }
 
     pub fn new_texture(&mut self, data: TextureInitData) {
@@ -799,7 +811,15 @@ impl Renderer {
                 timestamp_writes: None,
             });
 
-            // TODO: draw_all
+            self.render_module_transformed.draw_all(
+                &mut render_pass,
+                [
+                    state.current_player.bind_group(),
+                    &self.textures.get(&0).unwrap().3,
+                    self.lights.bind_group(),
+                ]
+                .iter(),
+            );
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
