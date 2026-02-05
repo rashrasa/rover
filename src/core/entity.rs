@@ -92,7 +92,7 @@ pub struct BoundingBox {
 }
 
 impl BoundingBox {
-    pub fn new(top_left_front: (f32, f32, f32), size: (f32, f32, f32)) -> Self {
+    pub const fn new(top_left_front: (f32, f32, f32), size: (f32, f32, f32)) -> Self {
         Self {
             x: top_left_front.0,
             y: top_left_front.1,
@@ -102,6 +102,8 @@ impl BoundingBox {
             z_size: size.2,
         }
     }
+
+    pub const ZERO: BoundingBox = Self::new((0.0, 0.0, 0.0), (0.0, 0.0, 0.0));
 
     /// Returns None if they don't intersect.
     ///

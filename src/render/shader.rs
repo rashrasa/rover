@@ -10,7 +10,7 @@
 //  - Fragment shader
 //  - Render Pipeline (draw order, backface culling, render configuration)
 
-use std::{io::Read, num::NonZero, slice::Iter};
+use std::{io::Read, num::NonZero, ops::Deref, slice::Iter};
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -80,12 +80,12 @@ where
     V: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
     I: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
 {
-    pub fn new(
+    pub fn new<'a>(
         device: &Device,
         debug_name: Option<&str>,
         vertex_spec: &VertexSpec,
         shader_spec: &ShaderSpec,
-        uniform_specs: Iter<UniformSpec>,
+        uniform_specs: impl Iterator<Item = &'a UniformSpec>,
         pipeline_spec: &RenderPipelineSpec,
     ) -> Result<Self, std::io::Error> {
         let mut shader = String::new();
@@ -162,22 +162,9 @@ where
         ids
     }
 
-    pub fn upsert_instance(
+    pub fn upsert_instances<'a>(
         &mut self,
-        entity: &(impl Entity + RenderInstanced<I>),
-    ) -> Result<(), String> {
-        let mesh_id = entity.mesh_id();
-        let entity_id = entity.id();
-        let instance = entity.instance();
-
-        self.instances[*mesh_id as usize].upsert_instance(entity_id, instance.clone());
-
-        Ok(())
-    }
-
-    pub fn upsert_instances(
-        &mut self,
-        entities: Iter<impl Entity + RenderInstanced<I>>,
+        entities: impl Iterator<Item = &'a (impl Entity + RenderInstanced<I> + 'a)>,
     ) -> Result<(), String> {
         for entity in entities {
             let mesh_id = entity.mesh_id();
@@ -197,14 +184,18 @@ where
         }
     }
 
-    pub fn draw_all(&self, render_pass: &mut RenderPass, uniforms: Iter<&BindGroup>) {
+    pub fn draw_all<'a>(
+        &self,
+        render_pass: &mut RenderPass,
+        uniforms: impl Iterator<Item = &'a (impl Deref<Target = &'a BindGroup> + 'a)>, // TODO: May be too convoluted but works for now
+    ) {
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
         render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
 
         for (i, bg) in uniforms.enumerate() {
-            render_pass.set_bind_group(i as u32, *bg, &[]);
+            render_pass.set_bind_group(i as u32, Into::<&BindGroup>::into(**bg), &[]);
         }
 
         for (mesh_id, storage) in self.instances.iter().enumerate() {

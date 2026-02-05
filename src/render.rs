@@ -6,14 +6,13 @@ pub mod vertex;
 
 use std::{
     fs::File,
-    slice::Iter,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
-use log::{error, info, warn};
+use log::{error, info};
 use nalgebra::{Matrix4, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
@@ -242,7 +241,7 @@ impl App {
                 );
                 renderer
                     .render_module_transformed
-                    .upsert_instance(&player)
+                    .upsert_instances(std::iter::once(&player))
                     .unwrap();
                 state.players.push(player);
             }
@@ -268,7 +267,7 @@ impl App {
                 );
                 renderer
                     .render_module_transformed
-                    .upsert_instance(&object)
+                    .upsert_instances(std::iter::once(&object))
                     .unwrap();
                 state.objects.push(object);
             }
@@ -721,7 +720,7 @@ impl Renderer {
             .upsert_instances(active_state.objects.iter())
             .unwrap();
         self.render_module_transformed
-            .upsert_instance(&active_state.current_player)
+            .upsert_instances(std::iter::once(&active_state.current_player))
             .unwrap();
 
         self.render_module_transformed
@@ -814,9 +813,9 @@ impl Renderer {
             self.render_module_transformed.draw_all(
                 &mut render_pass,
                 [
-                    state.current_player.bind_group(),
-                    &self.textures.get(&0).unwrap().3,
-                    self.lights.bind_group(),
+                    &state.current_player.bind_group(),
+                    &&self.textures.get(&0).unwrap().3,
+                    &self.lights.bind_group(),
                 ]
                 .iter(),
             );
