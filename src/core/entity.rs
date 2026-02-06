@@ -4,7 +4,10 @@ use bytemuck::{Pod, Zeroable};
 use nalgebra::{Matrix4, Vector3};
 use wgpu::BindGroup;
 
-use crate::{ContiguousView, ContiguousViewMut, Integrator, core::camera::Projection};
+use crate::{
+    ContiguousView, ContiguousViewMut, Integrator,
+    core::{G, camera::Projection},
+};
 
 // Each entity module is simply just a unique composition of these traits below.
 pub mod object;
@@ -238,6 +241,24 @@ pub fn tick(a: &mut impl Dynamic, dt: f32) {
 
 pub fn update_instance(instanced: &mut (impl RenderInstanced<[[f32; 4]; 4]> + Transform)) {
     *instanced.instance_mut() = Into::<[[f32; 4]; 4]>::into(instanced.transform());
+}
+
+pub fn apply_gravity(a: &mut (impl Mass + Dynamic), b: &mut (impl Mass + Dynamic)) {
+    // a1 = G * m2/r^2
+    let to_b: Vector3<f64> = Into::<Vector3<f32>>::into(b.position()).cast::<f64>()
+        - Into::<Vector3<f32>>::into(a.position()).cast::<f64>();
+    let dist = to_b.magnitude();
+    let dir_b = to_b.normalize();
+    let mut accel_a = a.acceleration_mut();
+    let a_result = ((G * *b.mass() as f64 / (dist * dist)) * dir_b).cast::<f32>();
+    accel_a[0] = a_result[0];
+    accel_a[1] = a_result[1];
+    accel_a[2] = a_result[2];
+    let mut accel_b = b.acceleration_mut();
+    let b_result = ((G * *a.mass() as f64 / (dist * dist)) * -dir_b).cast::<f32>();
+    accel_b[0] = b_result[0];
+    accel_b[1] = b_result[1];
+    accel_b[2] = b_result[2];
 }
 
 impl Position for Matrix4<f32> {

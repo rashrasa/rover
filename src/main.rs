@@ -61,14 +61,14 @@ fn main() {
                     },
                     texture_id: 0,
                     velocity: Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
-                    acceleration: Vector3::new(i as f32 * 0.2, 0.0, k as f32 * 0.2),
+                    acceleration: Vector3::zeros(),
                     bounding_box: BoundingBox::new(
                         (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
-                    mass: 1.0,
+                    mass: 50.0,
                     transform: Matrix4::new_translation(
-                        &[2.0 * i as f32, 2.0 * j as f32, 2.0 * k as f32].into(),
+                        &[10.0 * i as f32, 2.0 * j as f32, 10.0 * k as f32].into(),
                     ) * Rotation3::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
                         -PI / 4.0,

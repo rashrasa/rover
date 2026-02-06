@@ -2,7 +2,7 @@ pub mod core;
 pub mod input;
 pub mod render;
 
-// All constants will be stored here.
+// Configuration constants.
 
 use crate::render::textures::MipLevel;
 use std::time::Duration;

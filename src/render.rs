@@ -129,13 +129,20 @@ pub struct ActiveState {
 }
 
 impl ActiveState {
-    fn update(&mut self, elapsed: f32) {
+    fn update(&mut self, elapsed: f32, world: &mut World) {
         for player in self.players.iter_mut() {
+            entity::apply_gravity(player, world.sun_mut());
+            entity::apply_gravity(player, world.main_mut());
             entity::tick(player, elapsed);
         }
+
+        entity::apply_gravity(&mut self.current_player, world.sun_mut());
+        entity::apply_gravity(&mut self.current_player, world.main_mut());
         entity::tick(&mut self.current_player, elapsed);
 
         for object in self.objects.iter_mut() {
+            entity::apply_gravity(object, world.sun_mut());
+            entity::apply_gravity(object, world.main_mut());
             entity::tick(object, elapsed);
         }
     }
@@ -438,7 +445,7 @@ impl ApplicationHandler<Event> for App {
                     self.input
                         .update(elapsed, &mut state.current_player, &mut renderer.sink);
 
-                    state.update(elapsed);
+                    state.update(elapsed, &mut self.world);
 
                     state.current_player.update_gpu(&mut renderer.queue);
                     renderer.update_instances(state);
