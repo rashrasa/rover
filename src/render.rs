@@ -837,6 +837,15 @@ impl Renderer {
             );
         }
         self.queue.submit(std::iter::once(encoder.finish()));
+
+        // sample every 1000 renders for GPU time
+        if self.n_renders % 1000 == 0 {
+            let start = Instant::now();
+            self.queue.on_submitted_work_done(move || {
+                debug!("GPU time: {}", start.elapsed().as_secs_f64());
+            });
+        }
+
         output.present();
 
         self.n_renders += 1;
