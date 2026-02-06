@@ -165,12 +165,11 @@ pub fn calculate_single_collision(
     b: &impl Collide,
 ) -> (Vector3<f32>, Vector3<f32>) {
     todo!();
-
     // TODO: Use position and velocity to determine whether to skip certain collision tests.
 
     // match a.bounding_box().intersects(b.bounding_box()) {
     //     None => {
-    //         return;
+    //         return (Vector3::zeros(), Vector3::zeros());
     //     }
     //     Some(c) => {
     //         let c: Vector3<f32> = c.into();
@@ -182,27 +181,27 @@ pub fn calculate_single_collision(
     //         match a.response() {
     //             CollisionResponse::Immovable => match b.response() {
     //                 CollisionResponse::Immovable => {
-    //                     return;
+    //                     return (Vector3::zeros(), Vector3::zeros());
     //                 }
     //                 CollisionResponse::Inelastic(p_b) => {}
     //             },
     //             CollisionResponse::Inelastic(p_a) => match b.response() {
     //                 CollisionResponse::Immovable => {
-    //                     return;
+    //                     return (Vector3::zeros(), Vector3::zeros());
     //                 }
     //                 CollisionResponse::Inelastic(p_b) => {
-    //                     let a_v0 = *a.velocity();
-    //                     let b_v0 = *b.velocity();
+    //                     let a_v0: Vector3<f32> = a.velocity().into();
+    //                     let b_v0: Vector3<f32> = b.velocity().into();
     //                     let a_m = *a.mass();
     //                     let b_m = *b.mass();
 
     //                     // Needs to be solved
-    //                     let a_v1 = (((0.5 * (1.0 + p_a) * a_m * a_v0 * a_v0)
+    //                     let a_v1: Vector3<f32> = (((0.5 * (1.0 + p_a) * a_m * a_v0 * a_v0)
     //                         + (0.5 * (1.0 + p_b) * b_m * b_v0 * b_v0)
     //                         - (0.5 * b_m * b_v1 * b_v1))
     //                         / (0.5 * a_m))
     //                         .sqrt();
-    //                     let b_v1 = (a_m * a_v0 + b_m * b_v0 - a_m * a_v1) / b_m;
+    //                     let b_v1: Vector3<f32> = (a_m * a_v0 + b_m * b_v0 - a_m * a_v1) / b_m;
     //                 }
     //             },
     //         }
