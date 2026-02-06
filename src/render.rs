@@ -12,7 +12,7 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
-use log::{error, info};
+use log::{debug, error, info};
 use nalgebra::{Matrix4, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
@@ -715,13 +715,21 @@ impl Renderer {
         }
     }
 
-    pub fn update_instances(&mut self, active_state: &ActiveState) {
+    pub fn update_instances(&mut self, active_state: &mut ActiveState) {
         self.render_module_transformed
-            .upsert_instances(active_state.players.iter())
+            .upsert_instances(active_state.players.iter_mut().map(|i| {
+                entity::update_instance(i);
+                return &*i;
+            }))
             .unwrap();
         self.render_module_transformed
-            .upsert_instances(active_state.objects.iter())
+            .upsert_instances(active_state.objects.iter_mut().map(|i| {
+                entity::update_instance(i);
+                return &*i;
+            }))
             .unwrap();
+
+        entity::update_instance(&mut active_state.current_player);
         self.render_module_transformed
             .upsert_instances(std::iter::once(&active_state.current_player))
             .unwrap();

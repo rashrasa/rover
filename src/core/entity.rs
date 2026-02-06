@@ -63,6 +63,7 @@ where
     fn texture_id(&self) -> &u64;
     fn mesh_id(&self) -> &u64;
     fn instance(&self) -> &I;
+    fn instance_mut(&mut self) -> &mut I;
 }
 
 /// Entities that can collide. Bounding box should be in world space.
@@ -234,6 +235,10 @@ pub fn tick(a: &mut impl Dynamic, dt: f32) {
             todo!();
         }
     }
+}
+
+pub fn update_instance(instanced: &mut (impl RenderInstanced<[[f32; 4]; 4]> + Transform)) {
+    *instanced.instance_mut() = Into::<[[f32; 4]; 4]>::into(instanced.transform());
 }
 
 impl Position for Matrix4<f32> {

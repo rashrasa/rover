@@ -1,5 +1,6 @@
 use crate::{ContiguousView, ContiguousViewMut};
 
+#[derive(Debug)]
 pub struct Object {
     id: u64,
     mesh_id: u64,
@@ -79,7 +80,7 @@ impl super::Dynamic for Object {
 impl super::Transform for Object {
     fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
         self.transform.generic_view_with_steps(
-            (0, 3),
+            (0, 0),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
             (0, 0),
         )
@@ -87,7 +88,7 @@ impl super::Transform for Object {
 
     fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4> {
         self.transform.generic_view_with_steps_mut(
-            (0, 3),
+            (0, 0),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
             (0, 0),
         )
@@ -137,5 +138,9 @@ impl super::RenderInstanced<[[f32; 4]; 4]> for Object {
 
     fn instance(&self) -> &[[f32; 4]; 4] {
         &self.instance
+    }
+
+    fn instance_mut(&mut self) -> &mut [[f32; 4]; 4] {
+        &mut self.instance
     }
 }

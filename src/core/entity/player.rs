@@ -135,7 +135,7 @@ impl super::Dynamic for Player {
 impl super::Transform for Player {
     fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
         self.transform.generic_view_with_steps(
-            (0, 3),
+            (0, 0),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
             (0, 0),
         )
@@ -143,7 +143,7 @@ impl super::Transform for Player {
 
     fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4> {
         self.transform.generic_view_with_steps_mut(
-            (0, 3),
+            (0, 0),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
             (0, 0),
         )
@@ -247,5 +247,9 @@ impl RenderInstanced<[[f32; 4]; 4]> for Player {
 
     fn instance(&self) -> &[[f32; 4]; 4] {
         &self.instance
+    }
+
+    fn instance_mut(&mut self) -> &mut [[f32; 4]; 4] {
+        &mut self.instance
     }
 }

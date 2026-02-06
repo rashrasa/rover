@@ -32,7 +32,7 @@ pub const METRICS_INTERVAL: Duration = Duration::new(10, 0);
 
 pub fn init_logging() {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .target(env_logger::Target::Stdout)
         .init();
 }
