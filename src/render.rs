@@ -842,7 +842,7 @@ impl Renderer {
         if self.n_renders % 1000 == 0 {
             let start = Instant::now();
             self.queue.on_submitted_work_done(move || {
-                debug!("GPU time: {}", start.elapsed().as_secs_f64());
+                debug!("GPU time: {} ms", start.elapsed().as_secs_f64() * 1000.0);
             });
         }
 
