@@ -2,7 +2,7 @@ use nalgebra::{Matrix, Matrix4, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 use crate::{
-    Integrator,
+    ContiguousView, ContiguousViewMut, Integrator,
     core::{
         camera::{Camera, NoClipCamera},
         entity::{
@@ -98,36 +98,47 @@ impl Player {
     }
 }
 
-impl super::Transform for Player {
-    fn transform(&self) -> &Matrix4<f32> {
-        &self.transform
+impl super::Dynamic for Player {
+    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
     }
-    fn transform_mut(&mut self) -> &mut Matrix4<f32> {
-        &mut self.transform
+
+    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+    }
+
+    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
+    }
+
+    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+    }
+}
+
+impl super::Transform for Player {
+    fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
+        self.transform.fixed_view::<4, 4>(0, 3)
+    }
+
+    fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4> {
+        self.transform.fixed_view_mut::<4, 4>(0, 3)
+    }
+}
+
+impl super::Position for Player {
+    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.transform.position()
+    }
+
+    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.transform.position_mut()
     }
 }
 
 impl super::Mass for Player {
     fn mass(&self) -> &f32 {
         &self.mass
-    }
-}
-
-impl super::Dynamic for Player {
-    fn velocity(&self) -> &Vector3<f32> {
-        &self.velocity
-    }
-
-    fn velocity_mut(&mut self) -> &mut Vector3<f32> {
-        &mut self.velocity
-    }
-
-    fn acceleration(&self) -> &Vector3<f32> {
-        &self.acceleration
-    }
-
-    fn acceleration_mut(&mut self) -> &mut Vector3<f32> {
-        &mut self.acceleration
     }
 }
 
@@ -140,7 +151,7 @@ impl super::Collide for Player {
     }
 }
 
-impl super::Render for Player {
+impl super::RenderUniform for Player {
     fn texture_id(&self) -> &u64 {
         &self.texture_id
     }
@@ -161,8 +172,8 @@ impl super::Entity for Player {
 }
 
 impl super::View for Player {
-    fn view_proj(&self) -> &Matrix4<f32> {
-        self.camera.view_proj()
+    fn view_proj<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
+        self.camera.view_proj().fixed_view::<4, 4>(0, 0)
     }
 
     fn set_projection(&mut self, projection: crate::core::camera::Projection) {

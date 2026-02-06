@@ -1,3 +1,5 @@
+use crate::{ContiguousView, ContiguousViewMut};
+
 pub struct Object {
     id: u64,
     mesh_id: u64,
@@ -41,30 +43,40 @@ impl Object {
 }
 
 impl super::Dynamic for Object {
-    fn velocity(&self) -> &nalgebra::Vector3<f32> {
-        &self.velocity
+    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
     }
 
-    fn velocity_mut(&mut self) -> &mut nalgebra::Vector3<f32> {
-        &mut self.velocity
+    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
     }
 
-    fn acceleration(&self) -> &nalgebra::Vector3<f32> {
-        &self.acceleration
+    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
     }
 
-    fn acceleration_mut(&mut self) -> &mut nalgebra::Vector3<f32> {
-        &mut self.acceleration
+    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
     }
 }
 
 impl super::Transform for Object {
-    fn transform(&self) -> &nalgebra::Matrix4<f32> {
-        &self.transform
+    fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
+        self.transform.fixed_view::<4, 4>(0, 3)
     }
 
-    fn transform_mut(&mut self) -> &mut nalgebra::Matrix4<f32> {
-        &mut self.transform
+    fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4> {
+        self.transform.fixed_view_mut::<4, 4>(0, 3)
+    }
+}
+
+impl super::Position for Object {
+    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.transform.position()
+    }
+
+    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.transform.position_mut()
     }
 }
 

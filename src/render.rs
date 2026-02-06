@@ -191,15 +191,18 @@ impl App {
 
     /// "Vertex" is the most common vertex type to be used in most cases and
     /// is the only one available to add for now.
-    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData<Vertex>>) {
+    pub fn add_meshes(&mut self, mut meshes: Vec<MeshInitData<Vertex>>) -> Vec<usize> {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
+                let mut ids = vec![];
                 while let Some(data) = meshes.pop() {
+                    ids.push(init_data.transform_meshes.len());
                     init_data.transform_meshes.push(data);
                 }
+                ids
             }
             AppState::Started { renderer, state: _ } => {
-                renderer
+                return renderer
                     .render_module_transformed
                     .add_meshes(&renderer.device, &renderer.queue, meshes)
                     .unwrap();

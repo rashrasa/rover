@@ -12,7 +12,10 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::{CHUNK_RESOLUTION, CHUNK_SIZE};
+use crate::{
+    CHUNK_RESOLUTION, CHUNK_SIZE, ContiguousView, ContiguousViewMut,
+    core::entity::{Dynamic, Entity, Position, Transform},
+};
 
 pub const TERRAIN_MESH: u64 = 2;
 
@@ -42,7 +45,7 @@ struct Terrain {
 ///
 /// sampling_frequency should specify the size of each chunk in the x and z directions.
 #[derive(Debug)]
-struct LargeBody {
+pub struct TerrestrialBody {
     id: u64,
     radius: f32,
     position: Vector3<f32>,
@@ -52,9 +55,12 @@ struct LargeBody {
     terrain: Terrain,
 }
 
-pub enum RadiusAdjustmentStrategy {
-    Expand,
-    Shrink,
+pub struct GasBody {
+    id: u64,
+    radius: f32,
+    position: Vector3<f32>,
+    velocity: Vector3<f32>,
+    acceleration: Vector3<f32>,
 }
 
 #[derive(Debug)]
@@ -62,12 +68,12 @@ pub enum RadiusAdjustmentStrategy {
 /// Each have their own hardcoded special chunk loader (may implement more customized world generation).
 pub struct World {
     seed: u64,
-    bodies: [LargeBody; 0],
+    bodies: [TerrestrialBody; 0],
 }
 
 impl World {
     pub fn new(seed: u64) -> Self {
-        let mut sun = LargeBody {
+        let mut sun = TerrestrialBody {
             id: 0,
             radius: 1000.0,
             position: Vector3::zeros(),
@@ -87,5 +93,45 @@ impl World {
             seed: seed,
             bodies: [],
         }
+    }
+}
+
+impl Entity for GasBody {
+    fn id(&self) -> &u64 {
+        &self.id
+    }
+}
+
+impl Dynamic for GasBody {
+    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
+    }
+
+    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+    }
+
+    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.acceleration.fixed_view::<3, 1>(0, 0)
+    }
+
+    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+    }
+}
+
+impl Position for GasBody {
+    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.position.fixed_view::<3, 1>(0, 0)
+    }
+
+    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.position.fixed_view_mut::<3, 1>(0, 0)
+    }
+}
+
+impl Entity for TerrestrialBody {
+    fn id(&self) -> &u64 {
+        &self.id
     }
 }

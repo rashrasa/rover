@@ -1,11 +1,10 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use bytemuck::{Pod, Zeroable};
 use nalgebra::{Matrix4, Vector3};
 use wgpu::BindGroup;
-use winit::keyboard::KeyCode;
 
-use crate::{Integrator, core::camera::Projection};
+use crate::{ContiguousView, ContiguousViewMut, Integrator, core::camera::Projection};
 
 // Each entity module is simply just a unique composition of these traits below.
 pub mod object;
@@ -18,40 +17,46 @@ pub trait Entity {
 }
 
 /// Entities that have a mutable transform component.
-pub trait Transform: Entity {
-    fn transform(&self) -> &Matrix4<f32>;
-    fn transform_mut(&mut self) -> &mut Matrix4<f32>;
+pub trait Transform {
+    fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4>;
+    fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4>;
 }
 
-/// Entities that have a mass component.
-pub trait Mass: Entity {
-    fn mass(&self) -> &f32;
+/// Entities that have a mutable position component.
+pub trait Position {
+    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
+    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
 }
 
 /// Entities that have a mutable acceleration and velocity component.
-pub trait Dynamic: Transform + Entity {
-    fn velocity(&self) -> &Vector3<f32>;
-    fn velocity_mut(&mut self) -> &mut Vector3<f32>;
+pub trait Dynamic: Position {
+    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
+    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
 
-    fn acceleration(&self) -> &Vector3<f32>;
-    fn acceleration_mut(&mut self) -> &mut Vector3<f32>;
+    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
+    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
+}
+
+/// Entities that have a mass component.
+pub trait Mass {
+    fn mass(&self) -> &f32;
 }
 
 /// Entities that can be used as a view.
-pub trait View: Entity {
+pub trait View {
     fn set_projection(&mut self, projection: Projection);
-    fn view_proj(&self) -> &Matrix4<f32>;
+    fn view_proj<'a>(&'a self) -> ContiguousView<'a, 4, 4>;
 }
 
 /// Entities that can be rendered.
-pub trait Render: Transform + Entity {
+pub trait RenderUniform: Transform {
     fn texture_id(&self) -> &u64;
     fn mesh_id(&self) -> &u64;
     fn bind_group(&self) -> &BindGroup;
 }
 
 /// Entities that can be rendered and should be instanced.
-pub trait RenderInstanced<I>: Entity
+pub trait RenderInstanced<I>
 where
     I: Pod + Zeroable + Clone + Copy + Debug,
 {
@@ -61,12 +66,14 @@ where
 }
 
 /// Entities that can collide. Bounding box should be in world space.
+///
+/// Entity trait bound is necessary here to avoid checking collisions with same element
 pub trait Collide: Dynamic + Mass + Entity {
     fn bounding_box(&self) -> &BoundingBox;
     fn response(&self) -> &CollisionResponse;
 }
 
-pub trait Illuminate: Transform + Render + Entity {
+pub trait Illuminate: Position {
     fn luminance(&self) -> &f64;
 }
 
@@ -134,10 +141,28 @@ impl BoundingBox {
  * Most world logic should live here.
  */
 
-/// Checks for a collision between the two objects and updates velocities.
-///
-/// It's the job of the caller to verify when this needs to be called.
-pub fn perform_single_collision(a: &mut impl Collide, b: &mut impl Collide) {
+/// Performs object-object collisions for every element in the list.
+pub fn perform_collisions(objects: &Vec<impl Collide>) {
+    // Calculate each collision and add them up for each object.
+    let mut net_collisions: Vec<Vector3<f32>> = Vec::new();
+    for (i, a) in objects.iter().enumerate() {
+        net_collisions.push(Vector3::zeros());
+        for (j, b) in objects.iter().enumerate() {
+            if j != i {
+                let (v_a, _) = calculate_single_collision(a, b);
+                net_collisions[i] += v_a;
+            }
+        }
+    }
+
+    for o in objects.iter() {}
+}
+
+/// Checks for a collision between the two objects and returns new velocities.
+pub fn calculate_single_collision(
+    a: &impl Collide,
+    b: &impl Collide,
+) -> (Vector3<f32>, Vector3<f32>) {
     todo!();
 
     // TODO: Use position and velocity to determine whether to skip certain collision tests.
@@ -187,27 +212,36 @@ pub fn perform_single_collision(a: &mut impl Collide, b: &mut impl Collide) {
 pub fn tick(a: &mut impl Dynamic, dt: f32) {
     match crate::GLOBAL_INTEGRATOR {
         Integrator::RK4 => {
-            let acceleration = *a.acceleration();
+            let acceleration = Vector3::from(a.acceleration());
             let k1 = acceleration;
             let k2 = acceleration + k1 * dt / 2.0;
             let k3 = acceleration + k2 * dt / 2.0;
             let k4 = acceleration + k3 * dt;
-            *a.acceleration_mut() += (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
+            let mut velocity = a.velocity_mut();
+            velocity += (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
 
-            let velocity = *a.velocity();
+            let velocity = Vector3::from(a.velocity());
             let k1 = velocity;
             let k2 = velocity + k1 * dt / 2.0;
             let k3 = velocity + k2 * dt / 2.0;
             let k4 = velocity + k3 * dt;
 
             let translation = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
-            let transform = a.transform_mut();
-            transform.m14 += translation.x;
-            transform.m24 += translation.y;
-            transform.m34 += translation.z;
+            let mut transform = a.position_mut();
+            transform += translation;
         }
         Integrator::Euler => {
             todo!();
         }
+    }
+}
+
+impl Position for Matrix4<f32> {
+    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
+        self.fixed_view::<3, 1>(0, 3)
+    }
+
+    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
+        self.fixed_view_mut::<3, 1>(0, 3)
     }
 }
