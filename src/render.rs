@@ -195,7 +195,8 @@ impl App {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
                 let mut ids = vec![];
-                while let Some(data) = meshes.pop() {
+                while meshes.len() > 0 {
+                    let data = meshes.remove(0);
                     ids.push(init_data.transform_meshes.len());
                     init_data.transform_meshes.push(data);
                 }
@@ -329,7 +330,8 @@ impl ApplicationHandler<Event> for App {
 
             info!("Adding entities");
             let mut players = vec![];
-            while let Some(entity) = players_init.pop() {
+            while players_init.len() > 0 {
+                let entity = players_init.remove(0);
                 let player = Player::new(
                     entity.id,
                     entity.mesh_id,
@@ -360,7 +362,8 @@ impl ApplicationHandler<Event> for App {
             }
 
             let mut objects = vec![];
-            while let Some(object_init) = objects_init.pop() {
+            while objects_init.len() > 0 {
+                let object_init = objects_init.remove(0);
                 let object = Object::new(
                     object_init.id,
                     object_init.mesh_id,
@@ -377,13 +380,15 @@ impl ApplicationHandler<Event> for App {
             }
 
             info!("Creating textures");
-            while let Some(data) = textures.pop() {
+            while textures.len() > 0 {
+                let data = textures.remove(0);
                 renderer.new_texture(TextureInitData {
                     id: data.id,
                     image: data.image,
                     resize: data.resize,
                 });
             }
+
             info!("Creating GPU buffers");
             let mut active_state = ActiveState {
                 current_player: players.pop().unwrap(),
