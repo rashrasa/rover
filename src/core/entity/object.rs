@@ -44,18 +44,18 @@ impl Object {
 
 impl super::Dynamic for Object {
     fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps(
+        self.velocity.generic_view_with_steps(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
     fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps_mut(
+        self.velocity.generic_view_with_steps_mut(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -63,7 +63,7 @@ impl super::Dynamic for Object {
         self.acceleration.generic_view_with_steps(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -71,7 +71,7 @@ impl super::Dynamic for Object {
         self.acceleration.generic_view_with_steps_mut(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 }
@@ -81,7 +81,7 @@ impl super::Transform for Object {
         self.transform.generic_view_with_steps(
             (0, 3),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -89,7 +89,7 @@ impl super::Transform for Object {
         self.transform.generic_view_with_steps_mut(
             (0, 3),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
-            (1, 1),
+            (0, 0),
         )
     }
 }

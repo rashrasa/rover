@@ -100,18 +100,18 @@ impl Player {
 
 impl super::Dynamic for Player {
     fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps(
+        self.velocity.generic_view_with_steps(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
     fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps_mut(
+        self.velocity.generic_view_with_steps_mut(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -119,7 +119,7 @@ impl super::Dynamic for Player {
         self.acceleration.generic_view_with_steps(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -127,7 +127,7 @@ impl super::Dynamic for Player {
         self.acceleration.generic_view_with_steps_mut(
             (0, 0),
             (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (1, 1),
+            (0, 0),
         )
     }
 }
@@ -137,7 +137,7 @@ impl super::Transform for Player {
         self.transform.generic_view_with_steps(
             (0, 3),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
-            (1, 1),
+            (0, 0),
         )
     }
 
@@ -145,7 +145,7 @@ impl super::Transform for Player {
         self.transform.generic_view_with_steps_mut(
             (0, 3),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
-            (1, 1),
+            (0, 0),
         )
     }
 }
@@ -200,7 +200,7 @@ impl super::View for Player {
         self.camera.view_proj().generic_view_with_steps(
             (0, 0),
             (nalgebra::Const::<4>, nalgebra::Const::<4>),
-            (1, 1),
+            (0, 0),
         )
     }
 
