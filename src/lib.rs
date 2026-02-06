@@ -52,10 +52,22 @@ type Mat<const N: usize, const M: usize> = nalgebra::Matrix<
     nalgebra::ArrayStorage<FLOAT, N, M>,
 >;
 
-type ContiguousView<'a, const N: usize, const M: usize> =
-    nalgebra::MatrixView<'a, FLOAT, nalgebra::Const<N>, nalgebra::Const<M>>;
-type ContiguousViewMut<'a, const N: usize, const M: usize> =
-    nalgebra::MatrixViewMut<'a, FLOAT, nalgebra::Const<N>, nalgebra::Const<M>>;
+type ContiguousView<'a, const N: usize, const M: usize> = nalgebra::MatrixView<
+    'a,
+    FLOAT,
+    nalgebra::Const<N>,
+    nalgebra::Const<M>,
+    nalgebra::Dyn,
+    nalgebra::Dyn,
+>;
+type ContiguousViewMut<'a, const N: usize, const M: usize> = nalgebra::MatrixViewMut<
+    'a,
+    FLOAT,
+    nalgebra::Const<N>,
+    nalgebra::Const<M>,
+    nalgebra::Dyn,
+    nalgebra::Dyn,
+>;
 
 pub struct IDBank {
     next: u64,

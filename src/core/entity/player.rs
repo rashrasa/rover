@@ -100,29 +100,53 @@ impl Player {
 
 impl super::Dynamic for Player {
     fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.fixed_view::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps_mut(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.fixed_view::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps_mut(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 }
 
 impl super::Transform for Player {
     fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
-        self.transform.fixed_view::<4, 4>(0, 3)
+        self.transform.generic_view_with_steps(
+            (0, 3),
+            (nalgebra::Const::<4>, nalgebra::Const::<4>),
+            (1, 1),
+        )
     }
 
     fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4> {
-        self.transform.fixed_view_mut::<4, 4>(0, 3)
+        self.transform.generic_view_with_steps_mut(
+            (0, 3),
+            (nalgebra::Const::<4>, nalgebra::Const::<4>),
+            (1, 1),
+        )
     }
 }
 
@@ -173,7 +197,11 @@ impl super::Entity for Player {
 
 impl super::View for Player {
     fn view_proj<'a>(&'a self) -> ContiguousView<'a, 4, 4> {
-        self.camera.view_proj().fixed_view::<4, 4>(0, 0)
+        self.camera.view_proj().generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<4>, nalgebra::Const::<4>),
+            (1, 1),
+        )
     }
 
     fn set_projection(&mut self, projection: crate::core::camera::Projection) {

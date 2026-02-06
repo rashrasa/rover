@@ -104,29 +104,41 @@ impl Entity for GasBody {
 
 impl Dynamic for GasBody {
     fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.fixed_view::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps_mut((0, 0), (nalgebra::Const::<3>, nalgebra::Const::<1>), (1, 1))
     }
 
     fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.fixed_view::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.fixed_view_mut::<3, 1>(0, 0)
+        self.acceleration.generic_view_with_steps_mut((0, 0), (nalgebra::Const::<3>, nalgebra::Const::<1>), (1, 1))
     }
 }
 
 impl Position for GasBody {
     fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.position.fixed_view::<3, 1>(0, 0)
+        self.position.generic_view_with_steps(
+            (0, 0),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 
     fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.position.fixed_view_mut::<3, 1>(0, 0)
+        self.position.generic_view_with_steps_mut((0, 0), (nalgebra::Const::<3>, nalgebra::Const::<1>), (1, 1))
     }
 }
 

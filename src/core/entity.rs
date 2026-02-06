@@ -238,10 +238,14 @@ pub fn tick(a: &mut impl Dynamic, dt: f32) {
 
 impl Position for Matrix4<f32> {
     fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.fixed_view::<3, 1>(0, 3)
+        self.generic_view_with_steps((0, 3), (nalgebra::Const::<3>, nalgebra::Const::<1>), (1, 1))
     }
 
     fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.fixed_view_mut::<3, 1>(0, 3)
+        self.generic_view_with_steps_mut(
+            (0, 3),
+            (nalgebra::Const::<3>, nalgebra::Const::<1>),
+            (1, 1),
+        )
     }
 }
