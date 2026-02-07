@@ -1,3 +1,5 @@
+// ** Not currently in use
+
 use na::{ArrayStorage, Const, Matrix};
 use nalgebra as na;
 

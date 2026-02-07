@@ -169,9 +169,8 @@ where
         for entity in entities {
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
-            let instance = entity.instance();
 
-            self.instances[*mesh_id as usize].upsert_instance(entity_id, instance.clone());
+            self.instances[*mesh_id as usize].upsert_instance(entity_id, entity.instance());
         }
 
         Ok(())

@@ -27,9 +27,7 @@ pub struct Player {
     camera: NoClipCamera, // TODO: camera and transform both store a position
     response: CollisionResponse,
     mass: f32,
-
-    // cached
-    instance: [[f32; 4]; 4],
+    needs_update: bool,
 }
 
 impl Player {
@@ -56,7 +54,7 @@ impl Player {
             camera,
             response,
             mass,
-            instance: transform.into(),
+            needs_update: true,
         }
     }
 
@@ -245,11 +243,11 @@ impl RenderInstanced<[[f32; 4]; 4]> for Player {
         &self.mesh_id
     }
 
-    fn instance(&self) -> &[[f32; 4]; 4] {
-        &self.instance
+    fn instance(&self) -> [[f32; 4]; 4] {
+        self.transform.into()
     }
 
-    fn instance_mut(&mut self) -> &mut [[f32; 4]; 4] {
-        &mut self.instance
+    fn needs_update(&mut self) -> &mut bool {
+        &mut self.needs_update
     }
 }

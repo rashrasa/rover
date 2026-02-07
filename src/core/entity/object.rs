@@ -11,9 +11,7 @@ pub struct Object {
     transform: nalgebra::Matrix4<f32>,
     acceleration: nalgebra::Vector3<f32>,
     velocity: nalgebra::Vector3<f32>,
-
-    // cached
-    instance: [[f32; 4]; 4],
+    needs_update: bool,
 }
 
 impl Object {
@@ -38,7 +36,7 @@ impl Object {
             transform,
             acceleration,
             velocity,
-            instance: transform.into(),
+            needs_update: true,
         }
     }
 }
@@ -136,11 +134,11 @@ impl super::RenderInstanced<[[f32; 4]; 4]> for Object {
         &self.mesh_id
     }
 
-    fn instance(&self) -> &[[f32; 4]; 4] {
-        &self.instance
+    fn instance(&self) -> [[f32; 4]; 4] {
+        self.transform.into()
     }
 
-    fn instance_mut(&mut self) -> &mut [[f32; 4]; 4] {
-        &mut self.instance
+    fn needs_update(&mut self) -> &mut bool {
+        &mut self.needs_update
     }
 }

@@ -14,7 +14,7 @@ use wgpu::{
 
 use crate::{
     CHUNK_RESOLUTION, CHUNK_SIZE, ContiguousView, ContiguousViewMut,
-    core::entity::{Dynamic, Entity, Mass, Position, Transform},
+    core::entity::{self, Dynamic, Entity, Mass, Position, Transform},
 };
 
 pub const TERRAIN_MESH: u64 = 2;
@@ -82,7 +82,7 @@ impl World {
             id: 0,
             radius: 1000.0,
             mass: 1.0e15,
-            position: Vector3::new(10.0, 10.0, 10.0),
+            position: Vector3::new(2.0, 0.0, 4.0),
             acceleration: Vector3::zeros(),
             velocity: Vector3::zeros(),
         };
@@ -91,7 +91,7 @@ impl World {
             id: 1,
             radius: 1000.0,
             mass: 1.0e15,
-            position: Vector3::new(-10.0, -10.0, -10.0),
+            position: Vector3::new(-5.0, 0.0, -7.0),
             acceleration: Vector3::zeros(),
             velocity: Vector3::zeros(),
             terrain: Terrain {
@@ -113,6 +113,12 @@ impl World {
 
     pub fn main_mut(&mut self) -> &mut TerrestrialBody {
         &mut self.main
+    }
+
+    pub fn update(&mut self, elapsed: f32) {
+        entity::apply_gravity(&mut self.main, &mut self.sun);
+        entity::tick(&mut self.sun, elapsed);
+        entity::tick(&mut self.main, elapsed);
     }
 }
 

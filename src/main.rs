@@ -46,32 +46,32 @@ fn main() {
         ),
         transform: Matrix4::new_translation(&[0.0, 10.0, 0.0].into()),
         response: CollisionResponse::Inelastic(1.0),
-        mass: 1.0,
+        mass: 100.0,
     });
 
-    for i in -10..11 {
-        for j in 15..16 {
-            for k in -10..11 {
+    for i in 0..10 {
+        for j in 0..1 {
+            for k in 0..10 {
                 app.add_object(ObjectInitData {
                     id: id_bank.next(),
-                    mesh_id: if ((i + k) as i64).rem_euclid(2) == 0 {
+                    mesh_id: if ((i + k + j) as i64).rem_euclid(2) == 0 {
                         MESH_CUBE2
                     } else {
                         MESH_ROUNDISH
                     },
                     texture_id: 0,
-                    velocity: Vector3::new(0.9 * i as f32, 0.0, 0.9 * k as f32),
+                    velocity: Vector3::zeros(),
                     acceleration: Vector3::zeros(),
                     bounding_box: BoundingBox::new(
                         (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
-                    mass: 50.0,
+                    mass: 5.0,
                     transform: Matrix4::new_translation(
                         &[10.0 * i as f32, 2.0 * j as f32, 10.0 * k as f32].into(),
                     ) * Rotation3::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
-                        -PI / 4.0,
+                        -(PI * (i + k + j) as f32) / 4.0,
                     )
                     .to_homogeneous()
                         * Matrix4::new_scaling(10.0),

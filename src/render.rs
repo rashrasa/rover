@@ -145,6 +145,8 @@ impl ActiveState {
             entity::apply_gravity(object, world.main_mut());
             entity::tick(object, elapsed);
         }
+
+        world.update(elapsed);
     }
 }
 
@@ -729,19 +731,12 @@ impl Renderer {
 
     pub fn update_instances(&mut self, active_state: &mut ActiveState) {
         self.render_module_transformed
-            .upsert_instances(active_state.players.iter_mut().map(|i| {
-                entity::update_instance(i);
-                return &*i;
-            }))
+            .upsert_instances(active_state.players.iter())
             .unwrap();
         self.render_module_transformed
-            .upsert_instances(active_state.objects.iter_mut().map(|i| {
-                entity::update_instance(i);
-                return &*i;
-            }))
+            .upsert_instances(active_state.objects.iter())
             .unwrap();
 
-        entity::update_instance(&mut active_state.current_player);
         self.render_module_transformed
             .upsert_instances(std::iter::once(&active_state.current_player))
             .unwrap();
