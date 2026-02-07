@@ -8,7 +8,7 @@
 //  - Uniforms (cameras, lights, textures, data which is constant across all vertices/instances)
 //  - Vertex shader
 //  - Fragment shader
-//  - Render Pipeline (draw order, backface culling, render configuration)
+//  - Render Pipeline (draw order, face culling options, render configuration)
 
 use std::{io::Read, num::NonZero, ops::Deref, slice::Iter};
 

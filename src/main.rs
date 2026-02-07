@@ -7,7 +7,7 @@ use rover::{
     CHUNK_RESOLUTION, CHUNK_SIZE, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
     core::{
         entity::{BoundingBox, CollisionResponse},
-        geometry::{Face, Mesh, Shape3},
+        geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
     render::{
         App, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData,
@@ -22,8 +22,9 @@ fn main() {
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
     let mut app = App::new(&event_loop, 1920, 1080, 0);
-
-    app.add_meshes(get_sample_meshes());
+    let meshes = get_sample_meshes();
+    let n_meshes = meshes.len();
+    app.add_meshes(meshes);
 
     app.add_texture(TextureInitData {
         id: 0,
@@ -54,11 +55,7 @@ fn main() {
             for k in 0..10 {
                 app.add_object(ObjectInitData {
                     id: id_bank.next(),
-                    mesh_id: if ((i + k + j) as i64).rem_euclid(2) == 0 {
-                        MESH_CUBE2
-                    } else {
-                        MESH_ROUNDISH
-                    },
+                    mesh_id: (i + j + k) % n_meshes as u64,
                     texture_id: 0,
                     velocity: Vector3::zeros(),
                     acceleration: Vector3::zeros(),
@@ -74,17 +71,11 @@ fn main() {
                         -(PI * (i + k + j) as f32) / 4.0,
                     )
                     .to_homogeneous()
-                        * Matrix4::new_scaling(10.0),
+                        * Matrix4::new_scaling(5.0),
 
                     response: CollisionResponse::Inelastic(0.9),
                 });
             }
-        }
-    }
-
-    for x in -0..1 {
-        for z in -0..1 {
-            app.load_chunk(x, z);
         }
     }
 
@@ -96,14 +87,13 @@ fn main() {
 }
 
 fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
+    let resolution = 32.0;
+
     let ground = Face::from_function(
         [0.0, 1.0, 0.0].into(),
         (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
         (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
-        (
-            CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
-            CHUNK_RESOLUTION as f32 / CHUNK_SIZE as f32,
-        ),
+        (CHUNK_RESOLUTION as f32, CHUNK_RESOLUTION as f32),
         |x, z| 5.0,
     )
     .unwrap();
@@ -116,7 +106,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 1.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -124,7 +114,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, -1.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -132,7 +122,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -140,7 +130,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [-1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -148,7 +138,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 0.0, 1.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -156,7 +146,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 0.0, -1.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (2.0, 2.0),
+                (resolution, resolution),
                 |_, _| 0.5,
             )
             .unwrap(),
@@ -171,7 +161,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 1.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -179,7 +169,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, -1.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -187,7 +177,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -195,7 +185,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [-1.0, 0.0, 0.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -203,7 +193,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 0.0, 1.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -211,7 +201,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
                 [0.0, 0.0, -1.0].into(),
                 (-0.5, 0.5),
                 (-0.5, 0.5),
-                (8.0, 8.0),
+                (resolution, resolution),
                 |x, z| 1.0 - x * x - z * z,
             )
             .unwrap(),
@@ -219,6 +209,56 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
         vec![],
     )
     .unwrap();
+
+    let sphere_top = Face::from_function(
+        [0.0, 1.0, 0.0].into(),
+        (-0.5, 0.5),
+        (-0.5, 0.5),
+        (resolution, resolution),
+        |x, z| 1.0 - x * x - z * z,
+    )
+    .unwrap();
+    let sphere_bottom = Face::from_function(
+        [0.0, -1.0, 0.0].into(),
+        (-0.5, 0.5),
+        (-0.5, 0.5),
+        (resolution, resolution),
+        |x, z| 1.0 - x * x - z * z,
+    )
+    .unwrap();
+
+    let face_joins = vec![
+        EdgeJoin::new(
+            sphere_bottom.edge_px().clone(),
+            1,
+            sphere_top.edge_nx().clone(),
+            0,
+        )
+        .unwrap(),
+        EdgeJoin::new(
+            sphere_bottom.edge_nx().clone(),
+            1,
+            sphere_top.edge_px().clone(),
+            0,
+        )
+        .unwrap(),
+        EdgeJoin::new(
+            sphere_bottom.edge_pz().clone(),
+            1,
+            sphere_top.edge_pz().clone(),
+            0,
+        )
+        .unwrap(),
+        EdgeJoin::new(
+            sphere_bottom.edge_nz().clone(),
+            1,
+            sphere_top.edge_nz().clone(),
+            0,
+        )
+        .unwrap(),
+    ];
+
+    let sphere_mesh = Shape3::new(vec![sphere_top, sphere_bottom], face_joins).unwrap();
 
     vec![
         MeshInitData {
@@ -235,6 +275,11 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
             id: MESH_FLAT16,
             vertices: ground.vertices().to_vec(),
             indices: ground.indices().to_vec(),
+        },
+        MeshInitData {
+            id: 3,
+            vertices: sphere_mesh.vertices().to_vec(),
+            indices: sphere_mesh.indices().to_vec(),
         },
     ]
 }

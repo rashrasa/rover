@@ -297,14 +297,6 @@ impl App {
             }
         }
     }
-
-    /// Loads chunk with (0,0) at (x/16, z/16)
-    pub fn load_chunk(&mut self, x: i64, z: i64) {
-        // let height_map = self.world.request_chunk_exact(x, z);
-
-        // TODO: Create Terrain
-        //todo!();
-    }
 }
 
 impl ApplicationHandler<Event> for App {

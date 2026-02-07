@@ -43,6 +43,22 @@ impl Face {
         }
     }
 
+    pub fn edge_px(&self) -> &Vec<u16> {
+        &self.edge_px
+    }
+
+    pub fn edge_nx(&self) -> &Vec<u16> {
+        &self.edge_nx
+    }
+
+    pub fn edge_pz(&self) -> &Vec<u16> {
+        &self.edge_pz
+    }
+
+    pub fn edge_nz(&self) -> &Vec<u16> {
+        &self.edge_nz
+    }
+
     /// Transformed flat mesh. [height] should accept x, z values within the domain described.
     /// Domain should be in a space where (0,1,0) is up. After the mesh is created, it will be rotated
     /// according to the provided up direction about the point (0,0,0).
