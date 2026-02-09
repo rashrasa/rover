@@ -1,23 +1,9 @@
-use std::{
-    collections::HashMap,
-    ops::{Range, RangeBounds},
-};
+use std::collections::{HashMap, hash_map::Entry};
 
 use bytemuck::{Pod, Zeroable};
-use cgmath::{InnerSpace, Matrix4, Vector2};
 use nalgebra::Vector3;
-use rand::RngCore;
-use wgpu::{
-    BindGroup, BindGroupLayout, Buffer, BufferDescriptor, BufferSlice, BufferUsages, Device,
-    util::{BufferInitDescriptor, DeviceExt},
-};
 
-use crate::{
-    CHUNK_RESOLUTION, CHUNK_SIZE, ContiguousView, ContiguousViewMut,
-    core::entity::{self, Dynamic, Entity, Mass, Position, Transform},
-};
-
-pub const TERRAIN_MESH: u64 = 2;
+use crate::{CHUNK_RESOLUTION, core::entity::Position};
 
 #[repr(C)]
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
@@ -31,221 +17,64 @@ struct Chunk {
 #[derive(Debug)]
 struct Terrain {
     chunks_loaded: HashMap<(i64, i64), Chunk>, // TODO: Implement as quadtree
-    chunk_loader: fn(f32, f32) -> Chunk,
+    chunk_loader: fn(i64, i64) -> Chunk,
 }
 
-/// Currently modelled as a sphere. This is the smallest unit of terrain.
-///
-/// The given radius isn't guaranteed to be the resulting radius,
-/// to ensure the planet's mesh is uniform and visually appealing.
-/// radius_adjustment specifies if the radius should be (minimally)
-/// expanded or shrunk to the next best value.
-///
-/// chunk_loader should accept an approximate location to a chunk and return that chunk.
-///
-/// sampling_frequency should specify the size of each chunk in the x and z directions.
-#[derive(Debug)]
-pub struct TerrestrialBody {
-    id: u64,
-    radius: f32,
-    mass: f32,
-    position: Vector3<f32>,
-    velocity: Vector3<f32>,
-    acceleration: Vector3<f32>,
-
-    terrain: Terrain,
-}
-
-#[derive(Debug)]
-pub struct GasBody {
-    id: u64,
-    radius: f32,
-    mass: f32,
-    position: Vector3<f32>,
-    velocity: Vector3<f32>,
-    acceleration: Vector3<f32>,
-}
-
-#[derive(Debug)]
-/// Composed of a finite number of Large Bodies (planets).
-/// Each have their own hardcoded special chunk loader (may implement more customized world generation).
+/// In this world, the sun and moon orbit this infinite world
 pub struct World {
-    seed: u64,
-
-    sun: GasBody,
-    main: TerrestrialBody,
+    terrain: Terrain,
+    time: f32,
+    sun: Sun,
+    moon: Moon,
 }
 
 impl World {
     pub fn new(seed: u64) -> Self {
-        let sun = GasBody {
-            id: 0,
-            radius: 1000.0,
-            mass: 1.0e15,
-            position: Vector3::new(2.0, 0.0, 4.0),
-            acceleration: Vector3::zeros(),
-            velocity: Vector3::zeros(),
-        };
-
-        let main = TerrestrialBody {
-            id: 1,
-            radius: 1000.0,
-            mass: 1.0e15,
-            position: Vector3::new(-5.0, 0.0, -7.0),
-            acceleration: Vector3::zeros(),
-            velocity: Vector3::zeros(),
+        Self {
             terrain: Terrain {
                 chunks_loaded: HashMap::new(),
-                chunk_loader: |lat, long| Chunk {
-                    latitude: lat,
-                    longitude: long,
+                chunk_loader: |x, z| Chunk {
+                    latitude: x as f32,
+                    longitude: z as f32,
                     heights: [[0.0; CHUNK_RESOLUTION]; CHUNK_RESOLUTION],
                 },
             },
-        };
-
-        Self { seed, sun, main }
+            time: 0.0,
+            sun: Sun {
+                radius: 6.963e8,
+                distance: 150.0e9,
+                luminance: 3.75e28,
+            },
+            moon: Moon {
+                radius: 1.738e6,
+                distance: 3.844e8,
+            },
+        }
     }
 
-    pub fn sun_mut(&mut self) -> &mut GasBody {
-        &mut self.sun
-    }
-
-    pub fn main_mut(&mut self) -> &mut TerrestrialBody {
-        &mut self.main
-    }
-
-    pub fn update(&mut self, elapsed: f32) {
-        entity::apply_gravity(&mut self.main, &mut self.sun);
-        entity::tick(&mut self.sun, elapsed);
-        entity::tick(&mut self.main, elapsed);
-    }
-}
-
-impl Entity for GasBody {
-    fn id(&self) -> &u64 {
-        &self.id
-    }
-}
-
-impl Dynamic for GasBody {
-    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.velocity.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.velocity.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
+    /// Blocks until all chunks load
+    pub fn load(&mut self, at: (f32, f32), radius: f32) {
+        for x in ((at.0 - radius).floor() as i64)..((at.0 + radius).ceil() as i64) {
+            for z in ((at.1 - radius).floor() as i64)..((at.1 + radius).ceil() as i64) {
+                if let Entry::Vacant(not_loaded) = self.terrain.chunks_loaded.entry((x, z)) {
+                    not_loaded.insert((self.terrain.chunk_loader)(x, z));
+                }
+            }
+        }
     }
 }
 
-impl Position for GasBody {
-    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.position.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.position.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
+#[repr(C)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+pub struct Sun {
+    radius: f32,
+    distance: f32,
+    luminance: f32,
 }
 
-impl Mass for GasBody {
-    fn mass(&self) -> &f32 {
-        &self.mass
-    }
-}
-
-impl Entity for TerrestrialBody {
-    fn id(&self) -> &u64 {
-        &self.id
-    }
-}
-
-impl Dynamic for TerrestrialBody {
-    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.velocity.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.velocity.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.acceleration.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-}
-
-impl Position for TerrestrialBody {
-    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.position.generic_view_with_steps(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-
-    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.position.generic_view_with_steps_mut(
-            (0, 0),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
-    }
-}
-
-impl Mass for TerrestrialBody {
-    fn mass(&self) -> &f32 {
-        &self.mass
-    }
+#[repr(C)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+pub struct Moon {
+    radius: f32,
+    distance: f32,
 }

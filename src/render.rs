@@ -37,11 +37,11 @@ use winit::{
 };
 
 use crate::{
-    METRICS_INTERVAL,
+    METRICS_INTERVAL, RENDER_DISTANCE,
     core::{
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{self, BoundingBox, CollisionResponse, object::Object, player::Player},
+        entity::{self, BoundingBox, CollisionResponse, Position, object::Object, player::Player},
         lights::LightSourceStorage,
         world::terrain::World,
     },
@@ -130,23 +130,8 @@ pub struct ActiveState {
 
 impl ActiveState {
     fn update(&mut self, elapsed: f32, world: &mut World) {
-        for player in self.players.iter_mut() {
-            entity::apply_gravity(player, world.sun_mut());
-            entity::apply_gravity(player, world.main_mut());
-            entity::tick(player, elapsed);
-        }
-
-        entity::apply_gravity(&mut self.current_player, world.sun_mut());
-        entity::apply_gravity(&mut self.current_player, world.main_mut());
-        entity::tick(&mut self.current_player, elapsed);
-
-        for object in self.objects.iter_mut() {
-            entity::apply_gravity(object, world.sun_mut());
-            entity::apply_gravity(object, world.main_mut());
-            entity::tick(object, elapsed);
-        }
-
-        world.update(elapsed);
+        let pos = self.current_player.position();
+        world.load((pos[0], pos[2]), RENDER_DISTANCE);
     }
 }
 
