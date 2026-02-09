@@ -9,13 +9,19 @@
 
 ## Version 1 (In-Progress)
 
-- Planets:
+- Main world, flat, infinite
   - Gravity, atmosphere
   - Trees, mountains, static animated water with reflection/refraction
   - Weather events
   - Generated deterministicly from single seed
-- Solar System: 2 planets around a sun
+- Visual sun
 - Player: Walks, no model
 - Objects: Light sources
 - Intro scene: Walking out of a dark building, eyes "adjust" to lighting, gets in plane
 - Audio: Stepping on different terrain, plane, water, ambient noise
+
+## Version 2 (Not Planned, for now)
+
+- Real planets, ability to go between them, to the sun
+- Real sun, moon
+  
