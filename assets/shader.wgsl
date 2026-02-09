@@ -19,6 +19,9 @@ var s: sampler;
 @group(2) @binding(0)
 var<uniform> light: LightUniform;
 
+@group(3) @binding(0)
+var depth_texture: texture_depth_2d;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
@@ -58,14 +61,21 @@ fn vs_main(
     return out;
 }
 
+// @fragment
+// fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+//     let light_pos = light.pos.xyz;
+//     let light_vec = in.world_position.xyz - light_pos;
+//     let light_dist = length(light_vec);
+//     let light_unit_vec = normalize(light_vec);
+//     let brightness = light.luminence * 1.0 / max(light_dist * light_dist, 1.0);
+//     let lighting = light.colour.xyz * max(dot(in.normal, -light_unit_vec), 0.0);
+
+//     return vec4<f32>(lighting * brightness, 1.0) * textureSample(texture, s, in.tex_coords);
+// }
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let light_pos = light.pos.xyz;
-    let light_vec = in.world_position.xyz - light_pos;
-    let light_dist = length(light_vec);
-    let light_unit_vec = normalize(light_vec);
-    let brightness = light.luminence * 1.0 / max(light_dist * light_dist, 1.0);
-    let lighting = light.colour.xyz * max(dot(in.normal, -light_unit_vec), 0.0);
+    let depth = textureLoad(depth_texture, vec2i(floor(in.world_position.xy)), 0);
 
-    return vec4<f32>(lighting * brightness, 1.0) * textureSample(texture, s, in.tex_coords);
+    return vec4<f32>(1.0 - depth,1.0 - depth,1.0 - depth,1.0);
 }

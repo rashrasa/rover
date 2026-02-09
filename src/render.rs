@@ -16,17 +16,17 @@ use log::{debug, error, info};
 use nalgebra::{Matrix4, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
-    AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, BlendState, BufferBindingType, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Device,
-    ExperimentalFeatures, Extent3d, Face, Features, FilterMode, FrontFace, Instance,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PolygonMode, PowerPreference,
-    PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
-    SamplerBindingType, SamplerDescriptor, ShaderStages, StencilState, StoreOp, Surface,
-    SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
-    TextureViewDimension, Trace, wgt::DeviceDescriptor,
+    AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
+    BufferBindingType, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
+    CompareFunction, DepthBiasState, DepthStencilState, Device, ExperimentalFeatures, Extent3d,
+    Face, Features, FilterMode, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp,
+    MultisampleState, Operations, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
+    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+    RenderPassDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType, SamplerDescriptor,
+    ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration, SurfaceError, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+    TextureView, TextureViewDescriptor, TextureViewDimension, Trace, wgt::DeviceDescriptor,
 };
 use winit::{
     application::ApplicationHandler,
@@ -479,6 +479,7 @@ pub struct Renderer {
     depth_texture: Texture,
     depth_view: TextureView,
     depth_sampler: Sampler,
+    depth_bind_group: BindGroup,
 
     sink: Sink,
     stream_handle: OutputStream,
@@ -612,6 +613,21 @@ impl Renderer {
             ..Default::default()
         });
 
+        let depth_texture_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Depth,
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                }],
+                label: Some("Depth Bind Group Layout"),
+            });
+
         let lights = LightSourceStorage::new(
             &mut device,
             [1000.0, 1000.0, 1000.0, 1.0],
@@ -640,6 +656,9 @@ impl Renderer {
                 },
                 UniformSpec {
                     bind_group_layout: lights.layout().clone(),
+                },
+                UniformSpec {
+                    bind_group_layout: depth_texture_bind_group_layout.clone(),
                 },
             ])
             .iter(),
@@ -676,6 +695,15 @@ impl Renderer {
         )
         .unwrap();
 
+        let depth_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Depth Bind Group"),
+            layout: &depth_texture_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::TextureView(&depth_view),
+            }],
+        });
+
         let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
         let sink = rodio::Sink::connect_new(&stream_handle.mixer());
         sink.pause();
@@ -701,6 +729,7 @@ impl Renderer {
             depth_texture,
             depth_view,
             depth_sampler,
+            depth_bind_group,
 
             lights,
 
@@ -826,6 +855,7 @@ impl Renderer {
                     &state.current_player.bind_group(),
                     &&self.textures.get(&0).unwrap().3,
                     &self.lights.bind_group(),
+                    &&self.depth_bind_group,
                 ]
                 .iter(),
             );
