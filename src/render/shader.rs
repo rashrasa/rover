@@ -22,7 +22,7 @@ use wgpu::{
 };
 
 use crate::{
-    core::entity::{Entity, RenderInstanced},
+    core::{Instanced, Meshed, Unique, entity::Entity},
     render::{
         MeshInitData,
         instance::InstanceStorage,
@@ -164,7 +164,7 @@ where
 
     pub fn upsert_instances<'a>(
         &mut self,
-        entities: impl Iterator<Item = &'a (impl Entity + RenderInstanced<I> + 'a)>,
+        entities: impl Iterator<Item = &'a (impl Instanced<I> + Meshed<u64> + Unique<u64> + 'a)>,
     ) -> Result<(), String> {
         for entity in entities {
             let mesh_id = entity.mesh_id();

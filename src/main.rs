@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use image::imageops::FilterType;
 use log::info;
-use nalgebra::{Matrix4, Rotation3, UnitVector3, Vector3};
+use nalgebra::{Matrix4, Rotation3, UnitQuaternion, UnitVector3, Vector3};
 use rover::{
     CHUNK_RESOLUTION, CHUNK_SIZE, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
     core::{
@@ -45,7 +45,9 @@ fn main() {
             (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
             (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
         ),
-        transform: Matrix4::new_translation(&[0.0, 10.0, 0.0].into()),
+        scale: Vector3::identity(),
+        rotation: UnitQuaternion::identity(),
+        translation: Vector3::new(0.0, 10.0, 0.0),
         response: CollisionResponse::Inelastic(1.0),
         mass: 100.0,
     });
@@ -64,15 +66,12 @@ fn main() {
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
                     mass: 5.0,
-                    transform: Matrix4::new_translation(
-                        &[10.0 * i as f32, 2.0 * j as f32, 10.0 * k as f32].into(),
-                    ) * Rotation3::from_axis_angle(
+                    scale: Vector3::identity() * 5.0,
+                    rotation: UnitQuaternion::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
                         -(PI * (i + k + j) as f32) / 4.0,
-                    )
-                    .to_homogeneous()
-                        * Matrix4::new_scaling(5.0),
-
+                    ),
+                    translation: Vector3::new(10.0 * i as f32, 2.0 * j as f32, 10.0 * k as f32),
                     response: CollisionResponse::Inelastic(0.9),
                 });
             }

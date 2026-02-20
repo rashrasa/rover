@@ -35,28 +35,6 @@ These are specific components which are needed for the functioning of this appli
 
 ## Dev Highlights
 
-### Trait System
-
-Using traits and trait-bounds to enforce the minimum requirements for functions. This way, we keep logic in one place, without tying the logic to specific concrete types. Can be found in `src/core/entity.rs`.
-
-```rust
-pub trait Transform: Entity {
-    fn transform(&self) -> &Matrix4<f32>;
-    fn transform_mut(&mut self) -> &mut Matrix4<f32>;
-}
-pub trait Dynamic: Transform + Entity {
-    fn velocity(&self) -> &Vector3<f32>;
-    fn velocity_mut(&mut self) -> &mut Vector3<f32>;
-
-    fn acceleration(&self) -> &Vector3<f32>;
-    fn acceleration_mut(&mut self) -> &mut Vector3<f32>;
-}
-
-pub fn tick(a: &mut impl Dynamic, dt: f32) {
-    // tick logic written once and used for every type
-}
-```
-
 ### State Machine Pattern
 
 Using Rust enums to statically enforce invariants, preventing access to certain data when pre-conditions aren't met. Can be found in `src/render.rs`.

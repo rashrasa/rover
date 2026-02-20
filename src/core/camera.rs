@@ -135,6 +135,10 @@ impl NoClipCamera {
     pub fn view_proj(&self) -> &nalgebra::Matrix4<f32> {
         &self.view_proj
     }
+
+    pub fn position(&self) -> &Vector3<f32> {
+        &self.position
+    }
 }
 
 impl Camera for NoClipCamera {

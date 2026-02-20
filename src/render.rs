@@ -13,7 +13,7 @@ use std::{
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
 use log::{debug, error, info};
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::{Matrix4, UnitQuaternion, Vector3};
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -41,7 +41,7 @@ use crate::{
     core::{
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{self, BoundingBox, CollisionResponse, Position, object::Object, player::Player},
+        entity::{self, BoundingBox, CollisionResponse, Entity, EntityType},
         lights::LightSourceStorage,
         world::terrain::World,
     },
@@ -98,7 +98,9 @@ pub struct ObjectInitData {
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
-    pub transform: Matrix4<f32>,
+    pub scale: Vector3<f32>,
+    pub rotation: UnitQuaternion<f32>,
+    pub translation: Vector3<f32>,
     pub response: CollisionResponse,
     pub mass: f32,
 }
@@ -110,7 +112,9 @@ pub struct PlayerInitData {
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
-    pub transform: Matrix4<f32>,
+    pub scale: Vector3<f32>,
+    pub rotation: UnitQuaternion<f32>,
+    pub translation: Vector3<f32>,
     pub response: CollisionResponse,
     pub mass: f32,
 }
@@ -123,14 +127,13 @@ pub struct TextureInitData {
 
 // Data only available once the window and renderer are created.
 pub struct ActiveState {
-    current_player: Player,
-    players: Vec<Player>,
-    objects: Vec<Object>,
+    current_camera: NoClipCamera,
+    entities: Vec<Entity>,
 }
 
 impl ActiveState {
     fn update(&mut self, elapsed: f32, world: &mut World) {
-        let pos = self.current_player.position();
+        let pos = self.current_camera.position();
         world.load((pos[0], pos[2]), RENDER_DISTANCE);
     }
 }
@@ -211,29 +214,33 @@ impl App {
                 init_data.players.push(player);
             }
             AppState::Started { renderer, state } => {
-                let player = Player::new(
+                let player = Entity::new(
                     player.id,
                     player.mesh_id,
                     player.texture_id,
+                    player.scale,
+                    player.rotation,
+                    player.translation,
                     player.velocity,
                     player.acceleration,
                     player.bounding_box,
-                    player.transform,
-                    NoClipCamera::new(
-                        &mut renderer.device,
-                        &renderer.camera_bind_group_layout,
-                        player.transform.column(3).xyz(),
-                        0.0,
-                        0.0,
-                        0.0,
-                        Projection::new(
-                            renderer.config.width as f32,
-                            renderer.config.height as f32,
-                            90.0,
-                            0.1,
-                            10000.0,
+                    EntityType::Player {
+                        camera: NoClipCamera::new(
+                            &mut renderer.device,
+                            &renderer.camera_bind_group_layout,
+                            player.translation,
+                            0.0,
+                            0.0,
+                            0.0,
+                            Projection::new(
+                                renderer.config.width as f32,
+                                renderer.config.height as f32,
+                                90.0,
+                                0.1,
+                                10000.0,
+                            ),
                         ),
-                    ),
+                    },
                     player.response,
                     player.mass,
                 );
@@ -241,7 +248,7 @@ impl App {
                     .render_module_transformed
                     .upsert_instances(std::iter::once(&player))
                     .unwrap();
-                state.players.push(player);
+                state.entities.push(player);
             }
         }
     }
@@ -252,22 +259,25 @@ impl App {
                 init_data.objects.push(object);
             }
             AppState::Started { renderer, state } => {
-                let object = Object::new(
+                let object = Entity::new(
                     object.id,
                     object.mesh_id,
                     object.texture_id,
-                    object.mass,
-                    object.response,
-                    object.bounding_box,
-                    object.transform,
-                    object.acceleration,
+                    object.scale,
+                    object.rotation,
+                    object.translation,
                     object.velocity,
+                    object.acceleration,
+                    object.bounding_box,
+                    EntityType::Object,
+                    object.response,
+                    object.mass,
                 );
                 renderer
                     .render_module_transformed
                     .upsert_instances(std::iter::once(&object))
                     .unwrap();
-                state.objects.push(object);
+                state.entities.push(object);
             }
         }
     }
@@ -315,54 +325,60 @@ impl ApplicationHandler<Event> for App {
                 .unwrap();
 
             info!("Adding entities");
-            let mut players = vec![];
+            let mut entities = vec![];
             while players_init.len() > 0 {
                 let entity = players_init.remove(0);
-                let player = Player::new(
+                let player = Entity::new(
                     entity.id,
                     entity.mesh_id,
                     entity.texture_id,
+                    entity.scale,
+                    entity.rotation,
+                    entity.translation,
                     entity.velocity,
                     entity.acceleration,
                     entity.bounding_box,
-                    entity.transform,
-                    NoClipCamera::new(
-                        &mut renderer.device,
-                        &renderer.camera_bind_group_layout,
-                        entity.transform.column(3).xyz(),
-                        0.0,
-                        0.0,
-                        0.0,
-                        Projection::new(
-                            renderer.config.width as f32,
-                            renderer.config.height as f32,
-                            90.0,
-                            0.1,
-                            10000.0,
+                    EntityType::Player {
+                        camera: NoClipCamera::new(
+                            &mut renderer.device,
+                            &renderer.camera_bind_group_layout,
+                            entity.translation,
+                            0.0,
+                            0.0,
+                            0.0,
+                            Projection::new(
+                                renderer.config.width as f32,
+                                renderer.config.height as f32,
+                                90.0,
+                                0.1,
+                                10000.0,
+                            ),
                         ),
-                    ),
+                    },
                     entity.response,
                     entity.mass,
                 );
-                players.push(player);
+                entities.push(player);
             }
 
-            let mut objects = vec![];
             while objects_init.len() > 0 {
                 let object_init = objects_init.remove(0);
-                let object = Object::new(
+                let object = Entity::new(
                     object_init.id,
                     object_init.mesh_id,
                     object_init.texture_id,
-                    object_init.mass,
-                    object_init.response,
-                    object_init.bounding_box,
-                    object_init.transform,
-                    object_init.acceleration,
+                    object_init.scale,
+                    object_init.rotation,
+                    object_init.translation,
                     object_init.velocity,
+                    object_init.acceleration,
+                    object_init.bounding_box,
+                    EntityType::Object,
+                    object_init.response,
+                    object_init.mass,
                 );
 
-                objects.push(object);
+                entities.push(object);
             }
 
             info!("Creating textures");
@@ -377,9 +393,22 @@ impl ApplicationHandler<Event> for App {
 
             info!("Creating GPU buffers");
             let mut active_state = ActiveState {
-                current_player: players.pop().unwrap(),
-                players,
-                objects,
+                current_camera: NoClipCamera::new(
+                    &mut renderer.device,
+                    &renderer.camera_bind_group_layout,
+                    Vector3::identity(),
+                    0.0,
+                    0.0,
+                    0.0,
+                    Projection::new(
+                        renderer.config.width as f32,
+                        renderer.config.height as f32,
+                        90.0,
+                        0.1,
+                        10000.0,
+                    ),
+                ),
+                entities,
             };
 
             renderer.update_instances(&mut active_state);
@@ -403,7 +432,7 @@ impl ApplicationHandler<Event> for App {
     ) {
         if let AppState::Started { renderer, state } = &mut self.state {
             self.input
-                .window_event(&event, &renderer.window, &mut state.current_player);
+                .window_event(&event, &renderer.window, &mut state.current_camera);
         }
 
         match event {
@@ -422,11 +451,11 @@ impl ApplicationHandler<Event> for App {
                     let start = Instant::now();
 
                     self.input
-                        .update(elapsed, &mut state.current_player, &mut renderer.sink);
+                        .update(elapsed, &mut state.current_camera, &mut renderer.sink);
 
                     state.update(elapsed, &mut self.world);
 
-                    state.current_player.update_gpu(&mut renderer.queue);
+                    state.current_camera.update_gpu(&mut renderer.queue);
                     renderer.update_instances(state);
 
                     renderer.t_ticking += start.elapsed();
@@ -625,7 +654,7 @@ impl Renderer {
             Some("Transformed"),
             &VertexSpec {
                 vertex_layout: Vertex::desc(),
-                instance_layout: Player::desc(),
+                instance_layout: Entity::desc(),
             },
             &ShaderSpec {
                 path: "assets/shader.wgsl".into(),
@@ -737,14 +766,7 @@ impl Renderer {
 
     pub fn update_instances(&mut self, active_state: &mut ActiveState) {
         self.render_module_transformed
-            .upsert_instances(active_state.players.iter())
-            .unwrap();
-        self.render_module_transformed
-            .upsert_instances(active_state.objects.iter())
-            .unwrap();
-
-        self.render_module_transformed
-            .upsert_instances(std::iter::once(&active_state.current_player))
+            .upsert_instances(active_state.entities.iter())
             .unwrap();
 
         self.render_module_transformed
@@ -837,7 +859,7 @@ impl Renderer {
             self.render_module_transformed.draw_all(
                 &mut render_pass,
                 [
-                    &state.current_player.bind_group(),
+                    &state.current_camera.bind_group(),
                     &&self.textures.get(&0).unwrap().3,
                     &self.lights.bind_group(),
                     &&self.depth_bind_group,

@@ -3,7 +3,7 @@ use std::collections::{HashMap, hash_map::Entry};
 use bytemuck::{Pod, Zeroable};
 use nalgebra::Vector3;
 
-use crate::{CHUNK_RESOLUTION, core::entity::Position};
+use crate::CHUNK_RESOLUTION;
 
 #[repr(C)]
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]

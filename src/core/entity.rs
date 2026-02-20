@@ -1,86 +1,18 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use nalgebra::{Matrix4, Vector3};
-use wgpu::BindGroup;
+use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3, Vector4};
+use wgpu::{
+    BindGroup, BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
+};
 
 use crate::{
     ContiguousView, ContiguousViewMut, Integrator,
-    core::{G, camera::Projection},
+    core::{
+        G, Instanced, Meshed, Unique,
+        camera::{NoClipCamera, Projection},
+    },
 };
-
-// Each entity module is simply just a unique composition of these traits below.
-pub mod object;
-pub mod player;
-
-/// Entities are unique objects in the world.
-/// Any traits functions with &self or &mut self as a parameter will (likely) need to be unique.
-pub trait Entity {
-    fn id(&self) -> &u64;
-}
-
-/// Entities that have a mutable transform component.
-pub trait Transform {
-    fn transform<'a>(&'a self) -> ContiguousView<'a, 4, 4>;
-    fn transform_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 4, 4>;
-}
-
-/// Entities that have a mutable position component.
-pub trait Position {
-    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
-    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
-}
-
-/// Entities that have a mutable acceleration and velocity component.
-pub trait Dynamic: Position {
-    fn velocity<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
-    fn velocity_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
-
-    fn acceleration<'a>(&'a self) -> ContiguousView<'a, 3, 1>;
-    fn acceleration_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1>;
-}
-
-/// Entities that have a mass component.
-pub trait Mass {
-    fn mass(&self) -> &f32;
-}
-
-/// Entities that can be used as a view.
-pub trait View {
-    fn set_projection(&mut self, projection: Projection);
-    fn view_proj<'a>(&'a self) -> ContiguousView<'a, 4, 4>;
-}
-
-/// Entities that can be rendered.
-pub trait RenderUniform: Transform {
-    fn texture_id(&self) -> &u64;
-    fn mesh_id(&self) -> &u64;
-    fn bind_group(&self) -> &BindGroup;
-}
-
-/// Entities that can be rendered and should be instanced.
-pub trait RenderInstanced<I>
-where
-    I: Pod + Zeroable + Clone + Copy + Debug,
-{
-    fn texture_id(&self) -> &u64;
-    fn mesh_id(&self) -> &u64;
-    fn needs_update(&mut self) -> &mut bool;
-
-    fn instance(&self) -> I;
-}
-
-/// Entities that can collide. Bounding box should be in world space.
-///
-/// Entity trait bound is necessary here to avoid checking collisions with same element
-pub trait Collide: Dynamic + Mass + Entity {
-    fn bounding_box(&self) -> &BoundingBox;
-    fn response(&self) -> &CollisionResponse;
-}
-
-pub trait Illuminate: Position {
-    fn luminance(&self) -> &f64;
-}
 
 /// Elastic collisions have CollisionResponse::Inelastic(1.0).
 /// Inelastic takes any value. Values exceeding 1.0 will result in
@@ -147,129 +79,222 @@ impl BoundingBox {
  */
 
 /// Performs object-object collisions for every element in the list.
-pub fn perform_collisions(objects: &Vec<impl Collide>) {
+pub fn perform_collisions(entities: &mut Vec<Entity>) {
     // Calculate each collision and add them up for each object.
-    let mut net_collisions: Vec<Vector3<f32>> = Vec::new();
-    for (i, a) in objects.iter().enumerate() {
-        net_collisions.push(Vector3::zeros());
-        for (j, b) in objects.iter().enumerate() {
-            if j != i {
-                let (v_a, _) = calculate_single_collision(a, b);
-                net_collisions[i] += v_a;
+
+    for i in 0..entities.len() {
+        for j in 0..entities.len() {
+            if i != j {
+                let a = entities.get_mut(i).unwrap() as *mut Entity;
+                let b = entities.get_mut(j).unwrap() as *mut Entity;
+                // SAFETY: [a] and [b] are guaranteed to be valid, different Entity items,
+                //         as long as no other threads use [entities] or modify any entities.
+                unsafe {
+                    a.as_mut().unwrap().apply_gravity(b.as_mut().unwrap());
+                }
+            }
+        }
+    }
+}
+
+pub enum EntityType {
+    Player {
+        // TODO: camera and transform both store a position
+        camera: NoClipCamera,
+    },
+    Object,
+}
+
+pub struct Entity {
+    // Keys
+    id: u64,
+    mesh_id: u64,
+    texture_id: u64,
+
+    // Transforms, in order
+    scale: Vector3<f32>,
+    rotation: UnitQuaternion<f32>,
+    translation: Vector3<f32>,
+
+    // Physics
+    velocity: Vector3<f32>,
+    acceleration: Vector3<f32>,
+    bounding_box: BoundingBox,
+
+    entity_type: EntityType,
+    response: CollisionResponse,
+    mass: f32,
+}
+
+impl Entity {
+    pub fn new(
+        id: u64,
+        mesh_id: u64,
+        texture_id: u64,
+        scale: Vector3<f32>,
+        rotation: UnitQuaternion<f32>,
+        translation: Vector3<f32>,
+        velocity: Vector3<f32>,
+        acceleration: Vector3<f32>,
+        bounding_box: BoundingBox,
+
+        entity_type: EntityType,
+        response: CollisionResponse,
+        mass: f32,
+    ) -> Self {
+        Self {
+            id,
+            mesh_id,
+            texture_id,
+            scale,
+            rotation,
+            translation,
+            velocity,
+            acceleration,
+            bounding_box,
+            entity_type,
+            response,
+            mass,
+        }
+    }
+    pub fn apply_gravity(&mut self, other: &mut Entity) {
+        // a1 = G * m2/r^2
+        let to_other: Vector3<f64> = Into::<Vector3<f32>>::into(other.translation).cast::<f64>()
+            - Into::<Vector3<f32>>::into(self.translation).cast::<f64>();
+        let dist = to_other.magnitude();
+        let dir_b = to_other.normalize();
+
+        self.acceleration += ((G * other.mass as f64 / (dist * dist)) * dir_b).cast::<f32>();
+        other.acceleration += ((G * self.mass as f64 / (dist * dist)) * -dir_b).cast::<f32>();
+    }
+
+    pub fn tick(&mut self, dt: f32) {
+        match crate::GLOBAL_INTEGRATOR {
+            Integrator::RK4 => {
+                let acceleration = Vector3::from(self.acceleration);
+                let a_k1 = acceleration;
+                let a_k2 = acceleration + a_k1 * dt / 2.0;
+                let a_k3 = acceleration + a_k2 * dt / 2.0;
+                let a_k4 = acceleration + a_k3 * dt;
+                self.velocity += (a_k1 + 2.0 * a_k2 + 2.0 * a_k3 + a_k4) / 6.0 * dt;
+
+                let velocity = Vector3::from(self.velocity);
+                let v_k1 = velocity;
+                let v_k2 = velocity + v_k1 * dt / 2.0;
+                let v_k3 = velocity + v_k2 * dt / 2.0;
+                let v_k4 = velocity + v_k3 * dt;
+
+                self.translation += (v_k1 + 2.0 * v_k2 + 2.0 * v_k3 + v_k4) / 6.0 * dt;
+            }
+            Integrator::Euler => {
+                todo!();
             }
         }
     }
 
-    for o in objects.iter() {}
-}
+    /// Checks for a collision between the two objects and updates velocities.
+    pub fn perform_single_collision(&mut self, other: &mut Entity) -> (Vector3<f32>, Vector3<f32>) {
+        todo!();
+        // TODO: Use position and velocity to determine whether to skip certain collision tests.
 
-/// Checks for a collision between the two objects and returns new velocities.
-pub fn calculate_single_collision(
-    a: &impl Collide,
-    b: &impl Collide,
-) -> (Vector3<f32>, Vector3<f32>) {
-    todo!();
-    // TODO: Use position and velocity to determine whether to skip certain collision tests.
+        // match a.bounding_box().intersects(b.bounding_box()) {
+        //     None => {
+        //         return (Vector3::zeros(), Vector3::zeros());
+        //     }
+        //     Some(c) => {
+        //         let c: Vector3<f32> = c.into();
+        //         let collision_dir = match c.try_normalize(1.0e-6) {
+        //             Some(n) => n,
+        //             None => Vector3::new(1.0, 0.0, 0.0),
+        //         };
 
-    // match a.bounding_box().intersects(b.bounding_box()) {
-    //     None => {
-    //         return (Vector3::zeros(), Vector3::zeros());
-    //     }
-    //     Some(c) => {
-    //         let c: Vector3<f32> = c.into();
-    //         let collision_dir = match c.try_normalize(1.0e-6) {
-    //             Some(n) => n,
-    //             None => Vector3::new(1.0, 0.0, 0.0),
-    //         };
+        //         match a.response() {
+        //             CollisionResponse::Immovable => match b.response() {
+        //                 CollisionResponse::Immovable => {
+        //                     return (Vector3::zeros(), Vector3::zeros());
+        //                 }
+        //                 CollisionResponse::Inelastic(p_b) => {}
+        //             },
+        //             CollisionResponse::Inelastic(p_a) => match b.response() {
+        //                 CollisionResponse::Immovable => {
+        //                     return (Vector3::zeros(), Vector3::zeros());
+        //                 }
+        //                 CollisionResponse::Inelastic(p_b) => {
+        //                     let a_v0: Vector3<f32> = a.velocity().into();
+        //                     let b_v0: Vector3<f32> = b.velocity().into();
+        //                     let a_m = *a.mass();
+        //                     let b_m = *b.mass();
 
-    //         match a.response() {
-    //             CollisionResponse::Immovable => match b.response() {
-    //                 CollisionResponse::Immovable => {
-    //                     return (Vector3::zeros(), Vector3::zeros());
-    //                 }
-    //                 CollisionResponse::Inelastic(p_b) => {}
-    //             },
-    //             CollisionResponse::Inelastic(p_a) => match b.response() {
-    //                 CollisionResponse::Immovable => {
-    //                     return (Vector3::zeros(), Vector3::zeros());
-    //                 }
-    //                 CollisionResponse::Inelastic(p_b) => {
-    //                     let a_v0: Vector3<f32> = a.velocity().into();
-    //                     let b_v0: Vector3<f32> = b.velocity().into();
-    //                     let a_m = *a.mass();
-    //                     let b_m = *b.mass();
+        //                     // Needs to be solved
+        //                     let a_v1: Vector3<f32> = (((0.5 * (1.0 + p_a) * a_m * a_v0 * a_v0)
+        //                         + (0.5 * (1.0 + p_b) * b_m * b_v0 * b_v0)
+        //                         - (0.5 * b_m * b_v1 * b_v1))
+        //                         / (0.5 * a_m))
+        //                         .sqrt();
+        //                     let b_v1: Vector3<f32> = (a_m * a_v0 + b_m * b_v0 - a_m * a_v1) / b_m;
+        //                 }
+        //             },
+        //         }
+        //     }
+        // };
+    }
 
-    //                     // Needs to be solved
-    //                     let a_v1: Vector3<f32> = (((0.5 * (1.0 + p_a) * a_m * a_v0 * a_v0)
-    //                         + (0.5 * (1.0 + p_b) * b_m * b_v0 * b_v0)
-    //                         - (0.5 * b_m * b_v1 * b_v1))
-    //                         / (0.5 * a_m))
-    //                         .sqrt();
-    //                     let b_v1: Vector3<f32> = (a_m * a_v0 + b_m * b_v0 - a_m * a_v1) / b_m;
-    //                 }
-    //             },
-    //         }
-    //     }
-    // };
-}
+    pub fn texture_id(&self) -> &u64 {
+        &self.texture_id
+    }
 
-pub fn tick(a: &mut impl Dynamic, dt: f32) {
-    match crate::GLOBAL_INTEGRATOR {
-        Integrator::RK4 => {
-            let acceleration = Vector3::from(a.acceleration());
-            let k1 = acceleration;
-            let k2 = acceleration + k1 * dt / 2.0;
-            let k3 = acceleration + k2 * dt / 2.0;
-            let k4 = acceleration + k3 * dt;
-            let mut velocity = a.velocity_mut();
-            velocity += (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
-
-            let velocity = Vector3::from(a.velocity());
-            let k1 = velocity;
-            let k2 = velocity + k1 * dt / 2.0;
-            let k3 = velocity + k2 * dt / 2.0;
-            let k4 = velocity + k3 * dt;
-
-            let translation = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0 * dt;
-            let mut transform = a.position_mut();
-            transform += translation;
-        }
-        Integrator::Euler => {
-            todo!();
+    pub const fn desc() -> VertexBufferLayout<'static> {
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<[[f32; 4]; 4]>() as BufferAddress,
+            step_mode: VertexStepMode::Instance,
+            attributes: &[
+                VertexAttribute {
+                    offset: 0,
+                    shader_location: 5,
+                    format: VertexFormat::Float32x4,
+                },
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 4]>() as BufferAddress,
+                    shader_location: 6,
+                    format: VertexFormat::Float32x4,
+                },
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 8]>() as BufferAddress,
+                    shader_location: 7,
+                    format: VertexFormat::Float32x4,
+                },
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 12]>() as BufferAddress,
+                    shader_location: 8,
+                    format: VertexFormat::Float32x4,
+                },
+            ],
         }
     }
 }
 
-pub fn apply_gravity(a: &mut (impl Mass + Dynamic), b: &mut (impl Mass + Dynamic)) {
-    // a1 = G * m2/r^2
-    let to_b: Vector3<f64> = Into::<Vector3<f32>>::into(b.position()).cast::<f64>()
-        - Into::<Vector3<f32>>::into(a.position()).cast::<f64>();
-    let dist = to_b.magnitude();
-    let dir_b = to_b.normalize();
-
-    let mut accel_a = a.acceleration_mut();
-    let a_result = ((G * *b.mass() as f64 / (dist * dist)) * dir_b).cast::<f32>();
-    accel_a[0] += a_result[0];
-    accel_a[1] += a_result[1];
-    accel_a[2] += a_result[2];
-
-    let mut accel_b = b.acceleration_mut();
-    let b_result = ((G * *a.mass() as f64 / (dist * dist)) * -dir_b).cast::<f32>();
-    accel_b[0] += b_result[0];
-    accel_b[1] += b_result[1];
-    accel_b[2] += b_result[2];
+impl Meshed<u64> for Entity {
+    fn mesh_id(&self) -> &u64 {
+        &self.mesh_id
+    }
 }
 
-impl Position for Matrix4<f32> {
-    fn position<'a>(&'a self) -> ContiguousView<'a, 3, 1> {
-        self.generic_view_with_steps((0, 3), (nalgebra::Const::<3>, nalgebra::Const::<1>), (0, 0))
+impl Unique<u64> for Entity {
+    fn id(&self) -> &u64 {
+        &self.id
     }
+}
 
-    fn position_mut<'a>(&'a mut self) -> ContiguousViewMut<'a, 3, 1> {
-        self.generic_view_with_steps_mut(
-            (0, 3),
-            (nalgebra::Const::<3>, nalgebra::Const::<1>),
-            (0, 0),
-        )
+impl Instanced<[[f32; 4]; 4]> for Entity {
+    fn instance(&self) -> [[f32; 4]; 4] {
+        let mut mat =
+            Matrix4::from_diagonal(&Vector4::new(self.scale.x, self.scale.y, self.scale.z, 1.0))
+                * self.rotation.to_rotation_matrix().to_homogeneous();
+        let mut column = mat.column_mut(3);
+        column.x += self.translation.x;
+        column.y += self.translation.y;
+        column.z += self.translation.z;
+
+        Into::<[[f32; 4]; 4]>::into(mat)
     }
 }
