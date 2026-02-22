@@ -53,17 +53,19 @@ impl TextureStorage {
 
     // TODO: This currently ignores resize_strategy and just stretches.
 
+    /// Adds a new texture to storage and returns its ID.
+    ///
     /// This will generate all mipmap levels for the texture.
     /// For [full_size_image], check crate::MIPMAP_LEVELS.
     pub fn new_texture(
         &mut self,
         device: &mut Device,
         queue: &mut Queue,
-        texture_id: u64,
         full_size_image: DynamicImage,
         resize_strategy: ResizeStrategy,
         bind_group_layout: &BindGroupLayout,
-    ) {
+    ) -> u64 {
+        let texture_id = self.textures.len() as u64;
         let texture = device.create_texture(&TextureDescriptor {
             label: Some(&format!("Texture: {}", texture_id)),
             size: Extent3d {
@@ -147,5 +149,6 @@ impl TextureStorage {
         });
         self.textures
             .insert(texture_id, (texture, view, sampler, bind_group));
+        texture_id
     }
 }

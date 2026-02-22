@@ -871,7 +871,6 @@ impl Renderer {
         self.textures.new_texture(
             &mut self.device,
             &mut self.queue,
-            data.id,
             data.image,
             data.resize,
             &self.texture_bind_group_layout,
