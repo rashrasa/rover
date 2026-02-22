@@ -28,7 +28,7 @@ fn main() {
 
     app.add_texture(TextureInitData {
         id: 0,
-        image: image::load_from_memory(include_bytes!("../assets/white-marble-2048x2048.png"))
+        image: image::load_from_memory(include_bytes!("assets/white-marble-2048x2048.png"))
             .unwrap(),
         resize: ResizeStrategy::Stretch(FilterType::Gaussian),
     });

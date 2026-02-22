@@ -14,6 +14,7 @@ use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
 use log::{debug, error, info};
 use nalgebra::{Matrix4, UnitQuaternion, Vector3};
+use rayon::iter::IntoParallelRefMutIterator;
 use rodio::{Decoder, OutputStream, Sink};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -39,6 +40,8 @@ use winit::{
 use crate::{
     METRICS_INTERVAL, RENDER_DISTANCE,
     core::{
+        AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
+        BeforeTickArgs, HandleInputArgs, HandleTickArgs, System,
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
         entity::{self, BoundingBox, CollisionResponse, Entity, EntityType},
@@ -46,6 +49,7 @@ use crate::{
         world::terrain::World,
     },
     input::InputController,
+    prefabs::DEFAULT_SYSTEMS,
     render::{
         shader::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
         textures::{ResizeStrategy, TextureStorage},
@@ -168,6 +172,8 @@ pub struct App {
     state: AppState,
     world: World,
     input: InputController,
+
+    systems: Vec<Box<dyn System>>,
 }
 
 impl App {
@@ -183,6 +189,7 @@ impl App {
             }),
             world: World::new(seed),
             input: InputController::new(),
+            systems: DEFAULT_SYSTEMS(),
         }
     }
 
@@ -317,6 +324,14 @@ impl ApplicationHandler<Event> for App {
             let window = Arc::new(event_loop.create_window(win_attr).unwrap());
 
             let mut renderer = pollster::block_on(Renderer::new(window.clone()));
+            {
+                let args = BeforeStartArgs {
+                    renderer: &renderer,
+                };
+                for system in self.systems.iter_mut() {
+                    system.before_start(&args);
+                }
+            }
 
             info!("Adding meshes");
             renderer
@@ -446,14 +461,80 @@ impl ApplicationHandler<Event> for App {
 
             WindowEvent::RedrawRequested => {
                 if let AppState::Started { renderer, state } = &mut self.state {
-                    let elapsed = renderer.last_update.elapsed().as_secs_f32();
+                    let elapsed_dur = renderer.last_update.elapsed();
+                    let elapsed = elapsed_dur.as_secs_f32();
                     renderer.last_update = Instant::now();
                     let start = Instant::now();
 
+                    // start redraw
+                    {
+                        let before_input = BeforeInputArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.before_input(&before_input);
+                        }
+                    }
                     self.input
                         .update(elapsed, &mut state.current_camera, &mut renderer.sink);
+                    {
+                        let handle_input = HandleInputArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.handle_input(&handle_input);
+                        }
+                    }
+
+                    {
+                        let before_tick = BeforeTickArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.before_tick(&before_tick);
+                        }
+                    }
+
+                    {
+                        let handle_tick = HandleTickArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.handle_tick(&handle_tick);
+                        }
+                    }
+
+                    {
+                        let after_tick = AfterTickArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.after_tick(&after_tick);
+                        }
+                    }
 
                     state.update(elapsed, &mut self.world);
+
+                    {
+                        let before_render = BeforeRenderArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.before_render(&before_render);
+                        }
+                    }
 
                     state.current_camera.update_gpu(&mut renderer.queue);
                     renderer.update_instances(state);
@@ -465,6 +546,18 @@ impl ApplicationHandler<Event> for App {
                         Ok(_) => {}
                         Err(e) => error!("{}", e),
                     }
+
+                    {
+                        let after_render = AfterRenderArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.after_render(&after_render);
+                        }
+                    }
+
                     renderer.window.request_redraw();
                 }
             }
@@ -726,7 +819,8 @@ impl Renderer {
         } else {
             sink.set_volume(0.2);
         }
-        sink.append(Decoder::try_from(File::open("assets/engine.wav").unwrap()).unwrap());
+        // sink.append(Decoder::try_from(File::open("assets/engine.wav").unwrap()).unwrap());
+        // Should be own system
 
         window.set_visible(true);
 
