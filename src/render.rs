@@ -39,6 +39,8 @@ use winit::{
 
 use crate::{
     METRICS_INTERVAL, RENDER_DISTANCE,
+    core::input::InputController,
+    core::prefabs::DEFAULT_SYSTEMS,
     core::{
         AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
         BeforeTickArgs, HandleInputArgs, HandleTickArgs, System,
@@ -48,8 +50,6 @@ use crate::{
         lights::LightSourceStorage,
         world::terrain::World,
     },
-    input::InputController,
-    prefabs::DEFAULT_SYSTEMS,
     render::{
         shader::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
         textures::{ResizeStrategy, TextureStorage},

@@ -1,3 +1,8 @@
+/*
+   Main set of modules containing all data types, logic, systems, constants, and traits, which are concerned with
+   representing and modelling app/engine behaviour, all of which is windowing- and rendering-agnostic.
+*/
+
 use std::{
     hash::Hash,
     sync::{Arc, Mutex},
@@ -5,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    input::InputController,
+    core::input::InputController,
     render::{ActiveState, Renderer},
 };
 
@@ -15,7 +20,9 @@ pub mod camera;
 pub mod continuous;
 pub mod entity;
 pub mod geometry;
+pub mod input;
 pub mod lights;
+pub mod prefabs;
 pub mod world;
 
 // Constants

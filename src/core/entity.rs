@@ -1,17 +1,11 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-use bytemuck::{Pod, Zeroable};
-use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector3, Vector4};
-use wgpu::{
-    BindGroup, BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
-};
+use nalgebra::{Matrix4, UnitQuaternion, Vector3, Vector4};
+use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 use crate::{
-    ContiguousView, ContiguousViewMut, Integrator,
-    core::{
-        G, Instanced, Meshed, Unique,
-        camera::{NoClipCamera, Projection},
-    },
+    Integrator,
+    core::{G, Instanced, Meshed, Unique, camera::NoClipCamera},
 };
 
 /// Elastic collisions have CollisionResponse::Inelastic(1.0).

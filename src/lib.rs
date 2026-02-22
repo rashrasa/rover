@@ -1,6 +1,4 @@
 pub mod core;
-pub mod input;
-pub mod prefabs;
 pub mod render;
 
 // Configuration constants.
@@ -44,32 +42,6 @@ pub enum Integrator {
     Euler,
     RK4,
 }
-
-pub type FLOAT = f32;
-
-type Mat<const N: usize, const M: usize> = nalgebra::Matrix<
-    FLOAT,
-    nalgebra::Const<N>,
-    nalgebra::Const<M>,
-    nalgebra::ArrayStorage<FLOAT, N, M>,
->;
-
-type ContiguousView<'a, const N: usize, const M: usize> = nalgebra::MatrixView<
-    'a,
-    FLOAT,
-    nalgebra::Const<N>,
-    nalgebra::Const<M>,
-    nalgebra::Dyn,
-    nalgebra::Dyn,
->;
-type ContiguousViewMut<'a, const N: usize, const M: usize> = nalgebra::MatrixViewMut<
-    'a,
-    FLOAT,
-    nalgebra::Const<N>,
-    nalgebra::Const<M>,
-    nalgebra::Dyn,
-    nalgebra::Dyn,
->;
 
 pub struct IDBank {
     next: u64,
