@@ -22,3 +22,7 @@ winit = "0.30.12"
 
 [profile.release]
 debug = true
+
+[[example]]
+name = "rover"
+path = "examples/rover/main.rs"
