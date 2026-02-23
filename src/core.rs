@@ -17,19 +17,26 @@ use crate::{
 pub mod assets;
 pub mod audio;
 pub mod camera;
+mod constants;
 pub mod continuous;
+mod data_types;
 pub mod entity;
 pub mod geometry;
 pub mod input;
+mod lifecycle;
 pub mod lights;
 pub mod prefabs;
 pub mod world;
 
-// Constants
+// Exports
+pub use lifecycle::{
+    AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
+    BeforeTickArgs, HandleInputArgs, HandleTickArgs, System,
+};
 
-pub const G: f64 = 6.6743e-11;
+pub use constants::*;
 
-// Traits
+pub use data_types::{Completer, CompleterError};
 
 pub trait Instanced<I> {
     fn instance(&self) -> I;
@@ -41,149 +48,4 @@ pub trait Unique<U: Hash + Eq + PartialEq> {
 
 pub trait Meshed<U: Hash + Eq + PartialEq> {
     fn mesh_id(&self) -> &U;
-}
-
-// Systems handled by the window (Input, RawWindowHandle/Surface) need to be exposed in lifecycle events explicitly
-// These hooks should provide access to as much as possible.
-
-pub struct BeforeStartArgs<'a> {
-    pub renderer: &'a Renderer,
-}
-/// This lifecycle hook is most appropriate for handling queued updates (Network, etc.).
-pub struct BeforeInputArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for updating the state based on the input state.
-pub struct HandleInputArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for updating state before the world state advances (Physics, etc.).
-pub struct BeforeTickArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for advancing the world state.
-pub struct HandleTickArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for updating systems and world state based on the result of the world tick.
-pub struct AfterTickArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
-pub struct BeforeRenderArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for updating systems and world state after the world renders.
-pub struct AfterRenderArgs<'a> {
-    pub elapsed: &'a Duration,
-
-    pub state: &'a mut ActiveState,
-    pub input: &'a InputController,
-}
-
-/// This lifecycle hook is most appropriate for disposing of systems including any shutdown actions such as
-/// saving data to a file, closing any threads, etc.
-pub struct DisposeArgs<'a> {
-    pub elapsed: &'a Duration,
-}
-
-/// A system is a composition of lifecycle hooks, with all being no-op's as default to reduce code spam.
-/// To override a specific lifecycle hook, it needs to be specified in the system's System impl block.
-///
-/// Example:
-///
-/// ```rust
-/// pub struct AudioSystem {}
-///
-/// impl System for AudioSystem {
-///     fn before_start(&mut self, args: BeforeStartArgs) {
-///         // perform all operations
-///     }
-/// }
-/// ```
-#[allow(unused_variables)]
-pub trait System {
-    fn before_start(&mut self, args: &BeforeStartArgs) {}
-
-    fn before_input(&mut self, args: &BeforeInputArgs) {}
-    fn handle_input(&mut self, args: &HandleInputArgs) {}
-    fn before_tick(&mut self, args: &BeforeTickArgs) {}
-    fn handle_tick(&mut self, args: &HandleTickArgs) {}
-    fn after_tick(&mut self, args: &AfterTickArgs) {}
-    fn before_render(&mut self, args: &BeforeRenderArgs) {}
-    fn after_render(&mut self, args: &AfterRenderArgs) {}
-
-    fn dispose(&mut self, args: &DisposeArgs) {}
-}
-
-/// A value that will be resolved at a later time.
-/// Simple mechanism for returning a placeholder value which gets resolved elsewhere.
-///
-/// Can be cloned and consumed as many times as needed.
-///
-/// Consuming this data returns a cloned version of the resolved value.
-#[derive(Clone)]
-pub struct Completer<T: Clone + Copy> {
-    precondition: Option<String>,
-    inner: Arc<Mutex<Option<T>>>,
-}
-
-impl<T: Clone + Copy> Completer<T> {
-    pub fn new(precondition: Option<String>) -> Self {
-        Self {
-            precondition,
-            inner: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    pub fn complete(&mut self, value: T) -> Result<(), CompleterError<T>> {
-        let mut current = self.inner.lock().unwrap();
-        if let Some(v) = *current {
-            return Err(CompleterError::Completed(v));
-        }
-        *current = Some(value);
-        Ok(())
-    }
-
-    pub fn consume(self) -> Result<T, CompleterError<T>> {
-        let inner = self.inner.lock().unwrap();
-        match *inner {
-            None => {
-                return Err(CompleterError::PreconditionFailed(
-                    self.precondition
-                        .unwrap_or("Unspecified Precondition".into()),
-                ));
-            }
-            Some(v) => return Ok(v.clone()),
-        }
-    }
-}
-
-pub enum CompleterError<T: Clone + Copy> {
-    Completed(T),
-    PreconditionFailed(String),
 }

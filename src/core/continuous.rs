@@ -54,7 +54,7 @@ impl<const N: usize, const R: usize> DynamicSystem<N, R> {
         max_clamp: Mat<f64, N, 1>,
     ) {
         // TODO: Add gaussian noise
-        match crate::GLOBAL_INTEGRATOR {
+        match crate::core::GLOBAL_INTEGRATOR {
             Integrator::Euler => {
                 for i in 0..N {
                     self.x[i] = (self.x[i] + dt * (self.dx_dt[i](&self.x, &u, &t)))

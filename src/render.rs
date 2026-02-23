@@ -38,16 +38,15 @@ use winit::{
 };
 
 use crate::{
-    METRICS_INTERVAL, RENDER_DISTANCE,
-    core::input::InputController,
-    core::prefabs::DEFAULT_SYSTEMS,
     core::{
         AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
-        BeforeTickArgs, HandleInputArgs, HandleTickArgs, System,
+        BeforeTickArgs, HandleInputArgs, HandleTickArgs, METRICS_INTERVAL, RENDER_DISTANCE, System,
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
         entity::{self, BoundingBox, CollisionResponse, Entity, EntityType},
+        input::InputController,
         lights::LightSourceStorage,
+        prefabs::DEFAULT_SYSTEMS,
         world::terrain::World,
     },
     render::{
@@ -814,7 +813,7 @@ impl Renderer {
         let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
         let sink = rodio::Sink::connect_new(&stream_handle.mixer());
         sink.pause();
-        if crate::MUTE {
+        if crate::core::MUTE {
             sink.set_volume(0.0);
         } else {
             sink.set_volume(0.2);

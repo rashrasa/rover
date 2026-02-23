@@ -5,7 +5,7 @@ edition = "2024"
 resolver = "3"
 
 [dependencies]
-rover = { path = "../" }
+agate_engine = { path = "../" }
 
 [profile.release]
 debug = true

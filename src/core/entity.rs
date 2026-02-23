@@ -163,7 +163,7 @@ impl Entity {
     }
 
     pub fn tick(&mut self, dt: f32) {
-        match crate::GLOBAL_INTEGRATOR {
+        match crate::core::GLOBAL_INTEGRATOR {
             Integrator::RK4 => {
                 let acceleration = Vector3::from(self.acceleration);
                 let a_k1 = acceleration;

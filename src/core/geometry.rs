@@ -404,7 +404,7 @@ mod test {
 
     #[test]
     fn rotate_to_axis_basic_test() {
-        crate::init_logging();
+        crate::init_logging(log::LevelFilter::Debug);
 
         let _isq3 = 1.0 / 3.0_f32.sqrt();
         let orthonormal_p: Vector3<f32> = [_isq3, _isq3, _isq3].into();

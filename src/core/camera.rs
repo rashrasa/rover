@@ -10,7 +10,7 @@ use wgpu::{
 };
 use winit::keyboard::KeyCode;
 
-use crate::{CAMERA_SPEED, OPENGL_TO_WGPU_MATRIX};
+use crate::{OPENGL_TO_WGPU_MATRIX, core::CAMERA_SPEED};
 
 pub trait Camera {
     fn look_up(&mut self, amount: f32);
@@ -98,7 +98,7 @@ impl NoClipCamera {
         let (sin, cos) = self.yaw.sin_cos();
         let p_sin = self.pitch.sin();
         let dy = {
-            if crate::CAMERA_USES_PITCH {
+            if crate::core::CAMERA_USES_PITCH {
                 amount * p_sin
             } else {
                 0.0

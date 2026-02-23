@@ -1,6 +1,6 @@
-# (WIP) Rover
+# (WIP) Agate Engine
 
-A rover driving simulator focused on stunning graphics, audio, procedural generation, and weather events. Built without a game/graphics engine, using wgpu as the WebGPU API provider.
+A game engine focused on stunning visuals, efficiency, extensibility, and ease of use. Mainly a learning project.
 
 **Testing MVP Release (Video not working on FireFox)**
 
@@ -12,26 +12,24 @@ Early camera testing       |  Lighting testing
 
 ## Components
 
-These are specific components which are needed for the functioning of this application.
-
-### App (Event Loop + Window + Renderer + World)
+### App (Event Loop + Window + Renderer)
 
 - Owns world state, window + rendering context, renderer
-- Advances the world
 - Triggers renders
-- Propogates inputs into physics
+- Propogates input events
+- Provides lifecycle hooks for systems
 
 ### World
 
 - Stores materials, properties, meshes, textures, entities
-- Physics logic
 - Provides data for rendering
-- Includes a deterministic procedural world generator seeded from a 64-bit value
+- Stores a collection of entities
 
-### Other
+### Pre-fabricated Systems
 
-- Input event dispatch system
-- Audio system
+- Physics / Dynamics (WIP)
+- Audio (WIP)
+- Camera (WIP)
 
 ## Dev Highlights
 

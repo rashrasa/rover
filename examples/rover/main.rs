@@ -1,11 +1,9 @@
 use std::f32::consts::PI;
 
-use image::imageops::FilterType;
-use log::info;
-use nalgebra::{Matrix4, Rotation3, UnitQuaternion, UnitVector3, Vector3};
-use rover::{
-    CHUNK_RESOLUTION, CHUNK_SIZE, IDBank, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
+use agate_engine::{
+    IDBank,
     core::{
+        CHUNK_RESOLUTION, CHUNK_SIZE, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
         entity::{BoundingBox, CollisionResponse},
         geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
@@ -14,10 +12,13 @@ use rover::{
         textures::ResizeStrategy, vertex::Vertex,
     },
 };
+use image::imageops::FilterType;
+use log::info;
+use nalgebra::{Matrix4, Rotation3, UnitQuaternion, UnitVector3, Vector3};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
-    rover::init_logging();
+    agate_engine::init_logging(log::LevelFilter::Debug);
     // Winit wants to own app state
     let event_loop = EventLoop::with_user_event().build().unwrap();
 

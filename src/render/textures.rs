@@ -8,7 +8,7 @@ use wgpu::{
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
 
-use crate::MIPMAP_LEVELS;
+use crate::core::MIPMAP_LEVELS;
 
 #[derive(Clone)]
 pub enum MipLevel {
