@@ -337,6 +337,15 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
                 completer.complete(mesh_id).unwrap();
             }
 
+            info!("Adding textures");
+            while let Some((mut completer, texture_init)) = textures.pop() {
+                let texture_id = renderer.new_texture(TextureInitData {
+                    image: texture_init.image,
+                    resize: texture_init.resize,
+                });
+                completer.complete(texture_id).unwrap();
+            }
+
             info!("Adding entities");
             let mut entities = vec![];
             while let Some((mut completer, entity)) = players_init.pop() {
@@ -394,15 +403,6 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
 
                 entities.push(object);
                 completer.complete(id).unwrap();
-            }
-
-            info!("Creating textures");
-            while let Some((mut completer, texture_init)) = textures.pop() {
-                let texture_id = renderer.new_texture(TextureInitData {
-                    image: texture_init.image,
-                    resize: texture_init.resize,
-                });
-                completer.complete(texture_id).unwrap();
             }
 
             info!("Creating GPU buffers");
