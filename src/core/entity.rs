@@ -52,8 +52,8 @@ impl BoundingBox {
         let z = (other.z + other.z_size) / 2.0 - (self.z + self.z_size) / 2.0;
 
         let min_x_size = self.x_size.min(other.x_size);
-        let min_y_size = self.y_size.min(other.y_size);
-        let min_z_size = self.z_size.min(other.z_size);
+        let _min_y_size = self.y_size.min(other.y_size);
+        let _min_z_size = self.z_size.min(other.z_size);
 
         if x.abs() > min_x_size || x.abs() > min_x_size || x.abs() > min_x_size {
             return None;
@@ -187,7 +187,7 @@ impl Entity {
     }
 
     /// Checks for a collision between the two objects and updates velocities.
-    pub fn perform_single_collision(&mut self, other: &mut Entity) -> (Vector3<f32>, Vector3<f32>) {
+    pub fn perform_single_collision(&mut self, _other: &mut Entity) -> (Vector3<f32>, Vector3<f32>) {
         todo!();
         // TODO: Use position and velocity to determine whether to skip certain collision tests.
 

@@ -1,19 +1,11 @@
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    ops::RangeBounds,
-    slice::Iter,
-};
+use std::ops::RangeBounds;
 
 use bytemuck::{Pod, Zeroable};
 use log::debug;
-use nalgebra::Matrix4;
 use wgpu::{
-    AddressMode, Backends, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, BlendState, Buffer, BufferSlice, BufferUsages, Color, ColorTargetState,
-    ColorWrites, CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState,
+    Buffer, BufferSlice, BufferUsages,
     Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
-    wgt::DeviceDescriptor,
 };
 
 /// Maps an entity id to an index into a transform array. Once an entity is added, it can't be removed (for now).

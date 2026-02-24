@@ -7,7 +7,6 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::render::vertex::Vertex;
 
 /// Stores a vertex and index buffer on main memory, can be hashed into with a string id to get the start and end indices.
 ///

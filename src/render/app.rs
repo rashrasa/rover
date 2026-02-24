@@ -1,28 +1,12 @@
 use std::{
-    fs::File,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
-use log::{debug, error, info};
-use nalgebra::{Matrix4, UnitQuaternion, Vector3};
-use rayon::iter::IntoParallelRefMutIterator;
-use rodio::{Decoder, OutputStream, Sink};
-use wgpu::{
-    AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-    BufferBindingType, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor,
-    CompareFunction, DepthBiasState, DepthStencilState, Device, ExperimentalFeatures, Extent3d,
-    Face, Features, FilterMode, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp,
-    MultisampleState, Operations, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
-    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, Sampler, SamplerBindingType, SamplerDescriptor,
-    ShaderStages, StencilState, StoreOp, Surface, SurfaceConfiguration, SurfaceError, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureView, TextureViewDescriptor, TextureViewDimension, Trace, wgt::DeviceDescriptor,
-};
+use log::{error, info};
+use nalgebra::{UnitQuaternion, Vector3};
 use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalSize, Size},
@@ -34,21 +18,19 @@ use winit::{
 use crate::{
     core::{
         AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
-        BeforeTickArgs, Completer, HandleInputArgs, HandleTickArgs, METRICS_INTERVAL,
+        BeforeTickArgs, Completer, HandleInputArgs, HandleTickArgs,
         RENDER_DISTANCE, System,
         assets::ICON,
         camera::{Camera, NoClipCamera, Projection},
-        entity::{self, BoundingBox, CollisionResponse, Entity, EntityType},
+        entity::{BoundingBox, CollisionResponse, Entity, EntityType},
         input::InputController,
-        lights::LightSourceStorage,
         prefabs::DEFAULT_SYSTEMS,
         world::terrain::World,
     },
     render::{
         mesh::MeshStorageError,
         renderer::Renderer,
-        shader::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
-        textures::{ResizeStrategy, TextureStorage},
+        textures::ResizeStrategy,
         vertex::Vertex,
     },
 };
@@ -132,7 +114,7 @@ pub struct ActiveState {
 }
 
 impl ActiveState {
-    pub fn update(&mut self, elapsed: f32, world: &mut World) {
+    pub fn update(&mut self, _elapsed: f32, world: &mut World) {
         let pos = self.current_camera.position();
         world.load((pos[0], pos[2]), RENDER_DISTANCE);
     }
@@ -467,7 +449,7 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: WindowId,
+        _window_id: WindowId,
         event: WindowEvent,
     ) {
         if let AppState::Started {

@@ -1,7 +1,6 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use bytemuck::{Pod, Zeroable};
-use nalgebra::Vector3;
 
 use crate::core::CHUNK_RESOLUTION;
 
@@ -29,7 +28,7 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(seed: u64) -> Self {
+    pub fn new(_seed: u64) -> Self {
         Self {
             terrain: Terrain {
                 chunks_loaded: HashMap::new(),

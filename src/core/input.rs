@@ -1,6 +1,5 @@
 use std::{collections::HashMap, f32::consts::PI};
 
-use rodio::Sink;
 use winit::{
     dpi::PhysicalPosition,
     event::WindowEvent,
@@ -27,9 +26,9 @@ impl InputController {
     pub fn window_event(&mut self, event: &WindowEvent, window: &Window, camera: &mut impl Camera) {
         match event {
             WindowEvent::KeyboardInput {
-                device_id,
+                device_id: _,
                 event,
-                is_synthetic,
+                is_synthetic: _,
             } => {
                 if let PhysicalKey::Code(k) = event.physical_key {
                     self.keys_pressed.insert(k, event.state.is_pressed());
@@ -39,7 +38,7 @@ impl InputController {
                 }
             }
             WindowEvent::CursorMoved {
-                device_id,
+                device_id: _,
                 position,
             } => {
                 if !self.esc_toggle {

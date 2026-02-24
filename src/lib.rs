@@ -3,8 +3,6 @@ pub mod render;
 
 // Configuration constants.
 
-use crate::render::textures::MipLevel;
-use std::time::Duration;
 
 pub fn init_logging(level: log::LevelFilter) {
     env_logger::builder()

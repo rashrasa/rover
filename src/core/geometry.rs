@@ -2,7 +2,6 @@ use std::f32::consts::PI;
 
 use crate::render::vertex::Vertex;
 use cgmath::{InnerSpace, Matrix3, Rad, SquareMatrix, Vector3};
-use log::{debug, info};
 
 pub trait Mesh {
     fn vertices(&self) -> &[Vertex];

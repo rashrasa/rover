@@ -10,7 +10,7 @@
 //  - Fragment shader
 //  - Render Pipeline (draw order, face culling options, render configuration)
 
-use std::{collections::HashMap, io::Read, num::NonZero, ops::Deref, slice::Iter};
+use std::{collections::HashMap, io::Read, num::NonZero, ops::Deref};
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -22,7 +22,7 @@ use wgpu::{
 };
 
 use crate::{
-    core::{Instanced, Meshed, Unique, entity::Entity},
+    core::{Instanced, Meshed, Unique},
     render::{
         app::MeshInitData,
         instance::InstanceStorage,
@@ -174,7 +174,7 @@ where
 
     pub fn update_gpu(&mut self, device: &Device, queue: &Queue) {
         self.meshes.update_gpu(queue, device);
-        for (id, instance) in self.instances.iter_mut() {
+        for (_id, instance) in self.instances.iter_mut() {
             instance.update_gpu(queue, device);
         }
     }

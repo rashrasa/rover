@@ -62,7 +62,7 @@ impl TextureStorage {
         device: &mut Device,
         queue: &mut Queue,
         full_size_image: DynamicImage,
-        resize_strategy: ResizeStrategy,
+        _resize_strategy: ResizeStrategy,
         bind_group_layout: &BindGroupLayout,
     ) -> u64 {
         let texture_id = self.textures.len() as u64;
@@ -85,8 +85,8 @@ impl TextureStorage {
                 MipLevel::Square(size) => {
                     let start_width = full_size_image.width();
                     let start_height = full_size_image.height();
-                    let delta_w = size as i64 - start_width as i64;
-                    let delta_w = size as i64 - start_height as i64;
+                    let _delta_w = size as i64 - start_width as i64;
+                    let _delta_w = size as i64 - start_height as i64;
 
                     let image = full_size_image.resize_exact(size, size, FilterType::Gaussian);
                     (level, image.to_rgba8())

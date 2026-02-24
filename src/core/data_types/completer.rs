@@ -27,7 +27,7 @@ impl<'a, T: Clone + Copy> Completer<'a, T> {
         }
     }
 
-    pub fn complete(&mut self, value: T) -> Result<(), CompleterError<T>> {
+    pub fn complete(&mut self, value: T) -> Result<(), CompleterError<'_, T>> {
         let mut current = self.inner.lock().unwrap();
         if let Some(v) = *current {
             return Err(CompleterError::Completed(v));

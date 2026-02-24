@@ -1,9 +1,5 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::sync::Arc;
 
-use log::{debug, info};
 use rodio::{OutputStream, Sink};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -22,7 +18,7 @@ use winit::window::Window;
 
 use crate::{
     core::{
-        Completer, METRICS_INTERVAL, camera::Camera, entity::Entity, lights::LightSourceStorage,
+        camera::Camera, entity::Entity, lights::LightSourceStorage,
     },
     render::{
         app::{ActiveState, MeshInitData, TextureInitData},
