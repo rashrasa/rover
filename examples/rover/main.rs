@@ -19,10 +19,8 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
     agate_engine::init_logging(log::LevelFilter::Debug);
-    // Winit wants to own app state
-    let event_loop = EventLoop::with_user_event().build().unwrap();
 
-    let mut app = App::new(&event_loop, 1920, 1080, 0);
+    let mut app = App::new(1920, 1080, 0);
     let meshes = get_sample_meshes();
     let n_meshes = meshes.len();
 
@@ -82,11 +80,7 @@ fn main() {
         }
     }
 
-    info!("Starting");
-    event_loop.set_control_flow(ControlFlow::Poll);
-    event_loop.run_app(&mut app).unwrap();
-
-    info!("Starting shutdown");
+    App::start(&mut app);
 }
 
 fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {

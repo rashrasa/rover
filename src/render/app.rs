@@ -8,7 +8,7 @@ use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalSize, Size},
     event::WindowEvent,
-    event_loop::{ActiveEventLoop, EventLoop},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Icon, Window, WindowId},
 };
 
@@ -163,8 +163,17 @@ pub struct App<'a> {
     systems: Vec<Box<dyn System>>,
 }
 
+impl App<'_> {
+    // static method
+    pub fn start(app: &mut Self) {
+        let event_loop: EventLoop<Event> = EventLoop::with_user_event().build().unwrap();
+        event_loop.set_control_flow(ControlFlow::Poll);
+        event_loop.run_app(app).unwrap();
+    }
+}
+
 impl<'a> App<'a> {
-    pub fn new(_: &EventLoop<Event>, width: u32, height: u32, seed: u64) -> Self {
+    pub fn new(width: u32, height: u32, seed: u64) -> Self {
         Self {
             state: AppState::NeedsInit(AppInitData {
                 width,
