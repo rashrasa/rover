@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
@@ -18,20 +15,16 @@ use winit::{
 use crate::{
     core::{
         AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
-        BeforeTickArgs, Completer, HandleInputArgs, HandleTickArgs,
-        RENDER_DISTANCE, System,
+        BeforeTickArgs, Completer, HandleInputArgs, HandleTickArgs, RENDER_DISTANCE, System,
         assets::ICON,
-        camera::{Camera, NoClipCamera, Projection},
+        camera::{NoClipCamera, Projection},
         entity::{BoundingBox, CollisionResponse, Entity, EntityType},
         input::InputController,
         prefabs::DEFAULT_SYSTEMS,
         world::terrain::World,
     },
     render::{
-        mesh::MeshStorageError,
-        renderer::Renderer,
-        textures::ResizeStrategy,
-        vertex::Vertex,
+        mesh::MeshStorageError, renderer::Renderer, textures::ResizeStrategy, vertex::Vertex,
     },
 };
 

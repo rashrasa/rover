@@ -3,8 +3,7 @@ use std::ops::RangeBounds;
 use bytemuck::{Pod, Zeroable};
 use log::debug;
 use wgpu::{
-    Buffer, BufferSlice, BufferUsages,
-    Device, Queue,
+    Buffer, BufferSlice, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
 };
 

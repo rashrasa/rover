@@ -2,7 +2,8 @@ use std::{collections::HashMap, f32::consts::PI};
 
 use nalgebra::{Matrix4, Point3, Rotation3, UnitVector3, Vector3};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, Buffer, BufferUsages, Device, Queue,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, Buffer, BufferUsages, Device,
+    Queue,
     util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::keyboard::KeyCode;

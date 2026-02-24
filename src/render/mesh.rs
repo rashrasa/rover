@@ -7,7 +7,6 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-
 /// Stores a vertex and index buffer on main memory, can be hashed into with a string id to get the start and end indices.
 ///
 /// Meshes can't be removed once added, for now. Max vertices: 2^16 = 65536

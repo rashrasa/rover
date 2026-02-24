@@ -187,7 +187,10 @@ impl Entity {
     }
 
     /// Checks for a collision between the two objects and updates velocities.
-    pub fn perform_single_collision(&mut self, _other: &mut Entity) -> (Vector3<f32>, Vector3<f32>) {
+    pub fn perform_single_collision(
+        &mut self,
+        _other: &mut Entity,
+    ) -> (Vector3<f32>, Vector3<f32>) {
         todo!();
         // TODO: Use position and velocity to determine whether to skip certain collision tests.
 

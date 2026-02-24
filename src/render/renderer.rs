@@ -17,9 +17,7 @@ use wgpu::{
 use winit::window::Window;
 
 use crate::{
-    core::{
-        camera::Camera, entity::Entity, lights::LightSourceStorage,
-    },
+    core::{camera::Camera, entity::Entity, lights::LightSourceStorage},
     render::{
         app::{ActiveState, MeshInitData, TextureInitData},
         mesh,
