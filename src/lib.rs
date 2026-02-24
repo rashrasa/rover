@@ -16,19 +16,6 @@ pub enum Integrator {
     RK4,
 }
 
-pub struct IDBank {
-    next: u64,
-}
-impl IDBank {
-    pub fn new() -> Self {
-        Self { next: 0 }
-    }
-    pub fn next(&mut self) -> u64 {
-        self.next += 1;
-        self.next - 1
-    }
-}
-
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: nalgebra::Matrix4<f32> = nalgebra::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
