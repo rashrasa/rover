@@ -1,7 +1,7 @@
 // Systems handled by the window (Input, RawWindowHandle/Surface) need to be exposed in lifecycle events explicitly
 // These hooks should provide access to as much as possible.
 
-use std::{marker::PhantomData, time::Duration};
+use std::time::Duration;
 
 use crate::{
     core::input::InputController,
@@ -96,8 +96,10 @@ pub trait System {
     /// This lifecycle hook is most appropriate for updating systems and world state based on the result of the world tick.
     fn after_tick(&mut self, args: &AfterTickArgs) {}
     /// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
+    /// It is not guaranteed to run right after a tick has completed, as there are plans to isolate rendering to a thread.
     fn before_render(&mut self, args: &BeforeRenderArgs) {}
     /// This lifecycle hook is most appropriate for updating systems and world state after the world renders.
+    /// It is not guaranteed to run right before the next tick, as there are plans to isolate rendering to a thread.
     fn after_render(&mut self, args: &AfterRenderArgs) {}
 
     /// This lifecycle hook is most appropriate for disposing of systems including any shutdown actions such as

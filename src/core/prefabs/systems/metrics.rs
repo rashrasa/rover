@@ -70,7 +70,7 @@ impl core::System for MetricsSystem {
         if window_time > self.window {
             let window_time = window_time.as_secs_f64();
             info!(
-                "CPU: {:.2}ms, GPU: {:.2}ms, FPS: {:.2}",
+                "CPU/IO: {:.2}ms, Render: {:.2}ms, FPS: {:.2}",
                 (self.window_ticking.as_secs_f64() / self.n_ticks as f64) * 1000.0,
                 (self.window_rendering.as_secs_f64() / self.n_renders as f64) * 1000.0,
                 (self.n_renders as f64 / window_time)
