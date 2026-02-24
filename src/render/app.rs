@@ -28,7 +28,7 @@ use crate::{
     },
 };
 
-const APP_START_PRECOND: Option<&str> = Some("");
+const APP_START_PRECOND: Option<&str> = Some("App is started and renderer is available.");
 
 pub struct AppInitData<'a> {
     pub width: u32,
