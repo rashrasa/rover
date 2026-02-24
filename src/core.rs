@@ -3,16 +3,7 @@
    representing and modelling app/engine behaviour, all of which is windowing- and rendering-agnostic.
 */
 
-use std::{
-    hash::Hash,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
-
-use crate::{
-    core::input::InputController,
-    render::{ActiveState, Renderer},
-};
+use std::hash::Hash;
 
 pub mod assets;
 pub mod audio;

@@ -1,4 +1,4 @@
-use std::ops::RangeBounds;
+use std::{collections::HashMap, ops::RangeBounds};
 
 use bytemuck::{Pod, Zeroable};
 use log::debug;
@@ -17,8 +17,7 @@ pub struct MeshStorage<V>
 where
     V: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
 {
-    // TODO: Use Vec with mesh ids being the index into it
-    map: Vec<(usize, usize, usize, usize)>, // vertex inclusive start, exclusive end, index inclusive start, exclusive end
+    map: HashMap<u64, (usize, usize, usize, usize)>, // vertex inclusive start, exclusive end, index inclusive start, exclusive end
 
     vertex_storage: Vec<V>,
     vertex_buffer: Buffer,
@@ -46,7 +45,7 @@ where
             usage: BufferUsages::INDEX,
         });
         Self {
-            map: Vec::new(),
+            map: HashMap::new(),
 
             vertex_storage: Vec::new(),
             vertex_buffer,
@@ -59,13 +58,14 @@ where
     }
 
     /// [indices] should be relative to [vertices] location in slice.
-    pub fn add_mesh(&mut self, vertices: &[V], indices: &[u16]) -> Result<usize, MeshStorageError> {
+    pub fn add_mesh(&mut self, vertices: &[V], indices: &[u16]) -> Result<u64, MeshStorageError> {
         let before_count_vertices = self.vertex_storage.len();
         let before_count_indexes = self.index_storage.len();
         let n = vertices.len();
         if before_count_vertices + n > u16::MAX as usize {
             return Err(MeshStorageError::MaxVerticesExceeded);
         }
+        let id = self.map.len() as u64;
 
         for i in indices {
             let i = *i as usize;
@@ -82,14 +82,17 @@ where
         );
 
         // TODO: Inserting a mesh with the same mesh_id multiple times will result in dead vertices/indices.
-        self.map.push((
-            before_count_vertices,
-            self.vertex_storage.len(),
-            before_count_indexes,
-            self.index_storage.len(),
-        ));
+        self.map.insert(
+            id,
+            (
+                before_count_vertices,
+                self.vertex_storage.len(),
+                before_count_indexes,
+                self.index_storage.len(),
+            ),
+        );
 
-        Ok(self.map.len() - 1)
+        Ok(id)
     }
 
     pub fn vertex_slice<S: RangeBounds<u64>>(&self, bounds: S) -> BufferSlice<'_> {
@@ -150,15 +153,15 @@ where
     }
 
     /// Returns the start and end of mesh in index buffer to be used in draw calls.
-    pub fn get_mesh_index_bounds(&self, mesh_id: &usize) -> Option<(usize, usize)> {
-        self.map.get(*mesh_id).map(|(_, _, s_i, e_i)| (*s_i, *e_i))
+    pub fn get_mesh_index_bounds(&self, mesh_id: &u64) -> Option<(usize, usize)> {
+        self.map.get(mesh_id).map(|(_, _, s_i, e_i)| (*s_i, *e_i))
     }
 
     /// Returns a direct representation of a mesh.
     ///
     /// Likely not needed for draw calls. Use get_mesh_index_bounds instead.
-    pub fn get_mesh(&self, mesh_id: &usize) -> Option<(&[V], &[u16])> {
-        self.map.get(*mesh_id).map(|(s_v, e_v, s_i, e_i)| {
+    pub fn get_mesh(&self, mesh_id: &u64) -> Option<(&[V], &[u16])> {
+        self.map.get(mesh_id).map(|(s_v, e_v, s_i, e_i)| {
             (
                 &self.vertex_storage[*s_v..*e_v],
                 &self.index_storage[*s_i..*e_i],

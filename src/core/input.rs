@@ -59,7 +59,7 @@ impl InputController {
         }
     }
 
-    pub fn update(&mut self, dt: f32, camera: &mut impl Camera, sink: &mut Sink) {
-        camera.update(&self.keys_pressed, sink, dt);
+    pub fn update(&mut self, dt: f32, camera: &mut impl Camera) {
+        camera.update(&self.keys_pressed, dt);
     }
 }

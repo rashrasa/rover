@@ -1,20 +1,20 @@
 use std::f32::consts::PI;
 
 use agate_engine::{
-    IDBank,
     core::{
-        CHUNK_RESOLUTION, CHUNK_SIZE, MESH_CUBE2, MESH_FLAT16, MESH_ROUNDISH,
+        CHUNK_RESOLUTION, CHUNK_SIZE, Completer, MESH_CUBE2,
         entity::{BoundingBox, CollisionResponse},
         geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
     render::{
-        App, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData,
-        textures::ResizeStrategy, vertex::Vertex,
+        app::{App, MeshInitData, ObjectInitData, PlayerInitData, TextureInitData},
+        textures::ResizeStrategy,
+        vertex::Vertex,
     },
 };
 use image::imageops::FilterType;
 use log::info;
-use nalgebra::{Matrix4, Rotation3, UnitQuaternion, UnitVector3, Vector3};
+use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
@@ -25,21 +25,22 @@ fn main() {
     let mut app = App::new(&event_loop, 1920, 1080, 0);
     let meshes = get_sample_meshes();
     let n_meshes = meshes.len();
-    app.add_meshes(meshes);
 
-    app.add_texture(TextureInitData {
-        id: 0,
+    let mut mesh_completers: Vec<Completer<u64>> = vec![];
+    for mesh in meshes {
+        let completer = app.add_mesh(mesh).unwrap();
+        mesh_completers.push(completer);
+    }
+
+    let texture_completer = app.add_texture(TextureInitData {
         image: image::load_from_memory(include_bytes!("assets/white-marble-2048x2048.png"))
             .unwrap(),
         resize: ResizeStrategy::Stretch(FilterType::Gaussian),
     });
 
-    let mut id_bank = IDBank::new();
-
     app.add_player(PlayerInitData {
-        id: id_bank.next(),
-        mesh_id: MESH_CUBE2,
-        texture_id: 0,
+        mesh_id: mesh_completers.get(MESH_CUBE2 as usize).unwrap().clone(),
+        texture_id: texture_completer.clone(),
         velocity: Vector3::new(0.0, 0.0, 0.0),
         acceleration: Vector3::new(0.0, 0.0, 0.0),
         bounding_box: BoundingBox::new(
@@ -57,9 +58,11 @@ fn main() {
         for j in 0..1 {
             for k in 0..10 {
                 app.add_object(ObjectInitData {
-                    id: id_bank.next(),
-                    mesh_id: (i + j + k) % n_meshes as u64,
-                    texture_id: 0,
+                    mesh_id: mesh_completers
+                        .get(((i + j + k) % n_meshes) as usize)
+                        .unwrap()
+                        .clone(),
+                    texture_id: texture_completer.clone(),
                     velocity: Vector3::zeros(),
                     acceleration: Vector3::zeros(),
                     bounding_box: BoundingBox::new(
@@ -262,22 +265,18 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
 
     vec![
         MeshInitData {
-            id: MESH_CUBE2,
             vertices: cube2_mesh.vertices().to_vec(),
             indices: cube2_mesh.indices().to_vec(),
         },
         MeshInitData {
-            id: MESH_ROUNDISH,
             vertices: roundish_mesh.vertices().to_vec(),
             indices: roundish_mesh.indices().to_vec(),
         },
         MeshInitData {
-            id: MESH_FLAT16,
             vertices: ground.vertices().to_vec(),
             indices: ground.indices().to_vec(),
         },
         MeshInitData {
-            id: 3,
             vertices: sphere_mesh.vertices().to_vec(),
             indices: sphere_mesh.indices().to_vec(),
         },

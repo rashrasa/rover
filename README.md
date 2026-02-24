@@ -70,6 +70,10 @@ impl App {
 }
 ```
 
+## Compatibility
+
+Engine only supports 64-bit CPU architectures.
+
 ## Credits
 
 Marble texture sourced from [https://www.manytextures.com/texture/48/white-marble/], licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).

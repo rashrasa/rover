@@ -6,17 +6,24 @@ use std::sync::{Arc, Mutex};
 /// Can be cloned and consumed as many times as needed.
 ///
 /// Consuming this data returns a cloned version of the resolved value.
-#[derive(Clone)]
-pub struct Completer<T: Clone + Copy> {
-    precondition: Option<String>,
+#[derive(Debug, Clone)]
+pub struct Completer<'a, T: Clone + Copy> {
+    precondition: Option<&'a str>,
     inner: Arc<Mutex<Option<T>>>,
 }
 
-impl<T: Clone + Copy> Completer<T> {
-    pub fn new(precondition: Option<String>) -> Self {
+impl<'a, T: Clone + Copy> Completer<'a, T> {
+    pub fn new(precondition: Option<&'a str>) -> Self {
         Self {
             precondition,
             inner: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn from_value(value: T) -> Self {
+        Self {
+            precondition: None,
+            inner: Arc::new(Mutex::new(Some(value))),
         }
     }
 
@@ -29,13 +36,12 @@ impl<T: Clone + Copy> Completer<T> {
         Ok(())
     }
 
-    pub fn consume(self) -> Result<T, CompleterError<T>> {
+    pub fn consume(self) -> Result<T, CompleterError<'a, T>> {
         let inner = self.inner.lock().unwrap();
         match *inner {
             None => {
                 return Err(CompleterError::PreconditionFailed(
-                    self.precondition
-                        .unwrap_or("Unspecified Precondition".into()),
+                    self.precondition.unwrap_or("Unspecified Precondition"),
                 ));
             }
             Some(v) => return Ok(v.clone()),
@@ -43,7 +49,8 @@ impl<T: Clone + Copy> Completer<T> {
     }
 }
 
-pub enum CompleterError<T: Clone + Copy> {
+#[derive(Debug)]
+pub enum CompleterError<'a, T: Clone + Copy> {
     Completed(T),
-    PreconditionFailed(String),
+    PreconditionFailed(&'a str),
 }

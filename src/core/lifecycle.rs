@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::{
     core::input::InputController,
-    render::{ActiveState, Renderer},
+    render::{app::ActiveState, renderer::Renderer},
 };
 
 pub struct BeforeStartArgs<'a> {

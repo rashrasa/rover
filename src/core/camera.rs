@@ -15,7 +15,7 @@ use crate::{OPENGL_TO_WGPU_MATRIX, core::CAMERA_SPEED};
 pub trait Camera {
     fn look_up(&mut self, amount: f32);
     fn look_ccw(&mut self, amount: f32);
-    fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, sink: &mut Sink, dt: f32);
+    fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, dt: f32);
     fn update_gpu(&mut self, queue: &mut Queue);
     fn bind_group(&self) -> &BindGroup;
 }
@@ -38,7 +38,7 @@ pub struct NoClipCamera {
 
 impl NoClipCamera {
     pub fn new(
-        device: &mut Device,
+        device: &Device,
         bind_group_layout: &BindGroupLayout,
         position: Vector3<f32>,
         yaw: f32,
@@ -152,7 +152,7 @@ impl Camera for NoClipCamera {
     fn look_ccw(&mut self, amount: f32) {
         self.yaw += amount;
     }
-    fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, sink: &mut Sink, dt: f32) {
+    fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, dt: f32) {
         let mut camera_forward: f32 = 0.0;
         let mut camera_right: f32 = 0.0;
         let mut yaw_ccw: f32 = 0.0;
@@ -203,12 +203,7 @@ impl Camera for NoClipCamera {
         if let Some(p) = keys_pressed.get(&KeyCode::ControlLeft) {
             if *p {
                 fly_speed *= 20.0;
-                sink.set_speed(2.0);
-            } else {
-                sink.set_speed(1.0);
             }
-        } else {
-            sink.set_speed(1.0);
         }
 
         let mag = (camera_forward * camera_forward + camera_right * camera_right).sqrt();
@@ -241,15 +236,6 @@ impl Camera for NoClipCamera {
         self.look_ccw(yaw_ccw);
         self.roll_ccw(roll_ccw);
         self.translate(&[0.0, fly, 0.0].into());
-
-        if camera_forward.abs() + camera_right.abs() > 1.0e-2 * dt {
-            sink.play();
-            if sink.get_pos() > Duration::new(5, 0) {
-                sink.try_seek(Duration::ZERO).unwrap();
-            }
-        } else {
-            sink.pause();
-        }
 
         let view = self.create_view();
 

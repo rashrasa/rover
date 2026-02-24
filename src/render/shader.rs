@@ -10,7 +10,7 @@
 //  - Fragment shader
 //  - Render Pipeline (draw order, face culling options, render configuration)
 
-use std::{io::Read, num::NonZero, ops::Deref, slice::Iter};
+use std::{collections::HashMap, io::Read, num::NonZero, ops::Deref, slice::Iter};
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -24,7 +24,7 @@ use wgpu::{
 use crate::{
     core::{Instanced, Meshed, Unique, entity::Entity},
     render::{
-        MeshInitData,
+        app::MeshInitData,
         instance::InstanceStorage,
         mesh::{MeshStorage, MeshStorageError},
     },
@@ -72,7 +72,7 @@ where
 {
     render_pipeline: RenderPipeline,
     meshes: MeshStorage<V>,
-    instances: Vec<InstanceStorage<I>>,
+    instances: HashMap<u64, InstanceStorage<I>>,
 }
 
 impl<V, I> InstancedRenderModule<V, I>
@@ -134,32 +134,25 @@ where
         Ok(Self {
             render_pipeline,
             meshes: MeshStorage::new(device),
-            instances: Vec::new(),
+            instances: HashMap::new(),
         })
     }
 
     /// Batch adding of meshes. Meshes will be synced to the GPU in this call.
     /// Mesh ids are returned in order, or the first error is returned.
-    pub fn add_meshes(
+    pub fn add_mesh(
         &mut self,
         device: &Device,
         queue: &Queue,
-        meshes: Vec<MeshInitData<V>>,
-    ) -> Result<Vec<usize>, MeshStorageError> {
-        let ids: Result<Vec<usize>, MeshStorageError> = meshes
-            .iter()
-            .map(|data| {
-                let mesh_result = self.meshes.add_mesh(&data.vertices, &data.indices)?;
+        mesh: MeshInitData<V>,
+    ) -> Result<u64, MeshStorageError> {
+        let id = self.meshes.add_mesh(&mesh.vertices, &mesh.indices)?;
 
-                self.instances.push(InstanceStorage::new(device));
-
-                return Ok(mesh_result);
-            })
-            .collect();
+        self.instances.insert(id, InstanceStorage::new(device));
 
         self.meshes.update_gpu(queue, device);
 
-        ids
+        Ok(id)
     }
 
     pub fn upsert_instances<'a>(
@@ -170,7 +163,10 @@ where
             let mesh_id = entity.mesh_id();
             let entity_id = entity.id();
 
-            self.instances[*mesh_id as usize].upsert_instance(entity_id, entity.instance());
+            self.instances
+                .get_mut(mesh_id)
+                .unwrap()
+                .upsert_instance(entity_id, entity.instance());
         }
 
         Ok(())
@@ -178,7 +174,7 @@ where
 
     pub fn update_gpu(&mut self, device: &Device, queue: &Queue) {
         self.meshes.update_gpu(queue, device);
-        for instance in self.instances.iter_mut() {
+        for (id, instance) in self.instances.iter_mut() {
             instance.update_gpu(queue, device);
         }
     }
@@ -197,7 +193,7 @@ where
             render_pass.set_bind_group(i as u32, Into::<&BindGroup>::into(**bg), &[]);
         }
 
-        for (mesh_id, storage) in self.instances.iter().enumerate() {
+        for (mesh_id, storage) in self.instances.iter() {
             if storage.len() > 0 {
                 render_pass.set_vertex_buffer(1, storage.slice(..));
                 let (start, end) = self.meshes.get_mesh_index_bounds(&mesh_id).unwrap();
