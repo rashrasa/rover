@@ -74,7 +74,7 @@ pub struct DisposeArgs<'a> {
 }
 
 /// A system is a composition of lifecycle hooks, with all being no-op's as default to reduce code spam.
-/// To override a specific lifecycle hook, it needs to be specified in the system's System impl block.
+/// To override a specific lifecycle hook, it needs to be specified in the system's core::System impl block.
 ///
 /// Example:
 ///
