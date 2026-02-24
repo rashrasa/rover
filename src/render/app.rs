@@ -145,9 +145,15 @@ pub enum Event {
     WindowEvent(WindowId, WindowEvent),
 }
 
-// TODO: Global ID system for objects, meshes, textures, etc.
-
 /// Main struct for the entire app.
+///
+/// App needs to be started with:
+///
+/// ```rust
+///     use agate_engine::render::app::App;
+///     let mut app = App::new(1920, 1080, 0);
+///     App::start(&mut app);
+/// ```
 ///
 /// Contains all communications between:
 ///     - World

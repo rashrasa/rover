@@ -13,9 +13,7 @@ use agate_engine::{
     },
 };
 use image::imageops::FilterType;
-use log::info;
 use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
-use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
     agate_engine::init_logging(log::LevelFilter::Debug);
