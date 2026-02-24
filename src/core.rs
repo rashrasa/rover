@@ -22,7 +22,7 @@ pub mod world;
 // Exports
 pub use lifecycle::{
     AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
-    BeforeTickArgs, HandleInputArgs, HandleTickArgs, System,
+    BeforeTickArgs, DisposeArgs, HandleInputArgs, HandleTickArgs, System,
 };
 
 pub use constants::*;

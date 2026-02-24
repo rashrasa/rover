@@ -15,7 +15,8 @@ use winit::{
 use crate::{
     core::{
         AfterRenderArgs, AfterTickArgs, BeforeInputArgs, BeforeRenderArgs, BeforeStartArgs,
-        BeforeTickArgs, Completer, HandleInputArgs, HandleTickArgs, RENDER_DISTANCE, System,
+        BeforeTickArgs, Completer, DisposeArgs, HandleInputArgs, HandleTickArgs, RENDER_DISTANCE,
+        System,
         assets::ICON,
         camera::{NoClipCamera, Projection},
         entity::{BoundingBox, CollisionResponse, Entity, EntityType},
@@ -337,14 +338,6 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
             let window = Arc::new(event_loop.create_window(win_attr).unwrap());
 
             let mut renderer = pollster::block_on(Renderer::new(window.clone()));
-            {
-                let args = BeforeStartArgs {
-                    renderer: &renderer,
-                };
-                for system in self.systems.iter_mut() {
-                    system.before_start(&args);
-                }
-            }
 
             info!("Adding meshes");
             while let Some((mut completer, mesh)) = meshes.pop() {
@@ -443,6 +436,17 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
 
             renderer.update_instances(&mut active_state);
 
+            {
+                let args = BeforeStartArgs {
+                    state: &mut active_state,
+                    input: &self.input,
+                    renderer: &renderer,
+                };
+                for system in self.systems.iter_mut() {
+                    system.before_start(&args);
+                }
+            }
+
             self.state = AppState::Started {
                 renderer,
                 state: active_state,
@@ -477,8 +481,17 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
                     renderer.resize(physical_size.width, physical_size.height);
                 }
             }
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Destroyed => event_loop.exit(),
+            WindowEvent::CloseRequested | WindowEvent::Destroyed => {
+                info!("Started Shutdown");
+                {
+                    // Run dispose and drop each system.
+                    let args = DisposeArgs {};
+                    while let Some(mut system) = self.systems.pop() {
+                        system.dispose(&args);
+                    }
+                }
+                event_loop.exit()
+            }
 
             WindowEvent::RedrawRequested => {
                 if let AppState::Started { renderer, state } = &mut self.state {

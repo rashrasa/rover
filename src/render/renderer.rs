@@ -48,9 +48,6 @@ pub struct Renderer {
     depth_view: TextureView,
     depth_sampler: Sampler,
     depth_bind_group: BindGroup,
-
-    sink: Sink,
-    stream_handle: OutputStream,
 }
 
 impl Renderer {
@@ -264,17 +261,6 @@ impl Renderer {
             }],
         });
 
-        let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
-        let sink = rodio::Sink::connect_new(&stream_handle.mixer());
-        sink.pause();
-        if crate::core::MUTE {
-            sink.set_volume(0.0);
-        } else {
-            sink.set_volume(0.2);
-        }
-        // sink.append(Decoder::try_from(File::open("assets/engine.wav").unwrap()).unwrap());
-        // Should be own system
-
         window.set_visible(true);
 
         Self {
@@ -298,9 +284,6 @@ impl Renderer {
             texture_bind_group_layout,
 
             camera_bind_group_layout,
-
-            sink,
-            stream_handle,
         }
     }
 

@@ -89,7 +89,7 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
         (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
         (-(CHUNK_SIZE as f32) / 2.0, CHUNK_SIZE as f32 / 2.0),
         (CHUNK_RESOLUTION as f32, CHUNK_RESOLUTION as f32),
-        |x, z| 5.0,
+        |_, _| 5.0,
     )
     .unwrap();
 

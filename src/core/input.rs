@@ -22,6 +22,10 @@ impl InputController {
         }
     }
 
+    pub fn is_pressed(&self, key: &KeyCode) -> &bool {
+        self.keys_pressed.get(key).unwrap_or(&false)
+    }
+
     /// This will only handle events relevant to input. Other events should be handled in App.window_event().
     pub fn window_event(&mut self, event: &WindowEvent, window: &Window, camera: &mut impl Camera) {
         match event {

@@ -1,7 +1,7 @@
 // Systems handled by the window (Input, RawWindowHandle/Surface) need to be exposed in lifecycle events explicitly
 // These hooks should provide access to as much as possible.
 
-use std::time::Duration;
+use std::{marker::PhantomData, time::Duration};
 
 use crate::{
     core::input::InputController,
@@ -9,9 +9,11 @@ use crate::{
 };
 
 pub struct BeforeStartArgs<'a> {
+    pub state: &'a mut ActiveState,
+    pub input: &'a InputController,
     pub renderer: &'a Renderer,
 }
-/// This lifecycle hook is most appropriate for handling queued updates (Network, etc.).
+
 pub struct BeforeInputArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -19,7 +21,6 @@ pub struct BeforeInputArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for updating the state based on the input state.
 pub struct HandleInputArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -27,7 +28,6 @@ pub struct HandleInputArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for updating state before the world state advances (Physics, etc.).
 pub struct BeforeTickArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -35,7 +35,6 @@ pub struct BeforeTickArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for advancing the world state.
 pub struct HandleTickArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -43,7 +42,6 @@ pub struct HandleTickArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for updating systems and world state based on the result of the world tick.
 pub struct AfterTickArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -51,7 +49,6 @@ pub struct AfterTickArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
 pub struct BeforeRenderArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -59,7 +56,6 @@ pub struct BeforeRenderArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for updating systems and world state after the world renders.
 pub struct AfterRenderArgs<'a> {
     pub elapsed: &'a Duration,
 
@@ -67,11 +63,7 @@ pub struct AfterRenderArgs<'a> {
     pub input: &'a InputController,
 }
 
-/// This lifecycle hook is most appropriate for disposing of systems including any shutdown actions such as
-/// saving data to a file, closing any threads, etc.
-pub struct DisposeArgs<'a> {
-    pub elapsed: &'a Duration,
-}
+pub struct DisposeArgs {}
 
 /// A system is a composition of lifecycle hooks, with all being no-op's as default to reduce code spam.
 /// To override a specific lifecycle hook, it needs to be specified in the system's core::System impl block.
@@ -89,15 +81,27 @@ pub struct DisposeArgs<'a> {
 /// ```
 #[allow(unused_variables)]
 pub trait System {
+    /// This lifecycle hook is most appropriate for updates and initialization which run right before the app starts.
+    /// It may be necessary to access the world state and renderer for initialization. It is only run once.
     fn before_start(&mut self, args: &BeforeStartArgs) {}
 
+    /// This lifecycle hook is most appropriate for handling queued updates (Network, etc.).
     fn before_input(&mut self, args: &BeforeInputArgs) {}
+    /// This lifecycle hook is most appropriate for updating the state based on the input state.
     fn handle_input(&mut self, args: &HandleInputArgs) {}
+    /// This lifecycle hook is most appropriate for updating state before the world state advances (Physics, etc.).
     fn before_tick(&mut self, args: &BeforeTickArgs) {}
+    /// This lifecycle hook is most appropriate for advancing the world/system state.
     fn handle_tick(&mut self, args: &HandleTickArgs) {}
+    /// This lifecycle hook is most appropriate for updating systems and world state based on the result of the world tick.
     fn after_tick(&mut self, args: &AfterTickArgs) {}
+    /// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
     fn before_render(&mut self, args: &BeforeRenderArgs) {}
+    /// This lifecycle hook is most appropriate for updating systems and world state after the world renders.
     fn after_render(&mut self, args: &AfterRenderArgs) {}
 
+    /// This lifecycle hook is most appropriate for disposing of systems including any shutdown actions such as
+    /// saving data to a file, closing any threads, etc. The system will also be dropped from memory after this call.
+    /// It is only run once.
     fn dispose(&mut self, args: &DisposeArgs) {}
 }
