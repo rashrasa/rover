@@ -406,6 +406,7 @@ impl Renderer {
             );
         }
         self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
 
         Ok(())
     }
