@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,

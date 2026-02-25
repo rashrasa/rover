@@ -31,24 +31,24 @@ use crate::{
 
 const APP_START_PRECOND: Option<&str> = Some("App is started and renderer is available.");
 
-pub struct AppInitData<'a> {
+pub struct AppInitData {
     pub width: u32,
     pub height: u32,
-    pub transform_meshes: Vec<(Completer<'a, u64>, MeshInitData<Vertex>)>,
-    pub textures: Vec<(Completer<'a, u64>, TextureInitData)>,
-    pub players: Vec<(Completer<'a, u64>, PlayerInitData<'a>)>,
-    pub objects: Vec<(Completer<'a, u64>, ObjectInitData<'a>)>,
+    pub transform_meshes: Vec<(Completer<u64>, MeshInitData<Vertex>)>,
+    pub textures: Vec<(Completer<u64>, TextureInitData)>,
+    pub players: Vec<(Completer<u64>, PlayerInitData)>,
+    pub objects: Vec<(Completer<u64>, ObjectInitData)>,
 }
 
-impl<'a> AppInitData<'a> {
+impl AppInitData {
     pub fn inner(
         self,
     ) -> (
         (u32, u32),
-        Vec<(Completer<'a, u64>, MeshInitData<Vertex>)>,
-        Vec<(Completer<'a, u64>, PlayerInitData<'a>)>,
-        Vec<(Completer<'a, u64>, TextureInitData)>,
-        Vec<(Completer<'a, u64>, ObjectInitData<'a>)>,
+        Vec<(Completer<u64>, MeshInitData<Vertex>)>,
+        Vec<(Completer<u64>, PlayerInitData)>,
+        Vec<(Completer<u64>, TextureInitData)>,
+        Vec<(Completer<u64>, ObjectInitData)>,
     ) {
         (
             (self.width, self.height),
@@ -68,9 +68,9 @@ where
     pub indices: Vec<u16>,
 }
 
-pub struct ObjectInitData<'a> {
-    pub mesh_id: Completer<'a, u64>,
-    pub texture_id: Completer<'a, u64>,
+pub struct ObjectInitData {
+    pub mesh_id: Completer<u64>,
+    pub texture_id: Completer<u64>,
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
@@ -81,9 +81,9 @@ pub struct ObjectInitData<'a> {
     pub mass: f32,
 }
 
-pub struct PlayerInitData<'a> {
-    pub mesh_id: Completer<'a, u64>,
-    pub texture_id: Completer<'a, u64>,
+pub struct PlayerInitData {
+    pub mesh_id: Completer<u64>,
+    pub texture_id: Completer<u64>,
     pub velocity: Vector3<f32>,
     pub acceleration: Vector3<f32>,
     pub bounding_box: BoundingBox,
@@ -130,10 +130,10 @@ impl ActiveState {
     }
 }
 
-enum AppState<'a> {
+enum AppState {
     NeedsInit(
         // Data temporarily stored before the app starts.
-        AppInitData<'a>,
+        AppInitData,
     ),
     Started {
         // Data available once the window is created.
@@ -161,16 +161,16 @@ pub enum Event {
 ///     - Renderer
 ///     - Input
 ///     - Window
-pub struct App<'a> {
+pub struct App {
     // Always available fields
-    state: AppState<'a>,
+    state: AppState,
     world: World,
     input: InputController,
 
     systems: Vec<Box<dyn System>>,
 }
 
-impl App<'_> {
+impl App {
     // static method
     pub fn start(app: &mut Self) {
         let event_loop: EventLoop<Event> = EventLoop::with_user_event().build().unwrap();
@@ -179,7 +179,7 @@ impl App<'_> {
     }
 }
 
-impl<'a> App<'a> {
+impl App {
     pub fn new(width: u32, height: u32, seed: u64) -> Self {
         Self {
             state: AppState::NeedsInit(AppInitData {
@@ -203,7 +203,7 @@ impl<'a> App<'a> {
     pub fn add_mesh(
         &mut self,
         mesh: MeshInitData<Vertex>,
-    ) -> Result<Completer<'static, u64>, MeshStorageError> {
+    ) -> Result<Completer<u64>, MeshStorageError> {
         let completer = Completer::new(APP_START_PRECOND);
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
@@ -220,7 +220,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn add_player(&mut self, player: PlayerInitData<'a>) -> Completer<'static, u64> {
+    pub fn add_player(&mut self, player: PlayerInitData) -> Completer<u64> {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
                 let completer = Completer::new(APP_START_PRECOND);
@@ -268,7 +268,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn add_object(&mut self, object: ObjectInitData<'a>) -> Completer<'static, u64> {
+    pub fn add_object(&mut self, object: ObjectInitData) -> Completer<u64> {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
                 let completer = Completer::new(APP_START_PRECOND);
@@ -301,7 +301,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn add_texture(&mut self, data: TextureInitData) -> Completer<'static, u64> {
+    pub fn add_texture(&mut self, data: TextureInitData) -> Completer<u64> {
         match &mut self.state {
             AppState::NeedsInit(init_data) => {
                 let completer = Completer::new(APP_START_PRECOND);
@@ -315,7 +315,7 @@ impl<'a> App<'a> {
     }
 }
 
-impl<'a> ApplicationHandler<Event> for App<'a> {
+impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if let AppState::NeedsInit(data) = &mut self.state {
             let mut old_data = AppInitData {

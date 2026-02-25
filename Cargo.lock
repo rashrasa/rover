@@ -39,6 +39,7 @@ dependencies = [
  "rand",
  "rayon",
  "rodio",
+ "static_assertions",
  "tobj",
  "wgpu",
  "winit",

@@ -7,13 +7,13 @@ use std::sync::{Arc, Mutex};
 ///
 /// Consuming this data returns a cloned version of the resolved value.
 #[derive(Debug, Clone)]
-pub struct Completer<'a, T: Clone + Copy> {
-    precondition: Option<&'a str>,
+pub struct Completer<T: Clone + Copy> {
+    precondition: Option<&'static str>,
     inner: Arc<Mutex<Option<T>>>,
 }
 
-impl<'a, T: Clone + Copy> Completer<'a, T> {
-    pub fn new(precondition: Option<&'a str>) -> Self {
+impl<T: Clone + Copy> Completer<T> {
+    pub fn new(precondition: Option<&'static str>) -> Self {
         Self {
             precondition,
             inner: Arc::new(Mutex::new(None)),
@@ -27,7 +27,7 @@ impl<'a, T: Clone + Copy> Completer<'a, T> {
         }
     }
 
-    pub fn complete(&mut self, value: T) -> Result<(), CompleterError<'_, T>> {
+    pub fn complete(&mut self, value: T) -> Result<(), CompleterError<T>> {
         let mut current = self.inner.lock().unwrap();
         if let Some(v) = *current {
             return Err(CompleterError::Completed(v));
@@ -36,7 +36,7 @@ impl<'a, T: Clone + Copy> Completer<'a, T> {
         Ok(())
     }
 
-    pub fn consume(self) -> Result<T, CompleterError<'a, T>> {
+    pub fn consume(self) -> Result<T, CompleterError<T>> {
         let inner = self.inner.lock().unwrap();
         match *inner {
             None => {
@@ -50,7 +50,7 @@ impl<'a, T: Clone + Copy> Completer<'a, T> {
 }
 
 #[derive(Debug)]
-pub enum CompleterError<'a, T: Clone + Copy> {
+pub enum CompleterError<T: Clone + Copy> {
     Completed(T),
-    PreconditionFailed(&'a str),
+    PreconditionFailed(&'static str),
 }
