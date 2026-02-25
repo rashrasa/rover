@@ -43,7 +43,7 @@ fn main() {
             (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
             (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
         ),
-        scale: Vector3::identity(),
+        scale: Vector3::new(1.0, 1.0, 1.0),
         rotation: UnitQuaternion::identity(),
         translation: Vector3::new(0.0, 10.0, 0.0),
         response: CollisionResponse::Inelastic(1.0),
@@ -66,12 +66,12 @@ fn main() {
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
                     mass: 5.0,
-                    scale: Vector3::identity() * 5.0,
+                    scale: Vector3::new(5.0, 5.0, 5.0),
                     rotation: UnitQuaternion::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
                         -(PI * (i + k + j) as f32) / 4.0,
                     ),
-                    translation: Vector3::new(10.0 * i as f32, 2.0 * j as f32, 10.0 * k as f32),
+                    translation: Vector3::new(1.0 * i as f32, 2.0 * j as f32, 1.0 * k as f32),
                     response: CollisionResponse::Inelastic(0.9),
                 });
             }
