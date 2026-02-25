@@ -1,13 +1,9 @@
 use std::fmt::Debug;
 
-use log::debug;
 use nalgebra::{Matrix4, UnitQuaternion, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
-use crate::{
-    Integrator,
-    core::{G, Instanced, Meshed, Unique, camera::NoClipCamera},
-};
+use crate::core::{G, Instanced, Meshed, Unique, camera::NoClipCamera};
 
 /// Elastic collisions have CollisionResponse::Inelastic(1.0).
 /// Inelastic takes any value. Values exceeding 1.0 will result in

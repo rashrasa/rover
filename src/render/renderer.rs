@@ -192,7 +192,7 @@ impl Renderer {
 
         let render_module_transformed = InstancedRenderModule::<Vertex, [[f32; 4]; 4]>::new(
             &device,
-            Some("Transformed"),
+            Some("Transformed Render Module"),
             &VertexSpec {
                 vertex_layout: Vertex::desc(),
                 instance_layout: Entity::desc(),

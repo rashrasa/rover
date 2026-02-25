@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{Integrator, render::textures::MipLevel};
 
 pub const G: f64 = 6.6743e-11;
@@ -24,6 +22,3 @@ pub const MESH_FLAT16: u64 = 2;
 
 // must be in decreasing quality
 pub const MIPMAP_LEVELS: [MipLevel; 1] = [MipLevel::Square(2048)];
-
-// metrics
-pub const METRICS_INTERVAL: Duration = Duration::new(10, 0);
