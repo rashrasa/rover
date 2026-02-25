@@ -3,7 +3,7 @@ use std::ops::RangeBounds;
 use bytemuck::{Pod, Zeroable};
 use log::debug;
 use wgpu::{
-    Buffer, BufferSlice, BufferUsages, Device, Queue,
+    Buffer, BufferDescriptor, BufferSlice, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -18,6 +18,7 @@ where
     data: Vec<I>,
 
     instance_buffer: Buffer,
+    buffer_len: u64,
 }
 
 impl<I> InstanceStorage<I>
@@ -34,6 +35,7 @@ where
         Self {
             data: Vec::new(),
             instance_buffer,
+            buffer_len: 0,
         }
     }
 
@@ -41,12 +43,16 @@ where
         self.data.get(*entity_id as usize)
     }
 
-    pub fn len(&self) -> usize {
-        self.data.len()
+    pub fn len(&self) -> &u64 {
+        &self.buffer_len
     }
 
-    pub fn slice<S: RangeBounds<u64>>(&self, bounds: S) -> BufferSlice<'_> {
-        self.instance_buffer.slice(bounds)
+    pub fn capacity(&self) -> u64 {
+        self.instance_buffer.size()
+    }
+
+    pub fn slice(&self) -> BufferSlice<'_> {
+        self.instance_buffer.slice(0..self.buffer_len)
     }
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
@@ -58,22 +64,23 @@ where
         }
     }
 
-    /// May re-allocate buffer. Should not be called during a render pass in its current state.
+    /// May re-allocate buffer.
     pub fn update_gpu(&mut self, queue: &Queue, device: &Device) {
         let bytes = bytemuck::cast_slice(&self.data);
-        if bytes.len() > self.instance_buffer.size() as usize {
+        if bytes.len() > self.capacity() as usize {
+            let new_size = (self.capacity() * 2).max(bytes.len() as u64);
             debug!(
                 "re-allocating instance buffer to {:.8} MB",
-                bytes.len() as f32 / (1024.0 * 1024.0)
+                new_size as f32 / (1024.0 * 1024.0)
             );
             self.instance_buffer.destroy();
-            self.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            self.instance_buffer = device.create_buffer(&BufferDescriptor {
                 label: Some("Instance Buffer"),
-                contents: bytes,
+                size: new_size,
+                mapped_at_creation: false,
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
-        } else {
-            queue.write_buffer(&self.instance_buffer, 0, bytes);
         }
+        queue.write_buffer(&self.instance_buffer, 0, bytes);
     }
 }

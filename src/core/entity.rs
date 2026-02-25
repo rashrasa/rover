@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use log::debug;
 use nalgebra::{Matrix4, UnitQuaternion, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
@@ -264,9 +265,9 @@ impl Instanced<[[f32; 4]; 4]> for Entity {
             Matrix4::from_diagonal(&Vector4::new(self.scale.x, self.scale.y, self.scale.z, 1.0))
                 * self.rotation.to_rotation_matrix().to_homogeneous();
         let mut column = mat.column_mut(3);
-        column.x += self.translation.x;
-        column.y += self.translation.y;
-        column.z += self.translation.z;
+        column.x = self.translation.x;
+        column.y = self.translation.y;
+        column.z = self.translation.z;
 
         Into::<[[f32; 4]; 4]>::into(mat)
     }
