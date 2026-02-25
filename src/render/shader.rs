@@ -155,9 +155,9 @@ where
         Ok(id)
     }
 
-    pub fn upsert_instances<'a>(
+    pub fn upsert_instances(
         &mut self,
-        entities: impl Iterator<Item = &'a (impl Instanced<I> + Meshed<u64> + Unique<u64> + 'a)>,
+        entities: &Vec<impl Instanced<I> + Meshed<u64> + Unique<u64>>,
     ) -> Result<(), String> {
         for entity in entities {
             let mesh_id = entity.mesh_id();

@@ -394,7 +394,7 @@ impl Renderer {
 
     pub fn update_instances(&mut self, active_state: &mut ActiveState) {
         self.render_module_transformed
-            .upsert_instances(active_state.entities().iter())
+            .upsert_instances(active_state.entities())
             .unwrap();
 
         self.render_module_transformed
