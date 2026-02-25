@@ -138,8 +138,7 @@ where
         })
     }
 
-    /// Batch adding of meshes. Meshes will be synced to the GPU in this call.
-    /// Mesh ids are returned in order, or the first error is returned.
+    /// Add mesh to this module. Mesh will only be valid in this render module.
     pub fn add_mesh(
         &mut self,
         device: &Device,

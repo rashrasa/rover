@@ -321,6 +321,8 @@ impl Renderer {
         )
     }
 
+    /// Add mesh to the render module responsible for handling elements
+    /// with a full transform as the instance and the default vertex type.
     pub fn add_mesh_instanced(
         &mut self,
         mesh: MeshInitData<Vertex>,
