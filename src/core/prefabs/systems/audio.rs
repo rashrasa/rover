@@ -32,7 +32,7 @@ impl AudioSystem {
 }
 
 impl core::System for AudioSystem {
-    fn before_tick(&mut self, args: &core::BeforeTickArgs) {
+    fn before_tick(&mut self, args: &mut core::BeforeTickArgs) {
         if *args.input.is_pressed(&KeyCode::KeyW)
             | *args.input.is_pressed(&KeyCode::KeyA)
             | *args.input.is_pressed(&KeyCode::KeyS)

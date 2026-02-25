@@ -83,27 +83,27 @@ pub struct DisposeArgs {}
 pub trait System {
     /// This lifecycle hook is most appropriate for updates and initialization which run right before the app starts.
     /// It may be necessary to access the world state and renderer for initialization. It is only run once.
-    fn before_start(&mut self, args: &BeforeStartArgs) {}
+    fn before_start(&mut self, args: &mut BeforeStartArgs) {}
 
     /// This lifecycle hook is most appropriate for handling queued updates (Network, etc.).
-    fn before_input(&mut self, args: &BeforeInputArgs) {}
+    fn before_input(&mut self, args: &mut BeforeInputArgs) {}
     /// This lifecycle hook is most appropriate for updating the state based on the input state.
-    fn handle_input(&mut self, args: &HandleInputArgs) {}
+    fn handle_input(&mut self, args: &mut HandleInputArgs) {}
     /// This lifecycle hook is most appropriate for updating state before the world state advances (Physics, etc.).
-    fn before_tick(&mut self, args: &BeforeTickArgs) {}
+    fn before_tick(&mut self, args: &mut BeforeTickArgs) {}
     /// This lifecycle hook is most appropriate for advancing the world/system state.
-    fn handle_tick(&mut self, args: &HandleTickArgs) {}
+    fn handle_tick(&mut self, args: &mut HandleTickArgs) {}
     /// This lifecycle hook is most appropriate for updating systems and world state based on the result of the world tick.
-    fn after_tick(&mut self, args: &AfterTickArgs) {}
+    fn after_tick(&mut self, args: &mut AfterTickArgs) {}
     /// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
     /// It is not guaranteed to run right after a tick has completed, as there are plans to isolate rendering to a thread.
-    fn before_render(&mut self, args: &BeforeRenderArgs) {}
+    fn before_render(&mut self, args: &mut BeforeRenderArgs) {}
     /// This lifecycle hook is most appropriate for updating systems and world state after the world renders.
     /// It is not guaranteed to run right before the next tick, as there are plans to isolate rendering to a thread.
-    fn after_render(&mut self, args: &AfterRenderArgs) {}
+    fn after_render(&mut self, args: &mut AfterRenderArgs) {}
 
     /// This lifecycle hook is most appropriate for disposing of systems including any shutdown actions such as
     /// saving data to a file, closing any threads, etc. The system will also be dropped from memory after this call.
     /// It is only run once.
-    fn dispose(&mut self, args: &DisposeArgs) {}
+    fn dispose(&mut self, args: &mut DisposeArgs) {}
 }

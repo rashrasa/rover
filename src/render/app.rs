@@ -437,13 +437,13 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
             renderer.update_instances(&mut active_state);
 
             {
-                let args = BeforeStartArgs {
+                let mut args = BeforeStartArgs {
                     state: &mut active_state,
                     input: &self.input,
                     renderer: &renderer,
                 };
                 for system in self.systems.iter_mut() {
-                    system.before_start(&args);
+                    system.before_start(&mut args);
                 }
             }
 
@@ -485,9 +485,9 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
                 info!("Started Shutdown");
                 {
                     // Run dispose and drop each system.
-                    let args = DisposeArgs {};
+                    let mut args = DisposeArgs {};
                     while let Some(mut system) = self.systems.pop() {
-                        system.dispose(&args);
+                        system.dispose(&mut args);
                     }
                 }
                 event_loop.exit()
@@ -501,70 +501,70 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
 
                     // start redraw
                     {
-                        let before_input = BeforeInputArgs {
+                        let mut before_input = BeforeInputArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.before_input(&before_input);
+                            system.before_input(&mut before_input);
                         }
                     }
                     self.input.update(elapsed, &mut state.current_camera);
                     {
-                        let handle_input = HandleInputArgs {
+                        let mut handle_input = HandleInputArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.handle_input(&handle_input);
+                            system.handle_input(&mut handle_input);
                         }
                     }
 
                     {
-                        let before_tick = BeforeTickArgs {
+                        let mut before_tick = BeforeTickArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.before_tick(&before_tick);
+                            system.before_tick(&mut before_tick);
                         }
                     }
 
                     {
-                        let handle_tick = HandleTickArgs {
+                        let mut handle_tick = HandleTickArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.handle_tick(&handle_tick);
+                            system.handle_tick(&mut handle_tick);
                         }
                     }
 
                     {
-                        let after_tick = AfterTickArgs {
+                        let mut after_tick = AfterTickArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.after_tick(&after_tick);
+                            system.after_tick(&mut after_tick);
                         }
                     }
 
                     state.update(elapsed, &mut self.world);
 
                     {
-                        let before_render = BeforeRenderArgs {
+                        let mut before_render = BeforeRenderArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.before_render(&before_render);
+                            system.before_render(&mut before_render);
                         }
                     }
 
@@ -576,13 +576,13 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
                     }
 
                     {
-                        let after_render = AfterRenderArgs {
+                        let mut after_render = AfterRenderArgs {
                             elapsed: &elapsed_dur,
                             state,
                             input: &self.input,
                         };
                         for system in self.systems.iter_mut() {
-                            system.after_render(&after_render);
+                            system.after_render(&mut after_render);
                         }
                     }
 

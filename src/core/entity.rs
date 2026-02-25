@@ -102,22 +102,22 @@ pub enum EntityType {
 pub struct Entity {
     // Keys
     id: u64,
-    mesh_id: u64,
-    texture_id: u64,
+    pub mesh_id: u64,
+    pub texture_id: u64,
 
     // Transforms, in order
-    scale: Vector3<f32>,
-    rotation: UnitQuaternion<f32>,
-    translation: Vector3<f32>,
+    pub scale: Vector3<f32>,
+    pub rotation: UnitQuaternion<f32>,
+    pub translation: Vector3<f32>,
 
     // Physics
-    velocity: Vector3<f32>,
-    acceleration: Vector3<f32>,
-    bounding_box: BoundingBox,
+    pub velocity: Vector3<f32>,
+    pub acceleration: Vector3<f32>,
+    pub bounding_box: BoundingBox,
 
-    entity_type: EntityType,
-    response: CollisionResponse,
-    mass: f32,
+    pub entity_type: EntityType,
+    pub response: CollisionResponse,
+    pub mass: f32,
 }
 
 impl Entity {
@@ -160,30 +160,6 @@ impl Entity {
 
         self.acceleration += ((G * other.mass as f64 / (dist * dist)) * dir_b).cast::<f32>();
         other.acceleration += ((G * self.mass as f64 / (dist * dist)) * -dir_b).cast::<f32>();
-    }
-
-    pub fn tick(&mut self, dt: f32) {
-        match crate::core::GLOBAL_INTEGRATOR {
-            Integrator::RK4 => {
-                let acceleration = Vector3::from(self.acceleration);
-                let a_k1 = acceleration;
-                let a_k2 = acceleration + a_k1 * dt / 2.0;
-                let a_k3 = acceleration + a_k2 * dt / 2.0;
-                let a_k4 = acceleration + a_k3 * dt;
-                self.velocity += (a_k1 + 2.0 * a_k2 + 2.0 * a_k3 + a_k4) / 6.0 * dt;
-
-                let velocity = Vector3::from(self.velocity);
-                let v_k1 = velocity;
-                let v_k2 = velocity + v_k1 * dt / 2.0;
-                let v_k3 = velocity + v_k2 * dt / 2.0;
-                let v_k4 = velocity + v_k3 * dt;
-
-                self.translation += (v_k1 + 2.0 * v_k2 + 2.0 * v_k3 + v_k4) / 6.0 * dt;
-            }
-            Integrator::Euler => {
-                todo!();
-            }
-        }
     }
 
     /// Checks for a collision between the two objects and updates velocities.

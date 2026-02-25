@@ -37,7 +37,7 @@ impl MetricsSystem {
 }
 
 impl core::System for MetricsSystem {
-    fn before_start(&mut self, _args: &core::BeforeStartArgs) {
+    fn before_start(&mut self, _args: &mut core::BeforeStartArgs) {
         self.window_start = Instant::now();
 
         self.start_tick = Instant::now();
@@ -49,19 +49,19 @@ impl core::System for MetricsSystem {
         self.n_renders = 0;
     }
 
-    fn before_input(&mut self, _args: &core::BeforeInputArgs) {
+    fn before_input(&mut self, _args: &mut core::BeforeInputArgs) {
         self.start_tick = Instant::now();
     }
 
-    fn after_tick(&mut self, _args: &core::AfterTickArgs) {
+    fn after_tick(&mut self, _args: &mut core::AfterTickArgs) {
         self.window_ticking += self.start_tick.elapsed();
         self.n_ticks += 1;
     }
 
-    fn before_render(&mut self, _args: &core::BeforeRenderArgs) {
+    fn before_render(&mut self, _args: &mut core::BeforeRenderArgs) {
         self.start_render = Instant::now();
     }
-    fn after_render(&mut self, _args: &core::AfterRenderArgs) {
+    fn after_render(&mut self, _args: &mut core::AfterRenderArgs) {
         self.window_rendering += self.start_render.elapsed();
         self.n_renders += 1;
 
