@@ -33,6 +33,83 @@ Early camera testing       |  Lighting testing
 
 ## Dev Highlights
 
+### Lifecycle Hooks (using Traits + Dynamic Dispatch)
+
+Allows for easy extension of app logic without needing to modify the library, simplifying the engine down to a code executor with a renderer.
+
+#### Main Trait
+
+Found in `src/core/lifecycle.rs`.
+
+```rust
+pub trait System {
+    /// This lifecycle hook is most appropriate for updates and initialization which run right before the app starts.
+    /// It may be necessary to access the world state and renderer for initialization. It is only run once.
+    fn before_start(&mut self, args: &mut BeforeStartArgs) {}
+
+    // ...
+
+    /// This lifecycle hook is most appropriate for advancing the world/system state.
+    fn handle_tick(&mut self, args: &mut HandleTickArgs) {}
+
+    // ...
+
+    /// This lifecycle hook is most appropriate for updating systems and world state before the world renders.
+    /// It is not guaranteed to run right after a tick has completed, as there are plans to isolate rendering to a thread.
+    fn before_render(&mut self, args: &mut BeforeRenderArgs) {}
+
+    // ...
+}
+```
+
+#### System Storage (Dynamic Dispatch)
+
+```rust
+pub struct App<'a> {
+    // ...
+    systems: Vec<Box<dyn System>>,
+}
+```
+
+#### Running Hooks
+
+```rust
+impl<'a> ApplicationHandler<Event> for App<'a> {
+    // ...
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        // ...
+        match event {
+            // ...
+            WindowEvent::RedrawRequested => {
+                if let AppState::Started { renderer, state } = &mut self.state {
+                    // ...
+                    {
+                        let mut handle_tick = HandleTickArgs {
+                            elapsed: &elapsed_dur,
+                            state,
+                            input: &self.input,
+                        };
+                        for system in self.systems.iter_mut() {
+                            system.handle_tick(&mut handle_tick);
+                        }
+                    }
+                    // ...
+                }
+                // ...
+            }
+            // ...
+        }
+        // ...
+    }
+    // ...
+}
+```
+
 ### State Machine Pattern
 
 Using Rust enums to statically enforce invariants, preventing access to certain data when pre-conditions aren't met. Can be found in `src/render.rs`.
