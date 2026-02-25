@@ -109,45 +109,38 @@ where
     ///
     /// Should not be called during a render pass.
     pub fn update_gpu(&mut self, queue: &Queue, device: &Device) {
+        let vertex_bytes = bytemuck::cast_slice(&self.vertex_storage);
         if self.vertex_buffer_cap < self.vertex_storage.len() {
-            let bytes = bytemuck::cast_slice(&self.vertex_storage);
             debug!(
                 "re-allocating vertex buffer to {:.8} MB",
-                bytes.len() as f32 / (1024.0 * 1024.0)
+                vertex_bytes.len() as f32 / (1024.0 * 1024.0)
             );
             self.vertex_buffer.destroy();
             self.vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytes,
+                contents: vertex_bytes,
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
             self.vertex_buffer_cap = self.vertex_storage.len();
         } else {
-            queue.write_buffer(
-                &self.vertex_buffer,
-                0,
-                bytemuck::cast_slice(&self.vertex_storage),
-            );
+            queue.write_buffer(&self.vertex_buffer, 0, vertex_bytes);
         }
+        let index_bytes = bytemuck::cast_slice(&self.index_storage);
         if self.index_buffer_cap < self.index_storage.len() {
-            let bytes = bytemuck::cast_slice(&self.index_storage);
             debug!(
                 "re-allocating index buffer to {:.8} MB",
-                bytes.len() as f32 / (1024.0 * 1024.0)
+                index_bytes.len() as f32 / (1024.0 * 1024.0)
             );
             self.index_buffer.destroy();
             self.index_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytes,
+                contents: index_bytes,
                 usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             });
             self.index_buffer_cap = self.index_storage.len();
+        } else {
+            queue.write_buffer(&self.index_buffer, 0, index_bytes);
         }
-        queue.write_buffer(
-            &self.index_buffer,
-            0,
-            bytemuck::cast_slice(&self.index_storage),
-        );
     }
 
     /// Returns the start and end of mesh in index buffer to be used in draw calls.

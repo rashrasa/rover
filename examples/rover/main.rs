@@ -20,7 +20,7 @@ fn main() {
 
     let mut app = App::new(1920, 1080, 0);
     let meshes = get_sample_meshes();
-    let n_meshes = meshes.len();
+    let n_meshes = meshes.len() - 1; // excluding ground mesh
 
     let mut mesh_completers: Vec<Completer<u64>> = vec![];
     for mesh in meshes {
@@ -50,12 +50,12 @@ fn main() {
         mass: 100.0,
     });
 
-    for i in 0..10 {
-        for j in 0..1 {
-            for k in 0..10 {
+    for i in -10..11 {
+        for j in -2..3 {
+            for k in -10..11 {
                 app.add_object(ObjectInitData {
                     mesh_id: mesh_completers
-                        .get(((i + j + k) % n_meshes) as usize)
+                        .get(((i + j + k as i32).rem_euclid(n_meshes as i32)) as usize)
                         .unwrap()
                         .clone(),
                     texture_id: texture_completer.clone(),
@@ -265,12 +265,12 @@ fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
             indices: roundish_mesh.indices().to_vec(),
         },
         MeshInitData {
-            vertices: ground.vertices().to_vec(),
-            indices: ground.indices().to_vec(),
-        },
-        MeshInitData {
             vertices: sphere_mesh.vertices().to_vec(),
             indices: sphere_mesh.indices().to_vec(),
+        },
+        MeshInitData {
+            vertices: ground.vertices().to_vec(),
+            indices: ground.indices().to_vec(),
         },
     ]
 }

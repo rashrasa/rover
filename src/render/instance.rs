@@ -72,7 +72,8 @@ where
                 contents: bytes,
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
+        } else {
+            queue.write_buffer(&self.instance_buffer, 0, bytes);
         }
-        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&self.data));
     }
 }

@@ -413,7 +413,6 @@ impl<'a> ApplicationHandler<Event> for App<'a> {
                 completer.complete(id).unwrap();
             }
 
-            info!("Creating GPU buffers");
             let mut active_state = ActiveState {
                 current_camera: NoClipCamera::new(
                     renderer.device(),
