@@ -61,7 +61,7 @@ pub struct RenderPipelineSpec<'a> {
 /// Expects that the instance data comes after the vertex data in the shader.
 ///
 /// Main data type for managing instanced geometry.
-/// Contains relevant meshes, textures, etc.
+/// Contains relevant meshes, textures, buffers, etc.
 ///
 /// The reason for this separation is that some mesh/instance data may need to be handled in a special manner,
 /// in a different shader, with different uniforms.

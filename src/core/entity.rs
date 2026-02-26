@@ -268,3 +268,69 @@ impl Instanced<[[f32; 4]; 4]> for Entity {
         Into::<[[f32; 4]; 4]>::into(mat)
     }
 }
+
+#[allow(unused_imports)]
+mod tests {
+    use std::f32::consts::PI;
+
+    use assertables::{assert_abs_diff_eq_x, assert_abs_diff_lt_x};
+    use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
+
+    use crate::core::{
+        Instanced,
+        entity::{BoundingBox, CollisionResponse, Entity, EntityType},
+    };
+
+    #[test]
+    fn correct_basic_transformation() {
+        let entity = Entity::new(
+            0,
+            0,
+            0,
+            Vector3::new(5.0, 6.0, 7.0),
+            UnitQuaternion::from_axis_angle(
+                &UnitVector3::new_normalize(Vector3::new(0.0, 0.0, 1.0)),
+                PI / 4.0,
+            ) * UnitQuaternion::from_axis_angle(
+                &UnitVector3::new_normalize(Vector3::new(0.0, 1.0, 0.0)),
+                PI / 5.0,
+            ) * UnitQuaternion::from_axis_angle(
+                &UnitVector3::new_normalize(Vector3::new(1.0, 0.0, 0.0)),
+                PI / 6.0,
+            ),
+            Vector3::new(10.0, 11.0, 12.0),
+            Vector3::zeros(),
+            Vector3::zeros(),
+            BoundingBox::ZERO,
+            EntityType::Object,
+            CollisionResponse::Immovable,
+            1.0,
+        );
+        let rotation: [[f32; 3]; 3] = (*entity.rotation.to_rotation_matrix().matrix()).into();
+        let expected_rotation = [
+            [0.5721, 0.5721, -0.5878],
+            [-0.4046, 0.8202, 0.4045],
+            [0.7135, 0.0064, 0.7006],
+        ];
+
+        for i in 0..3 {
+            for j in 0..3 {
+                assert_abs_diff_lt_x!(expected_rotation[i][j], rotation[i][j], 1.0e-2);
+            }
+        }
+
+        let instance = entity.instance();
+        // used matlab for values
+        let expected_instance = [
+            [2.8603, 3.4324, -4.1145, 0.0],
+            [-2.0228, 4.9211, 2.8316, 0.0],
+            [3.5675, 0.0383, 4.9044, 0.0],
+            [10.0, 11.0, 12.0, 1.0],
+        ];
+        for i in 0..4 {
+            for j in 0..4 {
+                assert_abs_diff_lt_x!(expected_instance[i][j], instance[i][j], 1.0e-2);
+            }
+        }
+    }
+}

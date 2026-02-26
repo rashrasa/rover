@@ -55,7 +55,7 @@ where
         }
     }
 
-    /// [indices] should be relative to [vertices] location in slice.
+    /// [indices] should be relative to [vertices] locations in provided slice.
     pub fn add_mesh(&mut self, vertices: &[V], indices: &[u16]) -> Result<u64, MeshStorageError> {
         let before_count_vertices = self.vertex_storage.len();
         let before_count_indexes = self.index_storage.len();
@@ -144,6 +144,7 @@ where
     }
 
     /// Returns the start and end of mesh in index buffer to be used in draw calls.
+    /// Both start and end are inclusive.
     pub fn get_mesh_index_bounds(&self, mesh_id: &u64) -> Option<(usize, usize)> {
         self.map.get(mesh_id).map(|(_, _, s_i, e_i)| (*s_i, *e_i))
     }
