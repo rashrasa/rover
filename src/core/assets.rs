@@ -1,4 +1,4 @@
-// 8x8x4
+// 8x8x4, WxHxRGBA
 #[rustfmt::skip]
 pub const ICON: [u8; 256] = [
     0, 0, 0, 0,

@@ -16,9 +16,5 @@ pub const RENDER_DISTANCE: f32 = 16.0;
 
 pub const MUTE: bool = false;
 
-pub const MESH_CUBE2: u64 = 0;
-pub const MESH_ROUNDISH: u64 = 1;
-pub const MESH_FLAT16: u64 = 2;
-
 // must be in decreasing quality
 pub const MIPMAP_LEVELS: [MipLevel; 1] = [MipLevel::Square(2048)];

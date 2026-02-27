@@ -331,6 +331,17 @@ impl Renderer {
             .add_mesh(&self.device, &self.queue, mesh)
     }
 
+    pub fn update_instances(&mut self, active_state: &mut ActiveState) {
+        self.render_module_transformed
+            .upsert_instances(active_state.entities())
+            .unwrap();
+    }
+
+    pub fn update_gpu(&mut self) {
+        self.render_module_transformed
+            .update_gpu(&self.device, &self.queue);
+    }
+
     pub fn render(&mut self, state: &mut ActiveState) -> Result<(), SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
@@ -392,15 +403,6 @@ impl Renderer {
         output.present();
 
         Ok(())
-    }
-
-    pub fn update_instances(&mut self, active_state: &mut ActiveState) {
-        self.render_module_transformed
-            .upsert_instances(active_state.entities())
-            .unwrap();
-
-        self.render_module_transformed
-            .update_gpu(&self.device, &self.queue);
     }
 
     pub fn device(&self) -> &Device {

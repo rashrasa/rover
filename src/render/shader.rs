@@ -13,6 +13,7 @@
 use std::{collections::HashMap, io::Read, num::NonZero, ops::Deref};
 
 use bytemuck::{Pod, Zeroable};
+use log::debug;
 use wgpu::{
     BindGroup, BindGroupLayout, ColorTargetState, DepthStencilState, Device, FragmentState,
     IndexFormat, MultisampleState, PipelineCache, PipelineCompilationOptions,
@@ -198,6 +199,31 @@ where
                 let (start, end) = self.meshes.get_mesh_index_bounds(&mesh_id).unwrap();
                 render_pass.draw_indexed(start as u32..end as u32, 0, 0..*storage.len() as u32);
             }
+        }
+    }
+}
+
+mod tests {
+    use assertables::assert_abs_diff_lt_x;
+
+    #[test]
+    fn cast_slice_equivalence() {
+        let data = [
+            [1.0, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ];
+        let direct_cast: &[u8] = bytemuck::cast_slice(&data);
+
+        let mut separate_casts: Vec<u8> = vec![];
+        separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[0]));
+        separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[1]));
+        separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[2]));
+        separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[3]));
+        assert!(direct_cast.len() == separate_casts.len());
+        for i in 0..direct_cast.len() {
+            assert_eq!(direct_cast[i], separate_casts[i]);
         }
     }
 }

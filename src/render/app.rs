@@ -261,7 +261,6 @@ impl App {
                     player.response,
                     player.mass,
                 );
-                renderer.update_instances(state); // TODO: Fine-grained instance updates
                 state.entities.push(player);
                 Completer::from_value(id)
             }
@@ -293,7 +292,6 @@ impl App {
                     object.response,
                     object.mass,
                 );
-                renderer.update_instances(state);
 
                 state.entities.push(object);
                 Completer::from_value(id)
@@ -434,6 +432,7 @@ impl ApplicationHandler<Event> for App {
             };
 
             renderer.update_instances(&mut active_state);
+            renderer.update_gpu();
 
             {
                 let mut args = BeforeStartArgs {
@@ -568,6 +567,7 @@ impl ApplicationHandler<Event> for App {
                     }
 
                     renderer.update_instances(state);
+                    renderer.update_gpu();
 
                     match renderer.render(state) {
                         Ok(_) => {}

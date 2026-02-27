@@ -1,8 +1,12 @@
 use std::f32::consts::PI;
 
+const MESH_CUBE2: u64 = 0;
+const MESH_ROUNDISH: u64 = 1;
+const MESH_FLAT16: u64 = 2;
+
 use agate_engine::{
     core::{
-        CHUNK_RESOLUTION, CHUNK_SIZE, Completer, MESH_CUBE2,
+        CHUNK_RESOLUTION, CHUNK_SIZE, Completer,
         entity::{BoundingBox, CollisionResponse},
         geometry::{EdgeJoin, Face, Mesh, Shape3},
     },
@@ -50,9 +54,9 @@ fn main() {
         mass: 100.0,
     });
 
-    for i in -10..11 {
-        for j in -2..3 {
-            for k in -10..11 {
+    for i in -3..4 {
+        for j in -3..4 {
+            for k in -3..4 {
                 app.add_object(ObjectInitData {
                     mesh_id: mesh_completers
                         .get(((i + j + k as i32).rem_euclid(n_meshes as i32)) as usize)

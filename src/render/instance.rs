@@ -59,6 +59,7 @@ where
             self.data[*entity_id as usize] = data;
         } else {
             self.data.push(data);
+            self.buffer_len += 1;
         }
     }
 
