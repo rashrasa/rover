@@ -335,6 +335,11 @@ impl Renderer {
         self.render_module_transformed
             .upsert_instances(active_state.entities())
             .unwrap();
+
+        // temporary fix
+        active_state
+            .current_camera_mut()
+            .update_gpu(&mut self.queue);
     }
 
     pub fn update_gpu(&mut self) {
