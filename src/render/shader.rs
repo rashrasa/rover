@@ -147,10 +147,7 @@ where
         mesh: MeshInitData<V>,
     ) -> Result<u64, MeshStorageError> {
         let id = self.meshes.add_mesh(&mesh.vertices, &mesh.indices)?;
-
         self.instances.insert(id, InstanceStorage::new(device));
-
-        self.meshes.update_gpu(queue, device);
 
         Ok(id)
     }
@@ -194,10 +191,10 @@ where
         }
 
         for (mesh_id, storage) in self.instances.iter() {
-            if *storage.len() > 0 {
+            if storage.len() > 0 {
                 render_pass.set_vertex_buffer(1, storage.slice());
                 let (start, end) = self.meshes.get_mesh_index_bounds(&mesh_id).unwrap();
-                render_pass.draw_indexed(start as u32..end as u32, 0, 0..*storage.len() as u32);
+                render_pass.draw_indexed(start as u32..end as u32, 0, 0..storage.len() as u32);
             }
         }
     }

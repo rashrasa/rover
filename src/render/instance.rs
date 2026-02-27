@@ -16,7 +16,6 @@ where
     data: Vec<I>,
 
     instance_buffer: Buffer,
-    buffer_len: u64,
 }
 
 impl<I> InstanceStorage<I>
@@ -26,14 +25,13 @@ where
     pub fn new(device: &Device) -> Self {
         let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Instance Buffer"),
-            contents: &[0 as u8; 0],
+            contents: &[0 as u8; 100],
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         Self {
             data: Vec::new(),
             instance_buffer,
-            buffer_len: 0,
         }
     }
 
@@ -41,8 +39,8 @@ where
         self.data.get(*entity_id as usize)
     }
 
-    pub fn len(&self) -> &u64 {
-        &self.buffer_len
+    pub fn len(&self) -> u64 {
+        self.data.len() as u64
     }
 
     pub fn capacity(&self) -> u64 {
@@ -50,16 +48,16 @@ where
     }
 
     pub fn slice(&self) -> BufferSlice<'_> {
-        self.instance_buffer.slice(0..self.buffer_len)
+        self.instance_buffer
+            .slice(0..self.len() * size_of::<[[f32; 4]; 4]>() as u64)
     }
 
     /// Inserts a new instance if it wasn't in the buffer, updates existing one if it was.
     pub fn upsert_instance(&mut self, entity_id: &u64, data: I) {
-        if (*entity_id as usize) < self.data.len() {
+        if *entity_id < self.len() {
             self.data[*entity_id as usize] = data;
         } else {
             self.data.push(data);
-            self.buffer_len += 1;
         }
     }
 
