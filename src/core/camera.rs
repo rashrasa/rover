@@ -8,7 +8,7 @@ use wgpu::{
 };
 use winit::keyboard::KeyCode;
 
-use crate::{OPENGL_TO_WGPU_MATRIX, core::CAMERA_SPEED};
+use crate::core::CAMERA_SPEED;
 
 pub trait Camera {
     fn look_up(&mut self, amount: f32);
@@ -53,8 +53,7 @@ impl NoClipCamera {
             &(Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position),
             &[0.0, 1.0, 0.0].into(),
         );
-        let view_proj: Matrix4<f32> =
-            (OPENGL_TO_WGPU_MATRIX * projection.projection() * view).into();
+        let view_proj: Matrix4<f32> = (projection.projection() * view).into();
 
         let buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -235,9 +234,7 @@ impl Camera for NoClipCamera {
         self.roll_ccw(roll_ccw);
         self.translate(&[0.0, fly, 0.0].into());
 
-        let view = self.create_view();
-
-        self.view_proj = (OPENGL_TO_WGPU_MATRIX * self.projection.projection() * view).into();
+        self.view_proj = (self.projection.projection() * self.create_view()).into();
     }
     fn update_gpu(&mut self, queue: &mut Queue) {
         queue.write_buffer(
@@ -255,6 +252,7 @@ pub struct Projection {
     near: f32,
     far: f32,
 
+    // generated
     transform: Matrix4<f32>,
 }
 
@@ -265,9 +263,8 @@ impl Projection {
             fovy: fovy,
             near,
             far,
-            transform: OPENGL_TO_WGPU_MATRIX
-                * nalgebra::Perspective3::new(width / height, fovy * 180.0 / PI, near, far)
-                    .as_matrix(),
+            transform: *nalgebra::Perspective3::new(width / height, fovy * 180.0 / PI, near, far)
+                .as_matrix(),
         }
     }
 
@@ -281,7 +278,11 @@ impl Projection {
     }
 
     fn update(&mut self) {
-        self.transform = OPENGL_TO_WGPU_MATRIX
-            * nalgebra::Matrix4::new_perspective(self.aspect, self.fovy, self.near, self.far);
+        self.transform = nalgebra::Matrix4::new_perspective(
+            self.aspect,
+            self.fovy * 180.0 / PI,
+            self.near,
+            self.far,
+        );
     }
 }
