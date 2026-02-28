@@ -26,7 +26,11 @@ impl core::System for DynamicsSystem {
                     entity.translation += (v_k1 + 2.0 * v_k2 + 2.0 * v_k3 + v_k4) / 6.0 * dt;
                 }
                 Integrator::Euler => {
-                    todo!();
+                    let acceleration = Vector3::from(entity.acceleration);
+                    entity.velocity += acceleration * dt;
+
+                    let velocity = Vector3::from(entity.velocity);
+                    entity.translation += velocity * dt;
                 }
             }
         }
