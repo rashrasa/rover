@@ -13,7 +13,5 @@ pub mod vertex;
            a. Scale, Rotation, Transformation turned into 4x4 transform matrix (object.instance())
            b. Copied to instance storage in the CPU at the correct location (update_instances())
            c. Entire instance buffer is copied to VRAM (update_gpu())
-           d. Each mesh's instances gets own draw_instanced call
-
-
+           d. Each mesh gets own draw_instanced call
 */

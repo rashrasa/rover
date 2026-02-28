@@ -200,6 +200,7 @@ where
     }
 }
 
+#[allow(unused_imports)]
 mod tests {
     use assertables::assert_abs_diff_lt_x;
 
