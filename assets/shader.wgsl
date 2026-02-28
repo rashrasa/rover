@@ -75,7 +75,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
 // @fragment
 // fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-//     let depth = textureLoad(depth_texture, vec2i(floor(in.world_position.xy)), 0);
+//     let clip_position = vec2i(vec2<f32>(in.clip_position.x * 1920.0, in.clip_position.y * 1080.0));
+//     let depth = textureLoad(depth_texture, clip_position, 0);
 
-//     return vec4<f32>(1.0 - depth,1.0 - depth,1.0 - depth,1.0);
+//     return vec4<f32>(exp(-depth), 0.0, 0.0, 1.0);
 // }
