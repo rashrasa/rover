@@ -64,7 +64,7 @@ fn main() {
                         .clone(),
                     texture_id: texture_completer.clone(),
                     velocity: Vector3::zeros(),
-                    acceleration: Vector3::zeros(),
+                    acceleration: Vector3::new(i as f32, j as f32, k as f32),
                     bounding_box: BoundingBox::new(
                         (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
