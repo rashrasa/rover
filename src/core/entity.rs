@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use nalgebra::{Matrix4, UnitQuaternion, Vector3, Vector4};
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
-use crate::core::{G, Instanced, Meshed, Unique, camera::NoClipCamera};
+use crate::core::{Instanced, Meshed, Unique, camera::NoClipCamera};
 
 /// Elastic collisions have CollisionResponse::Inelastic(1.0).
 /// Inelastic takes any value. Values exceeding 1.0 will result in
@@ -57,34 +57,6 @@ impl BoundingBox {
         }
 
         Some([x, y, z])
-    }
-}
-
-// ********************************************************************************** //
-// ************************************ HELPERS ************************************* //
-// ********************************************************************************** //
-
-/* These helper functions are how each trait is handled.
- * If specific traits need more data, additional trait bounds should be specified.
- * Most world logic should live here.
- */
-
-/// Performs object-object collisions for every element in the list.
-pub fn perform_collisions(entities: &mut Vec<Entity>) {
-    // Calculate each collision and add them up for each object.
-
-    for i in 0..entities.len() {
-        for j in 0..entities.len() {
-            if i != j {
-                let a = entities.get_mut(i).unwrap() as *mut Entity;
-                let b = entities.get_mut(j).unwrap() as *mut Entity;
-                // SAFETY: [a] and [b] are guaranteed to be valid, different Entity items,
-                //         as long as no other threads use [entities] or modify any entities.
-                unsafe {
-                    a.as_mut().unwrap().apply_gravity(b.as_mut().unwrap());
-                }
-            }
-        }
     }
 }
 
@@ -147,66 +119,6 @@ impl Entity {
             response,
             mass,
         }
-    }
-    pub fn apply_gravity(&mut self, other: &mut Entity) {
-        // a1 = G * m2/r^2
-        let to_other: Vector3<f64> = Into::<Vector3<f32>>::into(other.translation).cast::<f64>()
-            - Into::<Vector3<f32>>::into(self.translation).cast::<f64>();
-        let dist = to_other.magnitude();
-        let dir_b = to_other.normalize();
-
-        self.acceleration += ((G * other.mass as f64 / (dist * dist)) * dir_b).cast::<f32>();
-        other.acceleration += ((G * self.mass as f64 / (dist * dist)) * -dir_b).cast::<f32>();
-    }
-
-    /// Checks for a collision between the two objects and updates velocities.
-    pub fn perform_single_collision(
-        &mut self,
-        _other: &mut Entity,
-    ) -> (Vector3<f32>, Vector3<f32>) {
-        todo!();
-        // TODO: Use position and velocity to determine whether to skip certain collision tests.
-
-        // match a.bounding_box().intersects(b.bounding_box()) {
-        //     None => {
-        //         return (Vector3::zeros(), Vector3::zeros());
-        //     }
-        //     Some(c) => {
-        //         let c: Vector3<f32> = c.into();
-        //         let collision_dir = match c.try_normalize(1.0e-6) {
-        //             Some(n) => n,
-        //             None => Vector3::new(1.0, 0.0, 0.0),
-        //         };
-
-        //         match a.response() {
-        //             CollisionResponse::Immovable => match b.response() {
-        //                 CollisionResponse::Immovable => {
-        //                     return (Vector3::zeros(), Vector3::zeros());
-        //                 }
-        //                 CollisionResponse::Inelastic(p_b) => {}
-        //             },
-        //             CollisionResponse::Inelastic(p_a) => match b.response() {
-        //                 CollisionResponse::Immovable => {
-        //                     return (Vector3::zeros(), Vector3::zeros());
-        //                 }
-        //                 CollisionResponse::Inelastic(p_b) => {
-        //                     let a_v0: Vector3<f32> = a.velocity().into();
-        //                     let b_v0: Vector3<f32> = b.velocity().into();
-        //                     let a_m = *a.mass();
-        //                     let b_m = *b.mass();
-
-        //                     // Needs to be solved
-        //                     let a_v1: Vector3<f32> = (((0.5 * (1.0 + p_a) * a_m * a_v0 * a_v0)
-        //                         + (0.5 * (1.0 + p_b) * b_m * b_v0 * b_v0)
-        //                         - (0.5 * b_m * b_v1 * b_v1))
-        //                         / (0.5 * a_m))
-        //                         .sqrt();
-        //                     let b_v1: Vector3<f32> = (a_m * a_v0 + b_m * b_v0 - a_m * a_v1) / b_m;
-        //                 }
-        //             },
-        //         }
-        //     }
-        // };
     }
 
     pub fn texture_id(&self) -> &u64 {
