@@ -18,6 +18,6 @@ pub const DEFAULT_SYSTEMS: fn() -> Vec<Box<dyn System>> = || {
         Box::new(AudioSystem::new()),
         Box::new(DynamicsSystem),
         Box::new(GravitySystem),
-        Box::new(EntitySpawnerSystem::new(0, 0)),
+        //Box::new(EntitySpawnerSystem::new(0, 0)),
     ]
 };

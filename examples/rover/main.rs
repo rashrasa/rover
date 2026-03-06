@@ -24,10 +24,9 @@ fn main() {
 
     let mut app = App::new(1920, 1080, 0);
     let meshes = get_sample_meshes();
-    let n_meshes = meshes.len() - 1; // excluding ground mesh
 
     let mut mesh_completers: Vec<Completer<u64>> = vec![];
-    for mesh in meshes {
+    for mesh in meshes.into_iter() {
         mesh_completers.push(app.add_mesh(mesh).unwrap());
     }
 
@@ -57,19 +56,32 @@ fn main() {
     //     mass: 100.0,
     // });
 
+    // app.add_object(ObjectInitData {
+    //     mesh_id: mesh_completers.get(0).unwrap().clone(),
+    //     texture_id: texture_completer.clone(),
+    //     velocity: Vector3::zeros(),
+    //     acceleration: Vector3::zeros(),
+    //     bounding_box: BoundingBox::ZERO,
+    //     mass: 5.0e10,
+    //     scale: Vector3::new(5.0, 5.0, 5.0),
+    //     rotation: UnitQuaternion::identity(),
+    //     translation: Vector3::zeros(),
+    //     response: CollisionResponse::Inelastic(0.9),
+    // });
+
     for i in -3..4 {
         for j in -3..4 {
             for k in -3..4 {
                 app.add_object(ObjectInitData {
-                    mesh_id: mesh_completers.get(MESH_CUBE2 as usize).unwrap().clone(),
+                    mesh_id: mesh_completers.get(0).unwrap().clone(),
                     texture_id: texture_completer.clone(),
-                    velocity: Vector3::new(1.0, 1.0, 1.0) * 0.0,
+                    velocity: Vector3::new(1.0, 1.0, 1.0),
                     acceleration: Vector3::zeros(),
                     bounding_box: BoundingBox::new(
                         (1.0 / 2.0, 1.0 / 2.0, 1.0 / 2.0),
                         (-1.0 / 2.0, -1.0 / 2.0, -1.0 / 2.0),
                     ),
-                    mass: 1.0e12,
+                    mass: 5.0e10,
                     scale: Vector3::new(5.0, 5.0, 5.0),
                     rotation: UnitQuaternion::from_axis_angle(
                         &UnitVector3::new_normalize([0.0, 0.0, 1.0].into()),
@@ -81,19 +93,6 @@ fn main() {
             }
         }
     }
-
-    app.add_object(ObjectInitData {
-        mesh_id: penguin_model_completer,
-        texture_id: texture_completer.clone(),
-        velocity: Vector3::zeros(),
-        acceleration: Vector3::zeros(),
-        bounding_box: BoundingBox::ZERO,
-        mass: 0.0,
-        scale: Vector3::new(5.0, 5.0, 5.0),
-        rotation: UnitQuaternion::identity(),
-        translation: Vector3::zeros(),
-        response: CollisionResponse::Inelastic(0.9),
-    });
 
     App::start(&mut app);
 }

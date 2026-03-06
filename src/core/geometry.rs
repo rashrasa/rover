@@ -5,31 +5,31 @@ use cgmath::{InnerSpace, Matrix3, Rad, SquareMatrix, Vector3};
 
 pub trait Mesh {
     fn vertices(&self) -> &[Vertex];
-    fn indices(&self) -> &[u16];
+    fn indices(&self) -> &[u32];
 }
 
 /// A Face belongs to a model, and its vertices should already be in model space.
 pub struct Face {
     vertices: Vec<Vertex>,
-    indices: Vec<u16>,
+    indices: Vec<u32>,
 
     // Currently only makes sense for a flat rectangular mesh.
     // Needs to be updated if other types are added.
-    edge_px: Vec<u16>,
-    edge_nx: Vec<u16>,
-    edge_pz: Vec<u16>,
-    edge_nz: Vec<u16>,
+    edge_px: Vec<u32>,
+    edge_nx: Vec<u32>,
+    edge_pz: Vec<u32>,
+    edge_nz: Vec<u32>,
 }
 
 impl Face {
     /// Try using one of the convenience functions (i.e. Face::from_function)
     pub fn new(
         y_up_vertices: Vec<Vertex>,
-        indices: Vec<u16>,
-        edge_px: Vec<u16>,
-        edge_nx: Vec<u16>,
-        edge_pz: Vec<u16>,
-        edge_nz: Vec<u16>,
+        indices: Vec<u32>,
+        edge_px: Vec<u32>,
+        edge_nx: Vec<u32>,
+        edge_pz: Vec<u32>,
+        edge_nz: Vec<u32>,
     ) -> Self {
         Self {
             vertices: y_up_vertices,
@@ -42,19 +42,19 @@ impl Face {
         }
     }
 
-    pub fn edge_px(&self) -> &Vec<u16> {
+    pub fn edge_px(&self) -> &Vec<u32> {
         &self.edge_px
     }
 
-    pub fn edge_nx(&self) -> &Vec<u16> {
+    pub fn edge_nx(&self) -> &Vec<u32> {
         &self.edge_nx
     }
 
-    pub fn edge_pz(&self) -> &Vec<u16> {
+    pub fn edge_pz(&self) -> &Vec<u32> {
         &self.edge_pz
     }
 
-    pub fn edge_nz(&self) -> &Vec<u16> {
+    pub fn edge_nz(&self) -> &Vec<u32> {
         &self.edge_nz
     }
 
@@ -108,16 +108,16 @@ impl Face {
         let mut vertices = vec![];
         let mut indices = vec![];
 
-        let mut edge_px: Vec<u16> = vec![];
-        let mut edge_pz: Vec<u16> = vec![];
-        let mut edge_nx: Vec<u16> = vec![];
-        let mut edge_nz: Vec<u16> = vec![];
+        let mut edge_px: Vec<u32> = vec![];
+        let mut edge_pz: Vec<u32> = vec![];
+        let mut edge_nx: Vec<u32> = vec![];
+        let mut edge_nz: Vec<u32> = vec![];
 
         let mut v_up = true;
 
         for k in 0..n_z {
             for i in 0..n_x {
-                let this_index = i as u16 + k as u16 * n_x as u16;
+                let this_index = i as u32 + k as u32 * n_x as u32;
                 let x = domain_x.0 + i as f32 * dx;
                 let z = domain_z.0 + k as f32 * dz;
                 let y = height(x, z);
@@ -149,17 +149,17 @@ impl Face {
                 // add indices if possible
                 if k > 0 {
                     if v_up && i != n_x - 1 {
-                        indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
-                        indices.push((i + (k - 1) * n_x) as u16); // up
+                        indices.push(((i + 1) + (k - 1) * n_x) as u32); // up-right
+                        indices.push((i + (k - 1) * n_x) as u32); // up
                         indices.push(this_index); // this
                         v_up = false;
                     } else if !v_up {
-                        indices.push(((i - 1) + k * n_x) as u16); // left
+                        indices.push(((i - 1) + k * n_x) as u32); // left
                         indices.push(this_index); // this
-                        indices.push((i + (k - 1) * n_x) as u16); // up
+                        indices.push((i + (k - 1) * n_x) as u32); // up
                         if i != n_x - 1 {
-                            indices.push(((i + 1) + (k - 1) * n_x) as u16); // up-right
-                            indices.push((i + (k - 1) * n_x) as u16); // up
+                            indices.push(((i + 1) + (k - 1) * n_x) as u32); // up-right
+                            indices.push((i + (k - 1) * n_x) as u32); // up
                             indices.push(this_index); // this
                             v_up = false;
                         } else {
@@ -188,7 +188,7 @@ impl Mesh for Face {
         &self.vertices
     }
 
-    fn indices(&self) -> &[u16] {
+    fn indices(&self) -> &[u32] {
         &self.indices
     }
 }
@@ -197,19 +197,19 @@ impl Mesh for Face {
 /// If this is not the case, a join will be done anyways but may look distorted.
 pub struct EdgeJoin {
     // indices are in their own space
-    edge_lower: Vec<u16>,
+    edge_lower: Vec<u32>,
     lower_face_index: usize,
 
-    edge_higher: Vec<u16>,
+    edge_higher: Vec<u32>,
     higher_face_index: usize,
 }
 
 impl EdgeJoin {
     pub fn new(
-        edge_lower: Vec<u16>,
+        edge_lower: Vec<u32>,
         lower_face_index: usize,
 
-        edge_higher: Vec<u16>,
+        edge_higher: Vec<u32>,
         higher_face_index: usize,
     ) -> Result<Self, String> {
         if lower_face_index == higher_face_index {
@@ -228,7 +228,7 @@ impl EdgeJoin {
 #[derive(Debug)]
 pub struct Shape3 {
     vertices: Vec<Vertex>,
-    indices: Vec<u16>,
+    indices: Vec<u32>,
 }
 
 impl Shape3 {
@@ -236,7 +236,7 @@ impl Shape3 {
         // Convert vertices and indices to model coordinates
         let mut face_index_start = vec![];
         let mut vertices: Vec<Vertex> = vec![];
-        let mut indices: Vec<u16> = vec![];
+        let mut indices: Vec<u32> = vec![];
 
         // Move vertices and indices out of faces
         let mut start = 0;
@@ -247,7 +247,7 @@ impl Shape3 {
             vertices.extend(face.vertices.iter());
             indices.extend(face.indices.iter().map(|index| index + start));
 
-            start += face.vertices.len() as u16;
+            start += face.vertices.len() as u32;
         }
 
         // Join faces
@@ -336,7 +336,7 @@ impl Mesh for Shape3 {
         &self.vertices
     }
 
-    fn indices(&self) -> &[u16] {
+    fn indices(&self) -> &[u32] {
         &self.indices
     }
 }

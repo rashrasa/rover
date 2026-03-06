@@ -68,7 +68,7 @@ where
     V: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
 {
     pub vertices: Vec<V>,
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 pub struct ObjectInitData {
@@ -223,12 +223,12 @@ impl App {
     pub fn add_obj_model(&mut self, path: &str) -> Result<Completer<u64>, MeshStorageError> {
         let model =
             TobjModel::load_from_obj(path).map_err(|e| MeshStorageError::TobjModelError(e))?;
-        let indices: Vec<u16> = model
+        let indices: Vec<u32> = model
             .model()
             .mesh
             .indices
             .iter()
-            .map(|i| *i as u16)
+            .map(|i| *i as u32)
             .collect();
         let mut vertices = vec![];
         for i in 0..model.model().mesh.positions.len() / 3 {

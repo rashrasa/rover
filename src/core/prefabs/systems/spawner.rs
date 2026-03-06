@@ -48,7 +48,7 @@ impl System for EntitySpawnerSystem {
                     rand::random::<f32>().abs() / f32::MAX * 5.0,
                 ),
                 response: crate::core::entity::CollisionResponse::Inelastic(1.0),
-                mass: 5.0,
+                mass: 5.0e8,
             });
             self.last = Instant::now()
         }

@@ -183,7 +183,7 @@ where
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
-        render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint16);
+        render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint32);
 
         for (i, bg) in uniforms.enumerate() {
             render_pass.set_bind_group(i as u32, Into::<&BindGroup>::into(**bg), &[]);
