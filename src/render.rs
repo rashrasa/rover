@@ -1,7 +1,7 @@
 pub mod app;
 pub mod model;
+pub mod module;
 pub mod renderer;
-pub mod shader;
 pub mod storage;
 pub mod vertex;
 
