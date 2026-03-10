@@ -44,6 +44,7 @@ impl EguiRenderer {
             state: egui_state,
             window,
             builder: Box::new(move || {
+                // Capture any variables here
                 let builder = builder.clone();
 
                 Box::new(|ui| (builder)(ui))

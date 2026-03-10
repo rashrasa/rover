@@ -203,7 +203,7 @@ impl Renderer {
                 instance_layout: Entity::desc(),
             },
             &ShaderSpec {
-                path: "assets/shader.wgsl".into(),
+                path: "src/render/shaders/default.wgsl".into(),
                 vertex_shader_name: "vs_main".into(),
                 fragment_shader_name: "fs_main".into(),
             },
