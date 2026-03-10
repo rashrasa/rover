@@ -157,4 +157,4 @@ Marble texture sourced from [https://www.manytextures.com/texture/48/white-marbl
 
 Motorcycle Engine_60Km/h.wav by Cmart94 -- [https://freesound.org/s/518177/] -- License: Attribution 4.0
 
-Penguin Model [https://free3d.com/3d-model/emperor-penguin-601811.html]
+Penguin Model [https://sketchfab.com/models/f65e799bf9534c66a12724a93bb72c39]
