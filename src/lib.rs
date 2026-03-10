@@ -6,6 +6,7 @@
        - lifecycle::System's act on state, input, camera through lifecycle hooks
     Issues:
        - Inter-System communication is not currently possible (merging systems is necessary)
+       - Textures do not work, the first texture added is the one applied to all objects currently
 */
 
 pub mod core;

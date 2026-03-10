@@ -1,3 +1,4 @@
+use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use std::sync::Arc;
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -18,9 +19,9 @@ use crate::{
     core::{camera::Camera, entity::Entity, lights::LightSourceStorage},
     render::{
         app::{ActiveState, MeshInitData, TextureInitData},
+        gui::EguiRenderer,
         module::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
-        storage::mesh,
-        storage::textures::TextureStorage,
+        storage::{mesh, textures::TextureStorage},
         vertex::Vertex,
     },
 };
@@ -46,7 +47,11 @@ pub struct Renderer {
     depth_view: TextureView,
     depth_sampler: Sampler,
     depth_bind_group: BindGroup,
+
+    egui_renderer: EguiRenderer,
 }
+
+pub struct A;
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Self {
@@ -186,8 +191,8 @@ impl Renderer {
         let lights = LightSourceStorage::new(
             &mut device,
             [1000.0, 1000.0, 1000.0, 1.0],
-            [1.0 / 255.0, 75.0 / 255.0, 75.0 / 255.0, 1.0],
-            1.0e7,
+            [255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0, 1.0],
+            1.0e6,
         );
 
         let render_module_transformed = InstancedRenderModule::<Vertex, [[f32; 4]; 4]>::new(
@@ -259,6 +264,21 @@ impl Renderer {
             }],
         });
 
+        let egui_renderer = EguiRenderer::new(
+            &device,
+            surface_format,
+            RendererOptions {
+                msaa_samples: 1,
+                depth_stencil_format: None,
+                dithering: true,
+                predictable_texture_filtering: false,
+            },
+            window.clone(),
+            |ui| {
+                ui.label("Test Test Test Test Test Test Test Test Test Test Test Test Test Test");
+            },
+        );
+
         window.set_visible(true);
 
         Self {
@@ -282,6 +302,8 @@ impl Renderer {
             texture_bind_group_layout,
 
             camera_bind_group_layout,
+
+            egui_renderer,
         }
     }
 
@@ -397,13 +419,24 @@ impl Renderer {
                 &mut render_pass,
                 [
                     &state.current_camera().bind_group(),
-                    &&self.textures.get(&0).unwrap().3,
+                    &&self.textures.get(&1).unwrap().3,
                     &self.lights.bind_group(),
                     &&self.depth_bind_group,
                 ]
                 .iter(),
             );
         }
+
+        self.egui_renderer.render(
+            &self.device,
+            &self.queue,
+            &ScreenDescriptor {
+                size_in_pixels: [view.texture().width(), view.texture().height()],
+                pixels_per_point: self.window.scale_factor() as f32 * 1.0,
+            },
+            &mut encoder,
+            &view,
+        );
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 

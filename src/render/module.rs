@@ -218,7 +218,9 @@ mod tests {
         separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[1]));
         separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[2]));
         separate_casts.extend(bytemuck::cast_slice::<f32, u8>(&data[3]));
+
         assert!(direct_cast.len() == separate_casts.len());
+
         for i in 0..direct_cast.len() {
             assert_eq!(direct_cast[i], separate_casts[i]);
         }

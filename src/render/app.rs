@@ -220,6 +220,7 @@ impl App {
         }
     }
 
+    /// Returns a completer for the mesh id and texture id (in that order).
     pub fn add_obj_model(&mut self, path: &str) -> Result<Completer<u64>, MeshStorageError> {
         let model =
             TobjModel::load_from_obj(path).map_err(|e| MeshStorageError::TobjModelError(e))?;
@@ -416,10 +417,7 @@ impl ApplicationHandler<Event> for App {
             info!("Adding textures");
             while textures.len() > 0 {
                 let (mut completer, texture_init) = textures.remove(0);
-                let texture_id = renderer.new_texture(TextureInitData {
-                    image: texture_init.image,
-                    resize: texture_init.resize,
-                });
+                let texture_id = renderer.new_texture(texture_init);
                 completer.complete(texture_id).unwrap();
             }
 

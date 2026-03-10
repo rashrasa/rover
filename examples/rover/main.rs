@@ -39,6 +39,10 @@ fn main() {
     let penguin_model_completer = app
         .add_obj_model("examples/rover/assets/PenguinBaseMesh.obj")
         .unwrap();
+    let penguin_texture_completer = app.add_texture(TextureInitData {
+        image: image::load_from_memory(include_bytes!("assets/Penguin Diffuse Color.png")).unwrap(),
+        resize: ResizeStrategy::Stretch(FilterType::Gaussian),
+    });
 
     // app.add_player(PlayerInitData {
     //     mesh_id: mesh_completers.get(MESH_CUBE2 as usize).unwrap().clone(),
@@ -74,7 +78,7 @@ fn main() {
             for k in -3..4 {
                 app.add_object(ObjectInitData {
                     mesh_id: penguin_model_completer.clone(),
-                    texture_id: texture_completer.clone(),
+                    texture_id: penguin_texture_completer.clone(),
                     velocity: Vector3::new(1.0, 1.0, 1.0),
                     acceleration: Vector3::zeros(),
                     bounding_box: BoundingBox::new(
