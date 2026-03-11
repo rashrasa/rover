@@ -25,10 +25,11 @@ use crate::{
         world::terrain::World,
     },
     render::{
+        GlobalIndexType,
         model::{TobjModel, TobjModelError},
         renderer::Renderer,
         storage::{mesh::MeshStorageError, textures::ResizeStrategy},
-        vertex::Vertex,
+        vertex::default::DefaultVertexType,
     },
 };
 
@@ -37,7 +38,7 @@ const APP_START_PRECOND: Option<&str> = Some("App is started and renderer is ava
 pub struct AppInitData {
     pub width: u32,
     pub height: u32,
-    pub transform_meshes: Vec<(Completer<u64>, MeshInitData<Vertex>)>,
+    pub transform_meshes: Vec<(Completer<u64>, MeshInitData<DefaultVertexType>)>,
     pub textures: Vec<(Completer<u64>, TextureInitData)>,
     pub players: Vec<(Completer<u64>, PlayerInitData)>,
     pub objects: Vec<(Completer<u64>, ObjectInitData)>,
@@ -48,7 +49,7 @@ impl AppInitData {
         self,
     ) -> (
         (u32, u32),
-        Vec<(Completer<u64>, MeshInitData<Vertex>)>,
+        Vec<(Completer<u64>, MeshInitData<DefaultVertexType>)>,
         Vec<(Completer<u64>, PlayerInitData)>,
         Vec<(Completer<u64>, TextureInitData)>,
         Vec<(Completer<u64>, ObjectInitData)>,
@@ -68,7 +69,7 @@ where
     V: Pod + Zeroable + Clone + Copy + std::fmt::Debug,
 {
     pub vertices: Vec<V>,
-    pub indices: Vec<u32>,
+    pub indices: Vec<GlobalIndexType>,
 }
 
 pub struct ObjectInitData {
@@ -224,16 +225,16 @@ impl App {
     pub fn add_obj_model(&mut self, path: &str) -> Result<Completer<u64>, MeshStorageError> {
         let model =
             TobjModel::load_from_obj(path).map_err(|e| MeshStorageError::TobjModelError(e))?;
-        let indices: Vec<u32> = model
+        let indices: Vec<GlobalIndexType> = model
             .model()
             .mesh
             .indices
             .iter()
-            .map(|i| *i as u32)
+            .map(|i| *i as GlobalIndexType)
             .collect();
         let mut vertices = vec![];
         for i in 0..model.model().mesh.positions.len() / 3 {
-            vertices.push(Vertex {
+            vertices.push(DefaultVertexType {
                 position: [
                     model.model().mesh.positions[i * 3],
                     model.model().mesh.positions[i * 3 + 1],
@@ -273,7 +274,7 @@ impl App {
     /// Returns a Completer which resolves to a mesh id.
     pub fn add_mesh(
         &mut self,
-        mesh: MeshInitData<Vertex>,
+        mesh: MeshInitData<DefaultVertexType>,
     ) -> Result<Completer<u64>, MeshStorageError> {
         let completer = Completer::new(APP_START_PRECOND);
         match &mut self.state {

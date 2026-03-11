@@ -24,9 +24,12 @@ use wgpu::{
 use crate::{
     core::{Instanced, Meshed, Unique},
     render::{
+        GLOBAL_INDEX_FORMAT,
         app::MeshInitData,
-        storage::instance::InstanceStorage,
-        storage::mesh::{MeshStorage, MeshStorageError},
+        storage::{
+            instance::InstanceStorage,
+            mesh::{MeshStorage, MeshStorageError},
+        },
     },
 };
 
@@ -183,7 +186,7 @@ where
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_vertex_buffer(0, self.meshes.vertex_slice(..));
-        render_pass.set_index_buffer(self.meshes.index_slice(..), IndexFormat::Uint32);
+        render_pass.set_index_buffer(self.meshes.index_slice(..), GLOBAL_INDEX_FORMAT);
 
         for (i, bg) in uniforms.enumerate() {
             render_pass.set_bind_group(i as u32, Into::<&BindGroup>::into(**bg), &[]);

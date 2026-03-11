@@ -21,9 +21,9 @@ pub const DEFAULT_SYSTEMS: fn() -> Vec<Box<dyn System>> = || {
         Box::new(GravitySystem),
         //Box::new(EntitySpawnerSystem::new(0, 0)),
         Box::new(SoftBoundarySystem::new(
-            [-100.0, 100.0],
-            [-100.0, 100.0],
-            [-100.0, 100.0],
+            [-50.0, 50.0],
+            [-50.0, 50.0],
+            [-50.0, 50.0],
         )),
     ]
 };

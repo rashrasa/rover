@@ -13,7 +13,7 @@ use agate_engine::{
     render::{
         app::{App, MeshInitData, ObjectInitData, TextureInitData},
         storage::textures::ResizeStrategy,
-        vertex::Vertex,
+        vertex::default::DefaultVertexType,
     },
 };
 use image::imageops::FilterType;
@@ -101,7 +101,7 @@ fn main() {
     App::start(&mut app);
 }
 
-fn get_sample_meshes() -> Vec<MeshInitData<Vertex>> {
+fn get_sample_meshes() -> Vec<MeshInitData<DefaultVertexType>> {
     let resolution = 32.0;
 
     let ground = Face::from_function(

@@ -28,7 +28,7 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(_seed: u64) -> Self {
+    pub fn new(seed: u64) -> Self {
         Self {
             terrain: Terrain {
                 chunks_loaded: HashMap::new(),
@@ -43,10 +43,12 @@ impl World {
                 radius: 6.963e8,
                 distance: 150.0e9,
                 luminance: 3.75e28,
+                _padding: [0.0],
             },
             moon: Moon {
                 radius: 1.738e6,
                 distance: 3.844e8,
+                _padding: [0.0, 0.0],
             },
         }
     }
@@ -69,6 +71,7 @@ pub struct Sun {
     radius: f32,
     distance: f32,
     luminance: f32,
+    _padding: [f32; 1],
 }
 
 #[repr(C)]
@@ -76,4 +79,5 @@ pub struct Sun {
 pub struct Moon {
     radius: f32,
     distance: f32,
+    _padding: [f32; 2],
 }

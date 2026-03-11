@@ -7,11 +7,11 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::render::model::TobjModelError;
+use crate::render::{GlobalIndexType, model::TobjModelError};
 
 /// Stores a vertex and index buffer on main memory, can be hashed into with a string id to get the start and end indices.
 ///
-/// Meshes can't be removed once added, for now. Max vertices: 2^16 = 65536
+/// Meshes can't be removed once added, for now.
 #[derive(Debug)]
 pub struct MeshStorage<V>
 where
@@ -23,7 +23,7 @@ where
     vertex_buffer: Buffer,
     vertex_buffer_cap: usize,
 
-    index_storage: Vec<u32>,
+    index_storage: Vec<GlobalIndexType>,
     index_buffer: Buffer,
     index_buffer_cap: usize,
 }
@@ -58,11 +58,15 @@ where
     }
 
     /// [indices] should be relative to [vertices] locations in provided slice.
-    pub fn add_mesh(&mut self, vertices: &[V], indices: &[u32]) -> Result<u64, MeshStorageError> {
+    pub fn add_mesh(
+        &mut self,
+        vertices: &[V],
+        indices: &[GlobalIndexType],
+    ) -> Result<u64, MeshStorageError> {
         let before_count_vertices = self.vertex_storage.len();
         let before_count_indexes = self.index_storage.len();
         let n = vertices.len();
-        if before_count_vertices + n > u32::MAX as usize {
+        if before_count_vertices + n > GlobalIndexType::MAX as usize {
             return Err(MeshStorageError::MaxVerticesExceeded);
         }
         let id = self.map.len() as u64;
@@ -78,7 +82,7 @@ where
         self.index_storage.extend(
             indices
                 .iter()
-                .map(|index| *index + before_count_vertices as u32),
+                .map(|index| *index + before_count_vertices as GlobalIndexType),
         );
 
         // TODO: Inserting a mesh with the same mesh_id multiple times will result in dead vertices/indices.
@@ -154,7 +158,7 @@ where
     /// Returns a direct representation of a mesh.
     ///
     /// Likely not needed for draw calls. Use get_mesh_index_bounds instead.
-    pub fn get_mesh(&self, mesh_id: &u64) -> Option<(&[V], &[u32])> {
+    pub fn get_mesh(&self, mesh_id: &u64) -> Option<(&[V], &[GlobalIndexType])> {
         self.map.get(mesh_id).map(|(s_v, e_v, s_i, e_i)| {
             (
                 &self.vertex_storage[*s_v..*e_v],

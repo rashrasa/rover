@@ -1,3 +1,5 @@
+use wgpu::IndexFormat;
+
 pub mod app;
 pub mod gui;
 pub mod model;
@@ -15,3 +17,6 @@ pub mod vertex;
            c. Entire instance buffer is copied to VRAM (update_gpu())
            d. Each mesh gets own draw_instanced call
 */
+
+pub type GlobalIndexType = u32;
+pub const GLOBAL_INDEX_FORMAT: IndexFormat = IndexFormat::Uint32;

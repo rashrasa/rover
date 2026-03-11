@@ -26,7 +26,10 @@ use crate::{
         gui::EguiRenderer,
         module::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
         storage::{mesh, textures::TextureStorage},
-        vertex::Vertex,
+        vertex::{
+            default::{DefaultInstanceType, DefaultVertexType},
+            terrain::{TerrainInstanceType, TerrainVertexType},
+        },
     },
 };
 
@@ -39,7 +42,8 @@ pub struct Renderer {
     config: SurfaceConfiguration,
     is_surface_configured: bool,
 
-    render_module_transformed: InstancedRenderModule<Vertex, [[f32; 4]; 4]>,
+    render_module_transformed: InstancedRenderModule<DefaultVertexType, DefaultInstanceType>,
+    render_module_terrain: InstancedRenderModule<TerrainVertexType, TerrainInstanceType>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
@@ -197,65 +201,116 @@ impl Renderer {
             1.0e6,
         );
 
-        let render_module_transformed = InstancedRenderModule::<Vertex, [[f32; 4]; 4]>::new(
-            &device,
-            Some("Transformed Render Module"),
-            &VertexSpec {
-                vertex_layout: Vertex::desc(),
-                instance_layout: Entity::desc(),
-            },
-            &ShaderSpec {
-                path: "src/render/shaders/default.wgsl".into(),
-                vertex_shader_name: "vs_main".into(),
-                fragment_shader_name: "fs_main".into(),
-            },
-            (vec![
-                UniformSpec {
-                    bind_group_layout: camera_bind_group_layout.clone(),
+        let render_module_transformed =
+            InstancedRenderModule::<DefaultVertexType, DefaultInstanceType>::new(
+                &device,
+                Some("Transformed Render Module"),
+                &VertexSpec {
+                    vertex_layout: DefaultVertexType::vertex_desc(),
+                    instance_layout: DefaultVertexType::instance_desc(),
                 },
-                UniformSpec {
-                    bind_group_layout: texture_bind_group_layout.clone(),
+                &ShaderSpec {
+                    path: "src/render/shaders/default.wgsl".into(),
+                    vertex_shader_name: "vs_main".into(),
+                    fragment_shader_name: "fs_main".into(),
                 },
-                UniformSpec {
-                    bind_group_layout: lights.layout().clone(),
+                (vec![
+                    UniformSpec {
+                        bind_group_layout: camera_bind_group_layout.clone(),
+                    },
+                    UniformSpec {
+                        bind_group_layout: texture_bind_group_layout.clone(),
+                    },
+                    UniformSpec {
+                        bind_group_layout: lights.layout().clone(),
+                    },
+                    UniformSpec {
+                        bind_group_layout: depth_texture_bind_group_layout.clone(),
+                    },
+                ])
+                .iter(),
+                &RenderPipelineSpec {
+                    primitive: PrimitiveState {
+                        topology: PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: FrontFace::Ccw,
+                        cull_mode: Some(Face::Back),
+                        polygon_mode: PolygonMode::Fill,
+                        unclipped_depth: false,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: true,
+                        depth_compare: CompareFunction::Less,
+                        stencil: StencilState::default(),
+                        bias: DepthBiasState::default(),
+                    }),
+                    multisample: MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                    cache: None,
+                    fragment_color_target_state: Some(ColorTargetState {
+                        format: config.format,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::ALL,
+                    }),
                 },
-                UniformSpec {
-                    bind_group_layout: depth_texture_bind_group_layout.clone(),
+            )
+            .unwrap();
+
+        let render_module_terrain =
+            InstancedRenderModule::<TerrainVertexType, TerrainInstanceType>::new(
+                &device,
+                Some("Transformed Render Module"),
+                &VertexSpec {
+                    vertex_layout: TerrainVertexType::vertex_desc(),
+                    instance_layout: TerrainVertexType::instance_desc(),
                 },
-            ])
-            .iter(),
-            &RenderPipelineSpec {
-                primitive: PrimitiveState {
-                    topology: PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: FrontFace::Ccw,
-                    cull_mode: Some(Face::Back),
-                    polygon_mode: PolygonMode::Fill,
-                    unclipped_depth: false,
-                    conservative: false,
+                &ShaderSpec {
+                    path: "src/render/shaders/terrain.wgsl".into(),
+                    vertex_shader_name: "vs_main".into(),
+                    fragment_shader_name: "fs_main".into(),
                 },
-                depth_stencil: Some(DepthStencilState {
-                    format: TextureFormat::Depth32Float,
-                    depth_write_enabled: true,
-                    depth_compare: CompareFunction::Less,
-                    stencil: StencilState::default(),
-                    bias: DepthBiasState::default(),
-                }),
-                multisample: MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
+                (vec![
+                    // TODO: Add sun and moon
+                ])
+                .iter(),
+                &RenderPipelineSpec {
+                    primitive: PrimitiveState {
+                        topology: PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: FrontFace::Ccw,
+                        cull_mode: Some(Face::Back),
+                        polygon_mode: PolygonMode::Fill,
+                        unclipped_depth: false,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: true,
+                        depth_compare: CompareFunction::Less,
+                        stencil: StencilState::default(),
+                        bias: DepthBiasState::default(),
+                    }),
+                    multisample: MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                    cache: None,
+                    fragment_color_target_state: Some(ColorTargetState {
+                        format: config.format,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::ALL,
+                    }),
                 },
-                multiview: None,
-                cache: None,
-                fragment_color_target_state: Some(ColorTargetState {
-                    format: config.format,
-                    blend: Some(BlendState::REPLACE),
-                    write_mask: ColorWrites::ALL,
-                }),
-            },
-        )
-        .unwrap();
+            )
+            .unwrap();
 
         let depth_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Depth Bind Group"),
@@ -306,6 +361,7 @@ impl Renderer {
             is_surface_configured: false,
 
             render_module_transformed,
+            render_module_terrain,
 
             depth_texture,
             depth_view,
@@ -367,7 +423,7 @@ impl Renderer {
     /// with a full transform as the instance and the default vertex type.
     pub fn add_mesh_instanced(
         &mut self,
-        mesh: MeshInitData<Vertex>,
+        mesh: MeshInitData<DefaultVertexType>,
     ) -> Result<u64, mesh::MeshStorageError> {
         self.render_module_transformed
             .add_mesh(&self.device, &self.queue, mesh)

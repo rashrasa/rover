@@ -124,35 +124,6 @@ impl Entity {
     pub fn texture_id(&self) -> &u64 {
         &self.texture_id
     }
-
-    pub const fn desc() -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<[[f32; 4]; 4]>() as BufferAddress,
-            step_mode: VertexStepMode::Instance,
-            attributes: &[
-                VertexAttribute {
-                    offset: 0,
-                    shader_location: 5,
-                    format: VertexFormat::Float32x4,
-                },
-                VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 4]>() as BufferAddress,
-                    shader_location: 6,
-                    format: VertexFormat::Float32x4,
-                },
-                VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 8]>() as BufferAddress,
-                    shader_location: 7,
-                    format: VertexFormat::Float32x4,
-                },
-                VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 12]>() as BufferAddress,
-                    shader_location: 8,
-                    format: VertexFormat::Float32x4,
-                },
-            ],
-        }
-    }
 }
 
 impl Meshed<u64> for Entity {
