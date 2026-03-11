@@ -1,5 +1,9 @@
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
-use std::sync::Arc;
+use serde_json::Value;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
@@ -50,8 +54,6 @@ pub struct Renderer {
 
     egui_renderer: EguiRenderer,
 }
-
-pub struct A;
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Self {
@@ -274,8 +276,22 @@ impl Renderer {
                 predictable_texture_filtering: false,
             },
             window.clone(),
-            |ui| {
-                ui.label("Test Test Test Test Test Test Test Test Test Test Test Test Test Test");
+            |ui, data| {
+                let mut display_str = String::new();
+                if let Ok(data) = data.read() {
+                    if let Some(cpu) = data.get("cpu") {
+                        display_str += &format!("CPU Time: {:.2}", cpu.as_f64().unwrap_or(0.0));
+                    }
+
+                    if let Some(gpu) = data.get("gpu") {
+                        display_str += &format!(" GPU Time: {:.2}", gpu.as_f64().unwrap_or(0.0))
+                    }
+
+                    if let Some(fps) = data.get("fps") {
+                        display_str += &format!(" FPS: {:.2}", fps.as_f64().unwrap_or(0.0));
+                    }
+                }
+                ui.label(display_str);
             },
         );
 
@@ -305,6 +321,10 @@ impl Renderer {
 
             egui_renderer,
         }
+    }
+
+    pub fn gui_data(&self) -> Arc<RwLock<HashMap<String, Value>>> {
+        self.egui_renderer.data()
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {

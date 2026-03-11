@@ -1,6 +1,11 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
 
 use log::info;
+use serde_json::{Number, Value};
 
 use crate::core;
 
@@ -17,6 +22,8 @@ pub struct MetricsSystem {
     start_render: Instant,
     window_rendering: Duration,
     n_renders: u64,
+
+    gui_data: Option<Arc<RwLock<HashMap<String, Value>>>>,
 }
 
 impl MetricsSystem {
@@ -32,12 +39,14 @@ impl MetricsSystem {
             start_render: Instant::now(),
             window_rendering: Duration::ZERO,
             n_renders: 0,
+
+            gui_data: None,
         }
     }
 }
 
 impl core::System for MetricsSystem {
-    fn before_start(&mut self, _args: &mut core::BeforeStartArgs) {
+    fn before_start(&mut self, args: &mut core::BeforeStartArgs) {
         self.window_start = Instant::now();
 
         self.start_tick = Instant::now();
@@ -47,6 +56,8 @@ impl core::System for MetricsSystem {
         self.start_render = Instant::now();
         self.window_rendering = Duration::ZERO;
         self.n_renders = 0;
+
+        self.gui_data = Some(args.renderer.gui_data());
     }
 
     fn before_input(&mut self, _args: &mut core::BeforeInputArgs) {
@@ -69,12 +80,33 @@ impl core::System for MetricsSystem {
         let window_time = self.window_start.elapsed();
         if window_time > self.window {
             let window_time = window_time.as_secs_f64();
+
+            let cpu_time = (self.window_ticking.as_secs_f64() / self.n_ticks as f64) * 1000.0;
+            let gpu_time = (self.window_rendering.as_secs_f64() / self.n_renders as f64) * 1000.0;
+            let fps = self.n_renders as f64 / window_time;
             info!(
                 "CPU/IO: {:.2}ms, Render: {:.2}ms, FPS: {:.2}",
-                (self.window_ticking.as_secs_f64() / self.n_ticks as f64) * 1000.0,
-                (self.window_rendering.as_secs_f64() / self.n_renders as f64) * 1000.0,
-                (self.n_renders as f64 / window_time)
+                cpu_time, gpu_time, fps
             );
+
+            if let Some(gui_data) = &self.gui_data {
+                if let Ok(mut gui_data) = gui_data.write() {
+                    gui_data.insert(
+                        "cpu".into(),
+                        Value::Number(Number::from_f64(cpu_time).unwrap_or(Number::from(0))),
+                    );
+
+                    gui_data.insert(
+                        "gpu".into(),
+                        Value::Number(Number::from_f64(gpu_time).unwrap_or(Number::from(0))),
+                    );
+
+                    gui_data.insert(
+                        "fps".into(),
+                        Value::Number(Number::from_f64(fps).unwrap_or(Number::from(0))),
+                    );
+                }
+            }
 
             self.window_rendering = Duration::ZERO;
             self.window_ticking = Duration::ZERO;

@@ -1,18 +1,24 @@
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use egui::Context;
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
+use serde_json::Value;
 use wgpu::{
-    CommandEncoder, Device, Operations, Queue, RenderPass, RenderPassColorAttachment,
-    RenderPassDescriptor, TextureView,
+    CommandEncoder, Device, Operations, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    TextureView,
 };
 use winit::window::Window;
 
 pub struct EguiRenderer {
     state: egui_winit::State,
     window: Arc<Window>,
-    builder: Box<dyn Fn() -> Box<dyn FnOnce(&mut egui::Ui) + 'static>>,
+    builder: fn(&mut egui::Ui, Arc<RwLock<HashMap<String, serde_json::Value>>>),
     renderer: egui_wgpu::Renderer,
+
+    data: Arc<RwLock<HashMap<String, serde_json::Value>>>,
 }
 
 impl EguiRenderer {
@@ -24,9 +30,8 @@ impl EguiRenderer {
         texture_format: wgpu::TextureFormat,
         renderer_options: RendererOptions,
         window: Arc<Window>,
-        builder: impl FnOnce(&mut egui::Ui) + 'static + Clone,
+        builder: fn(&mut egui::Ui, Arc<RwLock<HashMap<String, serde_json::Value>>>),
     ) -> Self {
-        let builder = Box::new(builder);
         let ctx = Context::default();
 
         let egui_state = egui_winit::State::new(
@@ -43,13 +48,10 @@ impl EguiRenderer {
         Self {
             state: egui_state,
             window,
-            builder: Box::new(move || {
-                // Capture any variables here
-                let builder = builder.clone();
-
-                Box::new(|ui| (builder)(ui))
-            }),
+            builder,
             renderer,
+
+            data: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -69,7 +71,9 @@ impl EguiRenderer {
         egui::containers::TopBottomPanel::bottom("root")
             .max_height(window_surface_view.texture().height() as f32 / 4.0)
             .frame(egui::Frame::NONE)
-            .show(self.state.egui_ctx(), (self.builder)());
+            .show(self.state.egui_ctx(), |ui| {
+                (self.builder)(ui, self.data.clone())
+            });
 
         // Draw
         let output = self.state.egui_ctx().end_pass();
@@ -111,5 +115,9 @@ impl EguiRenderer {
         for id in output.textures_delta.free {
             self.renderer.free_texture(&id);
         }
+    }
+
+    pub fn data(&self) -> Arc<RwLock<HashMap<String, Value>>> {
+        self.data.clone()
     }
 }
