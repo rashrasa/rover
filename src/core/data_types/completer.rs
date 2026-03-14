@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// Consuming this data returns a cloned version of the resolved value.
 #[derive(Debug, Clone)]
-pub struct Completer<T: Clone> {
+pub struct Completer<T: Clone + Copy> {
     precondition: Option<&'static str>,
     inner: Arc<Mutex<Option<T>>>,
 }
@@ -50,7 +50,7 @@ impl<T: Clone + Copy> Completer<T> {
 }
 
 #[derive(Debug)]
-pub enum CompleterError<T: Clone> {
+pub enum CompleterError<T: Clone + Copy> {
     Completed(T),
     PreconditionFailed(&'static str),
 }

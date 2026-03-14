@@ -4,6 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
 use log::{error, info};
 use nalgebra::{UnitQuaternion, Vector3};
+use serde_json::{Number, Value};
 use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalSize, Size},
@@ -656,6 +657,48 @@ impl ApplicationHandler<Event> for App {
                         for system in self.systems.iter_mut() {
                             system.after_render(&mut after_render);
                         }
+                    }
+                    {
+                        let up = state.current_camera.get_up();
+                        let right = state.current_camera.get_right();
+                        let center = state.current_camera.get_center();
+                        let position = state.current_camera.position();
+
+                        let data_arc = renderer.gui_data();
+                        let mut data = data_arc.write().unwrap();
+                        data.insert(
+                            "v_up".into(),
+                            Value::Array(vec![
+                                Value::Number(Number::from_f64(up.x as f64).unwrap()),
+                                Value::Number(Number::from_f64(up.y as f64).unwrap()),
+                                Value::Number(Number::from_f64(up.z as f64).unwrap()),
+                            ]),
+                        );
+                        data.insert(
+                            "v_right".into(),
+                            Value::Array(vec![
+                                Value::Number(Number::from_f64(right.x as f64).unwrap()),
+                                Value::Number(Number::from_f64(right.y as f64).unwrap()),
+                                Value::Number(Number::from_f64(right.z as f64).unwrap()),
+                            ]),
+                        );
+                        data.insert(
+                            "v_center".into(),
+                            Value::Array(vec![
+                                Value::Number(Number::from_f64(center.x as f64).unwrap()),
+                                Value::Number(Number::from_f64(center.y as f64).unwrap()),
+                                Value::Number(Number::from_f64(center.z as f64).unwrap()),
+                            ]),
+                        );
+
+                        data.insert(
+                            "v_position".into(),
+                            Value::Array(vec![
+                                Value::Number(Number::from_f64(position.x as f64).unwrap()),
+                                Value::Number(Number::from_f64(position.y as f64).unwrap()),
+                                Value::Number(Number::from_f64(position.z as f64).unwrap()),
+                            ]),
+                        );
                     }
 
                     renderer.window().request_redraw();

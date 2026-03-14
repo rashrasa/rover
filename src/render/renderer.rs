@@ -341,28 +341,74 @@ impl Renderer {
             },
             window.clone(),
             |ui, data| {
-                let mut display_str = String::new();
+                let mut metrics_str = String::new();
+                let mut debug_str = String::new();
                 if let Ok(data) = data.read() {
                     if let Some(cpu) = data.get("cpu") {
-                        display_str += &format!("CPU Time: {:.2}", cpu.as_f64().unwrap_or(-1.0));
+                        metrics_str += &format!("CPU Time: {:.2}", cpu.as_f64().unwrap_or(-1.0));
                     }
 
                     if let Some(gpu) = data.get("gpu") {
-                        display_str += &format!(" GPU Time: {:.2}", gpu.as_f64().unwrap_or(-1.0))
+                        metrics_str += &format!(" GPU Time: {:.2}", gpu.as_f64().unwrap_or(-1.0))
                     }
 
                     if let Some(fps) = data.get("fps") {
-                        display_str += &format!(" FPS: {:.2}", fps.as_f64().unwrap_or(-1.0));
+                        metrics_str += &format!(" FPS: {:.2}", fps.as_f64().unwrap_or(-1.0));
                     }
 
                     if let Some(anomalies) = data.get("anomalies") {
-                        display_str += &format!(
+                        metrics_str += &format!(
                             " Entities with NaN accelerations: {:.2}",
                             anomalies.as_i64().unwrap_or(-1)
                         );
                     }
+
+                    if let Some(up) = data.get("v_up") {
+                        if let Some(up) = up.as_array() {
+                            debug_str += &format!(
+                                " up: ({:.2},{:.2},{:.2})",
+                                up[0].as_f64().unwrap_or(-1.0),
+                                up[1].as_f64().unwrap_or(-1.0),
+                                up[2].as_f64().unwrap_or(-1.0)
+                            );
+                        }
+                    }
+
+                    if let Some(right) = data.get("v_right") {
+                        if let Some(right) = right.as_array() {
+                            debug_str += &format!(
+                                " right: ({:.2},{:.2},{:.2})",
+                                right[0].as_f64().unwrap_or(-1.0),
+                                right[1].as_f64().unwrap_or(-1.0),
+                                right[2].as_f64().unwrap_or(-1.0)
+                            );
+                        }
+                    }
+
+                    if let Some(center) = data.get("v_center") {
+                        if let Some(center) = center.as_array() {
+                            debug_str += &format!(
+                                " center: ({:.2},{:.2},{:.2})",
+                                center[0].as_f64().unwrap_or(-1.0),
+                                center[1].as_f64().unwrap_or(-1.0),
+                                center[2].as_f64().unwrap_or(-1.0)
+                            );
+                        }
+                    }
+
+                    if let Some(position) = data.get("v_position") {
+                        if let Some(position) = position.as_array() {
+                            debug_str += &format!(
+                                " position: ({:.2},{:.2},{:.2})",
+                                position[0].as_f64().unwrap_or(-1.0),
+                                position[1].as_f64().unwrap_or(-1.0),
+                                position[2].as_f64().unwrap_or(-1.0)
+                            );
+                        }
+                    }
                 }
-                ui.label(display_str);
+                ui.label(metrics_str);
+                ui.label(debug_str);
             },
         );
 

@@ -8,7 +8,7 @@ use wgpu::{
 };
 use winit::keyboard::KeyCode;
 
-use crate::core::CAMERA_SPEED;
+use crate::{Float, core::CAMERA_SPEED};
 
 pub trait Camera {
     fn look_up(&mut self, amount: f32);
@@ -23,10 +23,11 @@ pub struct NoClipCamera {
     buffer: Buffer,
     bind_group: BindGroup,
 
-    position: Vector3<f32>,
-    yaw: f32,
-    pitch: f32,
-    roll: f32,
+    position: Vector3<Float>,
+
+    up: UnitVector3<Float>,
+    right: UnitVector3<Float>,
+    center: UnitVector3<Float>,
 
     projection: Projection,
 
@@ -48,11 +49,14 @@ impl NoClipCamera {
         let (sin_yaw, cos_yaw) = yaw.sin_cos();
         let (sin_pitch, cos_pitch) = pitch.sin_cos();
 
-        let view = Matrix4::look_at_rh(
-            &position.into(),
-            &(Point3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position),
-            &[0.0, 1.0, 0.0].into(),
-        );
+        let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position;
+        let up = Rotation3::from_axis_angle(
+            &UnitVector3::new_normalize(Vector3::new(1.0, 0.0, 0.0)),
+            roll,
+        ) * Vector3::new(0.0, 1.0, 0.0);
+        let right = center.cross(&up);
+
+        let view = Matrix4::look_at_rh(&position.into(), &(center.into()), &up);
         let view_proj: Matrix4<f32> = (projection.projection() * view).into();
 
         let buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -72,11 +76,11 @@ impl NoClipCamera {
 
         Self {
             position,
-            yaw,
-            pitch,
-            projection,
-            roll,
+            up: UnitVector3::new_normalize(up),
+            right: UnitVector3::new_normalize(right),
+            center: UnitVector3::new_normalize(center),
 
+            projection,
             bind_group,
             buffer,
             view_proj,
@@ -92,35 +96,31 @@ impl NoClipCamera {
     }
 
     pub fn forward(&mut self, amount: f32) {
-        let (sin, cos) = self.yaw.sin_cos();
-        let p_sin = self.pitch.sin();
-        let dy = {
-            if crate::core::CAMERA_USES_PITCH {
-                amount * p_sin
-            } else {
-                0.0
-            }
+        let direction = if crate::core::CAMERA_USES_PITCH {
+            *self.center
+        } else {
+            let mut a = *self.center;
+            a.y = 0.0;
+            a
         };
-        self.translate(&[amount * cos, dy, amount * sin].into());
+
+        self.translate(&(amount * direction));
     }
     pub fn right(&mut self, amount: f32) {
-        let (sin, cos) = self.yaw.sin_cos();
-        self.translate(&[-amount * sin, 0.0, amount * cos].into());
+        self.translate(&(amount * *self.right));
     }
 
     pub fn roll_ccw(&mut self, amount: f32) {
-        self.roll += amount;
+        let rot = Rotation3::from_axis_angle(&self.center, amount);
+        self.up = rot * self.up;
+        self.right = rot * self.right;
     }
 
     fn create_view(&self) -> Matrix4<f32> {
-        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
-        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
-        let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
         Matrix4::look_at_rh(
             &(self.position.into()),
-            &(Into::<Point3<f32>>::into([center.x, center.y, center.z]) + self.position),
-            &(Rotation3::from_axis_angle(&(UnitVector3::new_normalize(center)), self.roll)
-                * Vector3::new(0.0, 1.0, 0.0)),
+            &(Into::<Point3<f32>>::into(*self.center) + self.position),
+            &self.up,
         )
     }
 
@@ -129,12 +129,22 @@ impl NoClipCamera {
         self.view_proj = self.projection.projection() * self.create_view();
     }
 
-    pub fn view_proj(&self) -> &nalgebra::Matrix4<f32> {
+    pub fn view_proj(&self) -> &nalgebra::Matrix4<Float> {
         &self.view_proj
     }
 
-    pub fn position(&self) -> &Vector3<f32> {
+    pub fn position(&self) -> &Vector3<Float> {
         &self.position
+    }
+
+    pub fn get_up(&self) -> &UnitVector3<Float> {
+        &self.up
+    }
+    pub fn get_right(&self) -> &UnitVector3<Float> {
+        &self.right
+    }
+    pub fn get_center(&self) -> &UnitVector3<Float> {
+        &self.center
     }
 }
 
@@ -143,11 +153,16 @@ impl Camera for NoClipCamera {
         &self.bind_group
     }
     fn look_up(&mut self, amount: f32) {
-        self.pitch += amount;
-        self.pitch = self.pitch.max(-PI / 2.0 + 0.1).min(PI / 2.0 - 0.1);
+        let rot = Rotation3::from_axis_angle(&self.right, amount); // may need to be -amount
+
+        self.up = rot * self.up;
+        self.center = rot * self.center;
     }
     fn look_ccw(&mut self, amount: f32) {
-        self.yaw += amount;
+        let rot = Rotation3::from_axis_angle(&self.up, amount); // may need to be -amount
+
+        self.right = rot * self.right;
+        self.center = rot * self.center;
     }
     fn update(&mut self, keys_pressed: &HashMap<KeyCode, bool>, dt: f32) {
         let mut camera_forward: f32 = 0.0;

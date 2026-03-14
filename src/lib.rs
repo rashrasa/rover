@@ -24,3 +24,5 @@ pub enum Integrator {
     Euler,
     RK4,
 }
+
+pub type Float = f32;
