@@ -54,7 +54,7 @@ impl InputController {
                         (size.height as f32 / 2.0 - position.y as f32) / size.height as f32 * PI,
                     );
                     camera.look_ccw(
-                        (position.x as f32 - size.width as f32 / 2.0) / size.width as f32 * PI,
+                        -(size.width as f32 / 2.0 - position.x as f32) / size.width as f32 * PI,
                     );
                 }
             }

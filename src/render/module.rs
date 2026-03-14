@@ -156,6 +156,8 @@ where
 
     pub fn upsert_instances(
         &mut self,
+        // TODO: Allow for adding of static instances which dont need an ID and never get referenced.
+        // InstanceStorage will need to manage static and dynamic instances separately somehow.
         entities: &Vec<impl Instanced<I> + Meshed<u64> + Unique<u64>>,
     ) -> Result<(), String> {
         for entity in entities {

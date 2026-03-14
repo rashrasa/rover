@@ -1,4 +1,6 @@
+use egui::{Color32, RichText};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
+use nalgebra::Vector3;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -20,13 +22,18 @@ use wgpu::{
 use winit::window::Window;
 
 use crate::{
+    Float,
     core::{camera::Camera, entity::Entity, lights::LightSourceStorage},
     render::{
         app::{ActiveState, MeshInitData, TextureInitData},
         gui::EguiRenderer,
         module::{InstancedRenderModule, RenderPipelineSpec, ShaderSpec, UniformSpec, VertexSpec},
         storage::{mesh, textures::TextureStorage},
-        vertex::{DefaultInstanceType, DefaultVertexType, TerrainInstanceType, TerrainVertexType},
+        vertex::{
+            DefaultInstanceType, DefaultVertexType, MarkerInstanceType, MarkerVertexType,
+            TerrainInstanceType, TerrainVertexType,
+            marker::{MARKER_INDICES, MARKER_VERTICES, MarkerEntity},
+        },
     },
 };
 
@@ -41,6 +48,7 @@ pub struct Renderer {
 
     render_module_transformed: InstancedRenderModule<DefaultVertexType, DefaultInstanceType>,
     render_module_terrain: InstancedRenderModule<TerrainVertexType, TerrainInstanceType>,
+    render_module_markers: InstancedRenderModule<MarkerVertexType, MarkerInstanceType>,
 
     textures: TextureStorage,
     texture_bind_group_layout: BindGroupLayout,
@@ -201,7 +209,7 @@ impl Renderer {
         let render_module_transformed =
             InstancedRenderModule::<DefaultVertexType, DefaultInstanceType>::new(
                 &device,
-                Some("Transformed Render Module"),
+                Some("Main Render Module"),
                 &VertexSpec {
                     vertex_layout: DefaultVertexType::vertex_desc(),
                     instance_layout: DefaultVertexType::instance_desc(),
@@ -262,7 +270,7 @@ impl Renderer {
         let render_module_terrain =
             InstancedRenderModule::<TerrainVertexType, TerrainInstanceType>::new(
                 &device,
-                Some("Transformed Render Module"),
+                Some("Terrain Render Module"),
                 &VertexSpec {
                     vertex_layout: TerrainVertexType::vertex_desc(),
                     instance_layout: TerrainVertexType::instance_desc(),
@@ -320,6 +328,114 @@ impl Renderer {
                 },
             )
             .unwrap();
+
+        let mut render_module_markers =
+            InstancedRenderModule::<MarkerVertexType, MarkerInstanceType>::new(
+                &device,
+                Some("Markers' Render Module"),
+                &VertexSpec {
+                    vertex_layout: MarkerVertexType::vertex_desc(),
+                    instance_layout: MarkerVertexType::instance_desc(),
+                },
+                &ShaderSpec {
+                    path: "src/render/shaders/marker.wgsl".into(),
+                    vertex_shader_name: "vs_main".into(),
+                    fragment_shader_name: "fs_main".into(),
+                },
+                (vec![UniformSpec {
+                    bind_group_layout: camera_bind_group_layout.clone(),
+                }])
+                .iter(),
+                &RenderPipelineSpec {
+                    primitive: PrimitiveState {
+                        topology: PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: FrontFace::Ccw,
+                        cull_mode: Some(Face::Back),
+                        polygon_mode: PolygonMode::Fill,
+                        unclipped_depth: false,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: true,
+                        depth_compare: CompareFunction::Less,
+                        stencil: StencilState::default(),
+                        bias: DepthBiasState::default(),
+                    }),
+                    multisample: MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                    cache: None,
+                    fragment_color_target_state: Some(ColorTargetState {
+                        format: config.format,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::ALL,
+                    }),
+                },
+            )
+            .unwrap();
+
+        let right_mesh = render_module_markers
+            .add_mesh(
+                &device,
+                &queue,
+                MeshInitData {
+                    vertices: MARKER_VERTICES([1.0, 0.0, 0.0].into()),
+                    indices: MARKER_INDICES.to_vec(),
+                },
+            )
+            .unwrap();
+        let up_mesh = render_module_markers
+            .add_mesh(
+                &device,
+                &queue,
+                MeshInitData {
+                    vertices: MARKER_VERTICES([0.0, 1.0, 0.0].into()),
+                    indices: MARKER_INDICES.to_vec(),
+                },
+            )
+            .unwrap();
+        let forward_mesh = render_module_markers
+            .add_mesh(
+                &device,
+                &queue,
+                MeshInitData {
+                    vertices: MARKER_VERTICES([0.0, 0.0, 1.0].into()),
+                    indices: MARKER_INDICES.to_vec(),
+                },
+            )
+            .unwrap();
+
+        render_module_markers
+            .upsert_instances(&vec![
+                MarkerEntity {
+                    position: Vector3::zeros(),
+                    direction: Vector3::new(1.0, 0.0, 0.0),
+                    color: Vector3::new(1.0, 0.0, 0.0),
+                    id: 0,
+                    mesh_id: right_mesh,
+                },
+                MarkerEntity {
+                    position: Vector3::zeros(),
+                    direction: Vector3::new(0.0, 1.0, 0.0),
+                    color: Vector3::new(0.0, 1.0, 0.0),
+                    id: 1,
+                    mesh_id: up_mesh,
+                },
+                MarkerEntity {
+                    position: Vector3::zeros(),
+                    direction: Vector3::new(0.0, 0.0, 1.0),
+                    color: Vector3::new(0.0, 0.0, 1.0),
+                    id: 2,
+                    mesh_id: forward_mesh,
+                },
+            ])
+            .unwrap();
+        render_module_markers.update_gpu(&device, &queue);
 
         let depth_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Depth Bind Group"),
@@ -407,8 +523,8 @@ impl Renderer {
                         }
                     }
                 }
-                ui.label(metrics_str);
-                ui.label(debug_str);
+                ui.label(RichText::new(metrics_str).color(Color32::from_rgb(0, 0, 0)));
+                ui.label(RichText::new(debug_str).color(Color32::from_rgb(0, 0, 0)));
             },
         );
 
@@ -424,6 +540,7 @@ impl Renderer {
 
             render_module_transformed,
             render_module_terrain,
+            render_module_markers,
 
             depth_texture,
             depth_view,
@@ -571,6 +688,11 @@ impl Renderer {
                     &&self.depth_bind_group,
                 ]
                 .iter(),
+            );
+            // Draw markers above everything else
+            self.render_module_markers.draw_all(
+                &mut render_pass,
+                [&state.current_camera().bind_group()].iter(),
             );
         }
         self.egui_renderer.render(

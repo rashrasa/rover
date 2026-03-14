@@ -18,6 +18,7 @@ pub trait Camera {
     fn bind_group(&self) -> &BindGroup;
 }
 
+// TODO: Find out why up and right vectors seem to point at the negative of the correct direction.
 #[derive(Debug, Clone)]
 pub struct NoClipCamera {
     buffer: Buffer,
@@ -51,7 +52,7 @@ impl NoClipCamera {
 
         let center = Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw) + position;
         let up = Rotation3::from_axis_angle(
-            &UnitVector3::new_normalize(Vector3::new(1.0, 0.0, 0.0)),
+            &UnitVector3::new_normalize(Vector3::new(0.0, 0.0, 1.0)),
             roll,
         ) * Vector3::new(0.0, 1.0, 0.0);
         let right = center.cross(&up);
@@ -99,15 +100,15 @@ impl NoClipCamera {
         let direction = if crate::core::CAMERA_USES_PITCH {
             *self.center
         } else {
-            let mut a = *self.center;
-            a.y = 0.0;
-            a
+            let mut center = *self.center;
+            center.y = 0.0;
+            center.normalize()
         };
 
         self.translate(&(amount * direction));
     }
     pub fn right(&mut self, amount: f32) {
-        self.translate(&(amount * *self.right));
+        self.translate(&(-amount * *self.right));
     }
 
     pub fn roll_ccw(&mut self, amount: f32) {
@@ -153,13 +154,13 @@ impl Camera for NoClipCamera {
         &self.bind_group
     }
     fn look_up(&mut self, amount: f32) {
-        let rot = Rotation3::from_axis_angle(&self.right, amount); // may need to be -amount
+        let rot = Rotation3::from_axis_angle(&self.right, -amount);
 
         self.up = rot * self.up;
         self.center = rot * self.center;
     }
     fn look_ccw(&mut self, amount: f32) {
-        let rot = Rotation3::from_axis_angle(&self.up, amount); // may need to be -amount
+        let rot = Rotation3::from_axis_angle(&self.up, amount);
 
         self.right = rot * self.right;
         self.center = rot * self.center;
@@ -194,12 +195,12 @@ impl Camera for NoClipCamera {
         }
         if let Some(p) = keys_pressed.get(&KeyCode::KeyQ) {
             if *p {
-                roll_ccw += 0.025;
+                roll_ccw += 0.0025;
             }
         }
         if let Some(p) = keys_pressed.get(&KeyCode::KeyE) {
             if *p {
-                roll_ccw -= 0.025;
+                roll_ccw -= 0.0025;
             }
         }
         if let Some(p) = keys_pressed.get(&KeyCode::Space) {

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use egui::Context;
+use egui::{Color32, Context, Stroke};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use serde_json::Value;
 use wgpu::{

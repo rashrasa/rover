@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use cgmath::{InnerSpace, Matrix3, Rad, SquareMatrix, Vector3};
+use nalgebra::{Matrix3, Rotation3, UnitVector3, Vector3};
 
 use crate::render::{GlobalIndexType, vertex::DefaultVertexType};
 
@@ -345,7 +345,7 @@ impl Mesh for Shape3 {
 
 const H: f32 = 1e-04; // lower for more accurate results. too low risks underflow/floating point imprecision errors.
 // y is up here
-fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
+pub fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
     let dx = H / 2.0;
     let dz = H / 2.0;
     let dy_dx = (f(p.0 + dx, p.1) - f(p.0 - dx, p.1)) / (2.0 * H);
@@ -353,34 +353,38 @@ fn approximate_normal(f: fn(f32, f32) -> f32, p: (f32, f32)) -> Vector3<f32> {
     let grad_dx: Vector3<f32> = [1.0, dy_dx, 0.0].into();
     let grad_dz: Vector3<f32> = [0.0, dy_dz, 1.0].into();
 
-    grad_dx.cross(-grad_dz).normalize()
+    grad_dx.cross(&-grad_dz).normalize()
 }
 
-fn rotate_to_axis(axis: Vector3<f32>, original: Vector3<f32>) -> Matrix3<f32> {
+pub fn rotate_to_axis(axis: Vector3<f32>, original: Vector3<f32>) -> Matrix3<f32> {
     let axis = axis.normalize();
     let original = original.normalize();
     if axis == -original {
         let orthogonal = get_orthogonal(original).normalize();
 
-        return Matrix3::from_axis_angle(original.cross(orthogonal), Rad(PI));
+        return Rotation3::from_axis_angle(
+            &UnitVector3::new_normalize(original.cross(&orthogonal)),
+            PI,
+        )
+        .into();
     }
     if axis == original {
         return Matrix3::identity();
     }
 
-    let v = original.cross(axis);
+    let v = original.cross(&axis);
     let s = v.magnitude();
-    let c = original.dot(axis);
-    let v_x = Matrix3::from_cols(
+    let c = original.dot(&axis);
+    let v_x = Matrix3::from_columns(&[
         Vector3::new(0.0, v.z, -v.y),
         Vector3::new(-v.z, 0.0, v.x),
         Vector3::new(v.y, -v.x, 0.0),
-    );
+    ]);
 
     Matrix3::identity() + v_x + v_x * v_x * ((1.0 - c) / (s * s))
 }
 
-fn get_orthogonal(original: Vector3<f32>) -> Vector3<f32> {
+pub fn get_orthogonal(original: Vector3<f32>) -> Vector3<f32> {
     Vector3::new(
         original.y + original.z,
         original.z - original.x,
@@ -392,6 +396,9 @@ mod test {
     #![allow(unused_imports, dead_code)]
 
     use cgmath::assert_relative_eq;
+    use nalgebra::{ArrayStorage, Const, Matrix};
+
+    use crate::Float;
 
     use super::*;
 
@@ -411,26 +418,26 @@ mod test {
         let orthonormal_p: Vector3<f32> = [_isq3, _isq3, _isq3].into();
         let orthonormal_n: Vector3<f32> = [-_isq3, -_isq3, -_isq3].into();
 
-        assert_relative_eq!(rotate_to_axis(-Y_AXIS, Y_AXIS) * Y_AXIS, -Y_AXIS);
-        assert_relative_eq!(
+        assert_relative_eq_mat(rotate_to_axis(-Y_AXIS, Y_AXIS) * Y_AXIS, -Y_AXIS);
+        assert_relative_eq_mat(
             rotate_to_axis(orthonormal_n, orthonormal_p) * orthonormal_p,
-            orthonormal_n
+            orthonormal_n,
         );
-        assert_relative_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * Y_AXIS, -X_AXIS);
-        assert_relative_eq!(rotate_to_axis(X_AXIS, Y_AXIS) * Y_AXIS, X_AXIS);
+        assert_relative_eq_mat(rotate_to_axis(-X_AXIS, Y_AXIS) * Y_AXIS, -X_AXIS);
+        assert_relative_eq_mat(rotate_to_axis(X_AXIS, Y_AXIS) * Y_AXIS, X_AXIS);
 
-        assert_relative_eq!(rotate_to_axis(Y_AXIS, X_AXIS) * X_AXIS, Y_AXIS);
+        assert_relative_eq_mat(rotate_to_axis(Y_AXIS, X_AXIS) * X_AXIS, Y_AXIS);
 
-        assert_relative_eq!(rotate_to_axis(-X_AXIS, Y_AXIS) * ZERO, ZERO);
+        assert_relative_eq_mat(rotate_to_axis(-X_AXIS, Y_AXIS) * ZERO, ZERO);
 
-        assert_relative_eq!(rotate_to_axis(-Z_AXIS, Y_AXIS) * Y_AXIS, -Z_AXIS);
+        assert_relative_eq_mat(rotate_to_axis(-Z_AXIS, Y_AXIS) * Y_AXIS, -Z_AXIS);
     }
 
     #[test]
     fn approx_normal_test() {
         let flat_normal = approximate_normal(|_, _| 0.0, (0.0, 0.0));
 
-        assert_relative_eq!(flat_normal, Y_AXIS);
+        assert_relative_eq_mat(flat_normal, Y_AXIS);
     }
 
     #[test]
@@ -470,7 +477,16 @@ mod test {
         ];
 
         for axis in test_axes {
-            assert_relative_eq!(get_orthogonal(axis).dot(axis), 0.0);
+            assert_relative_eq!(get_orthogonal(axis).dot(&axis), 0.0);
+        }
+    }
+
+    fn assert_relative_eq_mat<const R: usize, const C: usize>(
+        a: Matrix<Float, Const<R>, Const<C>, ArrayStorage<Float, R, C>>,
+        b: Matrix<Float, Const<R>, Const<C>, ArrayStorage<Float, R, C>>,
+    ) {
+        for i in 0..R * C {
+            assert_relative_eq!(a[i], b[i]);
         }
     }
 }
